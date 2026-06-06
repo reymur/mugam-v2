@@ -1,22 +1,14 @@
-import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Lang } from '../types';
-import * as FireAuth    from '../firebase/auth';
-import * as FireStore   from '../firebase/firestore';
-import * as FireMsg     from '../firebase/messaging';
-import { fbFirestore }  from '../firebase/config';
-import { doc, getDoc }  from 'firebase/firestore';
-import { COLLECTIONS }  from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
+import { create } from 'zustand';
+import * as FireAuth from '../firebase/auth';
+import { COLLECTIONS, fbFirestore } from '../firebase/config';
+import * as FireStore from '../firebase/firestore';
+import * as FireMsg from '../firebase/messaging';
+import type { BoardItem, ChatItem, Event, FunCard, GigItem, Invite, Lang, MarketItem, Message, Musician, Room, UserProfile, VideoItem } from '../types';
 
 // Re-export all shared types from types.ts (screens import from here)
-export type {
-  UserProfile, Musician, Event, Room, GigItem, BoardItem,
-  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite,
-} from '../types';
-import type {
-  UserProfile, Musician, Event, Room, GigItem, BoardItem,
-  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite,
-} from '../types';
+export type { BoardItem, ChatItem, Event, FunCard, GigItem, Invite, MarketItem, Message, Musician, Room, UserProfile, VideoItem } from '../types';
 
 interface AppStore {
   user:            UserProfile | null;
@@ -416,20 +408,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   subscribeInvites: (uid) => {
     const { _addUnsub } = get();
-    // My sent invites
     _addUnsub(FireStore.subscribeMyInvites(uid, (invites) => {
       const ids = new Set(invites
         .filter(i => i.status === 'pending' && i.musicianId !== uid)
         .map(i => i.musicianId));
-      // Filter out self-invites from both lists
       set({
         myInvites:          invites.filter(i => i.musicianId !== uid),
         invitedMusicianIds: ids,
       });
     }));
-    // Received invites (for when current user IS a musician)
     _addUnsub(FireStore.subscribeReceivedInvites(uid, (invites) => {
-      // Filter out invites from yourself (can't invite yourself)
       set({ receivedInvites: invites.filter(i => i.fromUid !== uid) });
     }));
   },

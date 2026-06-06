@@ -1,10 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-// firebase/storage is NOT imported — it uses Node.js 'undici' which breaks in React Native
-// Storage will be enabled after EAS Build with @react-native-firebase/storage
 
-// ❗ Замени на свои значения из Firebase Console → Project settings → Your apps
 export const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk",
   authDomain: "mugam-club.firebaseapp.com",
@@ -15,13 +13,20 @@ export const FIREBASE_CONFIG = {
   measurementId: "G-G7ZP3P85DN"
 };
 
-const app = getApps().length === 0
+let app = getApps().length === 0
   ? initializeApp(FIREBASE_CONFIG)
   : getApp();
 
-export const fbAuth      = getAuth(app);
+// Use initializeAuth with AsyncStorage on first init
+// Use getAuth on subsequent hot reloads
+export const fbAuth = getApps().length === 1
+  ? initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    })
+  : getAuth(app);
+
 export const fbFirestore = getFirestore(app);
-export const fbStorage   = null as any; // disabled in Expo Go
+export const fbStorage   = null as any;
 
 export const COLLECTIONS = {
   USERS:         'users',
