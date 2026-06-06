@@ -1,0 +1,243 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors }     from '../../theme/colors';
+import { Typography } from '../../theme/typography';
+import { useAppStore } from '../../store/useAppStore';
+import { useT }        from '../../i18n';
+import type { Invite } from '../../store/useAppStore';
+import MusicianProfileScreen from '../../screens/Musician/MusicianProfileScreen';
+
+const SCREEN_W = Dimensions.get('window').width;
+
+// ── Single incoming invite card ───────────────────────────
+function IncomingCard({ invite, onPress }: { invite: Invite; onPress: () => void }) {
+  const { updateInviteStatus, showToast } = useAppStore();
+  const [loading, setLoading] = React.useState(false);
+
+  const statusColor = invite.status === 'accepted' ? Colors.green
+    : invite.status === 'declined' ? Colors.red : Colors.gold;
+  const statusLabel = invite.status === 'accepted' ? '✅ Qəbul edildi'
+    : invite.status === 'declined' ? '❌ Rədd edildi' : '🔔 Yeni dəvət';
+
+  return (
+    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
+      <View style={s.cardTop}>
+        <View style={s.ava}>
+          <Text style={{ fontSize: 20 }}>👤</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cardName} numberOfLines={1}>{invite.fromName}</Text>
+          {invite.fromCity ? <Text style={s.cardSub}>📍 {invite.fromCity}</Text> : null}
+          <Text style={s.cardTime}>{invite.createdAtStr ?? 'Az əvvəl'}</Text>
+        </View>
+        <View style={[s.statusBadge, { borderColor: statusColor, backgroundColor: `${statusColor}22` }]}>
+          <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
+        </View>
+      </View>
+
+      {invite.status === 'pending' && (
+        <View style={s.btns}>
+          <TouchableOpacity
+            style={[s.btn, { backgroundColor: Colors.green }]}
+            disabled={loading}
+            onPress={async () => {
+              setLoading(true);
+              await updateInviteStatus(invite.id, 'accepted').catch(() => {});
+              showToast(`✅ ${invite.fromName} — dəvəti qəbul etdiniz!`);
+              setLoading(false);
+            }}
+          >
+            {loading
+              ? <ActivityIndicator color="white" size="small" />
+              : <Text style={s.btnText}>✅ Qəbul Et</Text>
+            }
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.btn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red }]}
+            disabled={loading}
+            onPress={async () => {
+              setLoading(true);
+              await updateInviteStatus(invite.id, 'declined').catch(() => {});
+              showToast('❌ Rədd edildi');
+              setLoading(false);
+            }}
+          >
+            <Text style={[s.btnText, { color: Colors.red }]}>❌ Rədd Et</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ── Notifications Panel (incoming only) ───────────────────
+function NotificationsPanel({ onClose }: { onClose: () => void }) {
+  const { receivedInvites, musicians } = useAppStore();
+  const [selectedInvite, setSelectedInvite] = React.useState<Invite | null>(null);
+
+  const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
+
+  React.useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0, damping: 26, stiffness: 280, useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handleClose = () => {
+    Animated.timing(slideAnim, {
+      toValue: SCREEN_W, duration: 220, useNativeDriver: true,
+    }).start(onClose);
+  };
+
+  // Build minimal musician from invite for profile screen
+  const getMusicianFromInvite = (invite: Invite) => {
+    const found = musicians.find(m => (m.uid ?? m.id) === invite.fromUid);
+    if (found) return found;
+    return {
+      id:         invite.fromUid,
+      uid:        invite.fromUid,
+      name:       invite.fromName,
+      emoji:      '👤',
+      instrument: '',
+      city:       invite.fromCity ?? '',
+      rating:     5,
+      reviews:    0,
+    };
+  };
+
+  return (
+    <Animated.View style={[p.panel, { transform: [{ translateX: slideAnim }] }]}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+
+        {/* Header */}
+        <View style={p.header}>
+          <Text style={p.title}>🔔 Daxil olan dəvətlər</Text>
+          <TouchableOpacity style={p.closeBtn} onPress={handleClose} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
+            <Text style={p.closeText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+
+        {receivedInvites.length === 0 ? (
+          <View style={p.empty}>
+            <Text style={{ fontSize: 52 }}>📭</Text>
+            <Text style={p.emptyTitle}>Dəvət yoxdur</Text>
+            <Text style={p.emptyDesc}>Kimsə sizi tədbirə dəvət etdikdə burada görünəcək</Text>
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
+            {receivedInvites.map(inv => (
+              <IncomingCard
+                key={inv.id}
+                invite={inv}
+                onPress={() => setSelectedInvite(inv)}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+      </SafeAreaView>
+
+      {/* Open sender's profile on card tap */}
+      {selectedInvite && (
+        <MusicianProfileScreen
+          musician={getMusicianFromInvite(selectedInvite)}
+          onClose={() => setSelectedInvite(null)}
+        />
+      )}
+    </Animated.View>
+  );
+}
+
+// ── Topbar ────────────────────────────────────────────────
+interface TopbarProps {
+  title?:    string;
+  showLogo?: boolean;
+}
+
+export default function Topbar({ title, showLogo = true }: TopbarProps) {
+  const { lang, setLang, receivedInvites } = useAppStore();
+  const { t } = useT();
+  const [showNotifs, setShowNotifs] = React.useState(false);
+
+  // Only pending incoming count for badge
+  const pendingCount = receivedInvites.filter(i => i.status === 'pending').length;
+
+  return (
+    <>
+      <View style={styles.topbar}>
+        <View style={styles.logoWrap}>
+          {showLogo ? (
+            <>
+              <View style={styles.logoIcon}>
+                <Text style={{ fontSize: 18 }}>🎵</Text>
+              </View>
+              <View>
+                <Text style={styles.logoText}>{t('appName')}</Text>
+                <Text style={styles.logoSub}>{t('appSub')}</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.screenTitle}>{title}</Text>
+          )}
+        </View>
+
+        <View style={styles.topbarRight}>
+          <TouchableOpacity style={styles.tbtn} onPress={() => setShowNotifs(true)}>
+            <Text style={{ fontSize: 15 }}>🔔</Text>
+            {pendingCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{pendingCount > 9 ? '9+' : pendingCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.langBtn} onPress={() => setLang(lang === 'az' ? 'ru' : 'az')}>
+            <Text style={styles.langText}>{lang.toUpperCase()}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
+    </>
+  );
+}
+
+const s = StyleSheet.create({
+  card:       { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 13, marginBottom: 10 },
+  cardTop:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ava:        { width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, flexShrink: 0 },
+  cardName:   { fontFamily: Typography.nunito700, fontSize: 14, color: Colors.text, marginBottom: 2 },
+  cardSub:    { fontSize: 11, color: Colors.gold, fontFamily: Typography.nunito600 },
+  cardTime:   { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400, marginTop: 2 },
+  statusBadge:{ borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
+  statusText: { fontSize: 10, fontFamily: Typography.nunito700 },
+  btns:       { flexDirection: 'row', gap: 8, marginTop: 10 },
+  btn:        { flex: 1, paddingVertical: 9, borderRadius: 20, alignItems: 'center' },
+  btnText:    { fontSize: 12, fontFamily: Typography.nunito700, color: 'white' },
+});
+
+const p = StyleSheet.create({
+  panel:     { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.bg, zIndex: 200 },
+  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  title:     { fontFamily: Typography.playfair700, fontSize: 18, color: Colors.text },
+  closeBtn:  { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  closeText: { fontSize: 16, color: Colors.muted, fontFamily: Typography.nunito700 },
+  empty:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 30 },
+  emptyTitle:{ fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
+  emptyDesc: { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400 },
+});
+
+const styles = StyleSheet.create({
+  topbar:      { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.bg },
+  logoWrap:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoIcon:    { width: 36, height: 36, borderRadius: 10, backgroundColor: '#8b5a00', alignItems: 'center', justifyContent: 'center' },
+  logoText:    { fontFamily: Typography.playfair800, fontSize: 20, color: Colors.gold2, letterSpacing: 0.5 },
+  logoSub:     { fontSize: 10, color: Colors.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: Typography.nunito600 },
+  screenTitle: { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
+  topbarRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  tbtn:        { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  badge:       { position: 'absolute', top: -4, right: -4, backgroundColor: Colors.red, borderRadius: 8, paddingHorizontal: 4, paddingVertical: 1, minWidth: 16, alignItems: 'center', borderWidth: 2, borderColor: Colors.bg },
+  badgeText:   { color: 'white', fontSize: 9, fontFamily: Typography.nunito700 },
+  langBtn:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  langText:    { color: Colors.gold, fontSize: 12, fontFamily: Typography.nunito700, letterSpacing: 0.5 },
+});
