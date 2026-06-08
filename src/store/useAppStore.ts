@@ -1,21 +1,29 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, getDoc } from 'firebase/firestore';
 import { create } from 'zustand';
-import * as FireAuth from '../firebase/auth';
-import { COLLECTIONS, fbFirestore } from '../firebase/config';
-import * as FireStore from '../firebase/firestore';
-import * as FireMsg from '../firebase/messaging';
-import type { BoardItem, ChatItem, Event, FunCard, GigItem, Invite, Lang, MarketItem, Message, Musician, Room, UserProfile, VideoItem } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Lang } from '../types';
+import * as FireAuth    from '../firebase/auth';
+import * as FireStore   from '../firebase/firestore';
+import * as FireMsg     from '../firebase/messaging';
+import { fbFirestore }  from '../firebase/config';
+import { doc, getDoc }  from 'firebase/firestore';
+import { COLLECTIONS }  from '../firebase/config';
 
 // Re-export all shared types from types.ts (screens import from here)
-export type { BoardItem, ChatItem, Event, FunCard, GigItem, Invite, MarketItem, Message, Musician, Room, UserProfile, VideoItem } from '../types';
+export type {
+  UserProfile, Musician, Event, Room, GigItem, BoardItem,
+  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite,
+} from '../types';
+import type {
+  UserProfile, Musician, Event, Room, GigItem, BoardItem,
+  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite,
+} from '../types';
 
 interface AppStore {
   user:            UserProfile | null;
   authLoading:     boolean;
   authError:       string | null;
   isAuthenticated: boolean;
-  register:        (email: string, pass: string, name: string, inst: string, city: string) => Promise<void>;
+  register:        (email: string, pass: string, name: string, inst: string, city: string, role?: string) => Promise<void>;
   login:           (email: string, pass: string) => Promise<void>;
   logout:          () => Promise<void>;
   resetPassword:   (email: string) => Promise<void>;
@@ -133,18 +141,34 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setUser:        (u) => set({ user: u, isAuthenticated: !!u }),
   clearAuthError: ()  => set({ authError: null }),
 
-  register: async (email, pass, name, inst, city) => {
+  register: async (email, pass, name, inst, city, role = 'qonaq') => {
     set({ authLoading: true, authError: null });
     try {
-      const cred    = await FireAuth.registerWithEmail(email, pass, name, inst, city);
+      const cred = await FireAuth.registerWithEmail(email, pass, name, inst, city);
       const profile: UserProfile = {
         uid: cred.user.uid, displayName: name, email,
         instrument: inst, city, emoji: '🎵', bio: '',
         rating: 0, reviews: 0, available: false,
         verified: false, followers: 0, gigs: 0,
       };
+      // If user registered as musician — add to musicians collection
+      if (role === 'musiqici') {
+        await FireStore.saveUserAsMusician(cred.user.uid, {
+          id:         cred.user.uid,
+          uid:        cred.user.uid,
+          name,
+          emoji:      '🎵',
+          instrument: inst,
+          city,
+          rating:     0,
+          reviews:    0,
+          available:  false,
+          goldRing:   false,
+          online:     true,
+          bio:        '',
+        });
+      }
       set({ user: profile, isAuthenticated: true, authLoading: false });
-      // FCM token failure should NOT block login
       FireMsg.registerFCMToken(cred.user.uid).then(unsub => get()._addUnsub(unsub)).catch(() => {});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Qeydiyyat xətası';

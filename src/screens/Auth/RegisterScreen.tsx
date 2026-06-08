@@ -12,10 +12,13 @@ import { useAppStore } from '../../store/useAppStore';
 const INSTRUMENTS = ['🎻 Kaman','🎤 Müğənni','🪗 Qarmon','🎵 Tar','🎷 Balaban','🥁 Zərb','🎸 Gitara','🎹 Piano','🎺 Zurna'];
 const CITIES = ['Bakı','Gəncə','Şəki','Lənkəran','Sumqayıt','Şamaxı','Naxçıvan','Mingəçevir'];
 
+type Role = 'musiqici' | 'qonaq';
+
 interface Props { onGoLogin: () => void; }
 
 export default function RegisterScreen({ onGoLogin }: Props) {
   const { register, authLoading, authError, clearAuthError } = useAppStore();
+  const [role,     setRole]     = useState<Role | null>(null);
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [pass,     setPass]     = useState('');
@@ -28,15 +31,25 @@ export default function RegisterScreen({ onGoLogin }: Props) {
   const handleRegister = useCallback(async () => {
     setLocalErr('');
     clearAuthError();
+    if (!role)           { setLocalErr('⚠️ Rol seçin'); return; }
     if (!name.trim())    { setLocalErr('⚠️ Ad daxil edin'); return; }
     if (!email.trim())   { setLocalErr('⚠️ E-poçt daxil edin'); return; }
     if (pass.length < 6) { setLocalErr('⚠️ Şifrə ən azı 6 simvol olmalıdır'); return; }
     if (pass !== pass2)  { setLocalErr('⚠️ Şifrələr uyğun gəlmir'); return; }
-    if (!inst)           { setLocalErr('⚠️ Alət seçin'); return; }
+    if (role === 'musiqici' && !inst) { setLocalErr('⚠️ Alət seçin'); return; }
     if (!city)           { setLocalErr('⚠️ Şəhər seçin'); return; }
-    try { await register(email.trim().toLowerCase(), pass, name.trim(), inst, city); }
-    catch { /* shown via authError */ }
-  }, [name, email, pass, pass2, inst, city, register, clearAuthError]);
+
+    try {
+      await register(
+        email.trim().toLowerCase(),
+        pass,
+        name.trim(),
+        role === 'musiqici' ? inst : '',
+        city,
+        role,
+      );
+    } catch { /* shown via authError */ }
+  }, [role, name, email, pass, pass2, inst, city, register, clearAuthError]);
 
   const errorMsg = localErr || authError;
 
@@ -55,6 +68,27 @@ export default function RegisterScreen({ onGoLogin }: Props) {
               <Text style={s.errorText}>{errorMsg}</Text>
             </View>
           ) : null}
+
+          {/* Role selector */}
+          <Text style={s.lbl}>ROL SEÇİN</Text>
+          <View style={s.roleRow}>
+            <TouchableOpacity
+              style={[s.roleBtn, role === 'musiqici' && s.roleBtnActive]}
+              onPress={() => setRole('musiqici')}
+            >
+              <Text style={s.roleEmoji}>🎵</Text>
+              <Text style={[s.roleText, role === 'musiqici' && s.roleTextActive]}>Musiqiçi</Text>
+              <Text style={s.roleDesc}>Siyahıda görünərəm</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.roleBtn, role === 'qonaq' && s.roleBtnActive]}
+              onPress={() => { setRole('qonaq'); setInst(''); }}
+            >
+              <Text style={s.roleEmoji}>👤</Text>
+              <Text style={[s.roleText, role === 'qonaq' && s.roleTextActive]}>Qonaq</Text>
+              <Text style={s.roleDesc}>Musiqiçi dəvət edərəm</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={s.lbl}>AD SOYAD</Text>
           <TextInput style={s.inp} placeholder="məs: Anar Musayev" placeholderTextColor={Colors.muted} value={name} onChangeText={setName} returnKeyType="next" />
@@ -81,14 +115,19 @@ export default function RegisterScreen({ onGoLogin }: Props) {
           <Text style={s.lbl}>ŞİFRƏNİ TƏKİT ET</Text>
           <TextInput style={s.inp} placeholder="••••••••" placeholderTextColor={Colors.muted} value={pass2} onChangeText={setPass2} secureTextEntry={!showP} />
 
-          <Text style={s.lbl}>ALƏT SEÇ</Text>
-          <View style={s.grid}>
-            {INSTRUMENTS.map(i => (
-              <TouchableOpacity key={i} style={[s.chip, inst === i && s.chipSel]} onPress={() => setInst(i)}>
-                <Text style={[s.chipText, inst === i && s.chipTextSel]}>{i}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* Instrument only for musicians */}
+          {role === 'musiqici' && (
+            <>
+              <Text style={s.lbl}>ALƏT SEÇ</Text>
+              <View style={s.grid}>
+                {INSTRUMENTS.map(i => (
+                  <TouchableOpacity key={i} style={[s.chip, inst === i && s.chipSel]} onPress={() => setInst(i)}>
+                    <Text style={[s.chipText, inst === i && s.chipTextSel]}>{i}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           <Text style={s.lbl}>ŞƏHƏRİ SEÇ</Text>
           <View style={s.grid}>
@@ -135,6 +174,13 @@ const s = StyleSheet.create({
   inp:         { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, color: Colors.text, fontSize: 15, fontFamily: Typography.nunito400, marginBottom: 16 },
   passRow:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyeBtn:      { width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  roleRow:     { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  roleBtn:     { flex: 1, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 16, alignItems: 'center', gap: 4 },
+  roleBtnActive: { borderColor: Colors.gold, backgroundColor: 'rgba(212,160,60,0.1)' },
+  roleEmoji:   { fontSize: 28, marginBottom: 4 },
+  roleText:    { fontFamily: Typography.nunito700, fontSize: 15, color: Colors.muted },
+  roleTextActive: { color: Colors.gold },
+  roleDesc:    { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400, textAlign: 'center' },
   grid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   chip:        { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border },
   chipSel:     { backgroundColor: 'rgba(212,160,60,0.15)', borderColor: Colors.gold },
