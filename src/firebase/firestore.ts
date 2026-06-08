@@ -1,36 +1,15 @@
 import {
-  addDoc,
-  arrayUnion,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  increment,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc, updateDoc,
-  where,
-  writeBatch,
-  type DocumentData,
-  type QuerySnapshot
+  collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
+  getDoc, getDocs, query, where, orderBy, limit,
+  onSnapshot, serverTimestamp, increment,
+  writeBatch, arrayUnion,
+  type QuerySnapshot, type DocumentData,
 } from 'firebase/firestore';
+import { fbFirestore, COLLECTIONS } from './config';
 import type {
-  BoardItem,
-  ChatItem,
-  Event,
-  FunCard,
-  GigItem,
-  Invite,
-  MarketItem,
-  Message,
-  Musician,
-  Room,
-  VideoItem,
+  Musician, GigItem, BoardItem, MarketItem,
+  FunCard, VideoItem, ChatItem, Message, Event, Room, Invite,
 } from '../types';
-import { COLLECTIONS, fbFirestore } from './config';
 
 function snapToList<T>(snap: QuerySnapshot<DocumentData>): T[] {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as T));
@@ -176,7 +155,7 @@ export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): ()
         emoji: data.emoji ?? '💬',
         preview: data.preview ?? '',
         time: tsToTime(data.lastMessageAt),
-        unread: data.unreadCount?.[uid] ?? 0,
+        unread: data.unreadCount?.[uid] ?? data[`unreadCount.${uid}`] ?? 0,
         isGroup: data.isGroup ?? false,
         members: data.members ?? [],
         online: data.online ?? false,
@@ -209,15 +188,37 @@ export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void)
 }
 
 export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string): Promise<void> {
+  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+
+  // Get members to increment unread for everyone except sender
+  const chatSnap = await getDoc(chatRef);
+  const members: string[] = chatSnap.exists() ? (chatSnap.data().members ?? []) : [];
+
   const batch = writeBatch(fbFirestore);
+
   const msgRef = doc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
   batch.set(msgRef, { text, senderId, senderName, createdAt: serverTimestamp() });
-  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
-  batch.set(chatRef, {
-    preview: `${senderName}: ${text.slice(0, 60)}`,
+
+  // Build update — use dot notation correctly for nested map fields
+  const chatUpdate: Record<string, any> = {
+    preview:       `${senderName}: ${text.slice(0, 60)}`,
     lastMessageAt: serverTimestamp(),
-  }, { merge: true });
+  };
+
+  // Increment unread for each member except sender
+  members.forEach(uid => {
+    if (uid !== senderId) {
+      chatUpdate[`unreadCount.${uid}`] = increment(1);
+    }
+  });
+
+  batch.update(chatRef, chatUpdate);
   await batch.commit();
+}
+
+export async function markChatAsRead(chatId: string, uid: string): Promise<void> {
+  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+  await updateDoc(chatRef, { [`unreadCount.${uid}`]: 0 });
 }
 
 // ── INVITES ───────────────────────────────────────────────
@@ -276,4 +277,38 @@ export function subscribeReceivedInvites(musicianUid: string, cb: (invites: Invi
 
 export async function updateInviteStatus(inviteId: string, status: 'accepted' | 'declined'): Promise<void> {
   await updateDoc(doc(fbFirestore, COLLECTIONS.INVITES, inviteId), { status });
+}
+
+// ── DIRECT CHAT ───────────────────────────────────────────
+export async function createOrGetDirectChat(
+  myId:      string,
+  otherId:   string,
+  otherName: string,
+  otherEmoji: string,
+): Promise<string> {
+  // Check if direct chat already exists
+  const q = query(
+    collection(fbFirestore, COLLECTIONS.CHATS),
+    where('members', 'array-contains', myId),
+    where('isGroup', '==', false),
+  );
+  const snap = await getDocs(q);
+  const existing = snap.docs.find(d => {
+    const m: string[] = d.data().members ?? [];
+    return m.includes(otherId);
+  });
+  if (existing) return existing.id;
+
+  // Create new direct chat
+  const ref = await addDoc(collection(fbFirestore, COLLECTIONS.CHATS), {
+    members:       [myId, otherId],
+    isGroup:       false,
+    name:          otherName,
+    emoji:         otherEmoji,
+    preview:       '',
+    lastMessageAt: serverTimestamp(),
+    unreadCount:   {},
+    createdAt:     serverTimestamp(),
+  });
+  return ref.id;
 }

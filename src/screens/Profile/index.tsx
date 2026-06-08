@@ -366,6 +366,27 @@ export default function ProfileScreen() {
   const [activeTab,         setActiveTab]         = useState(0);
   const [editVisible,       setEditVisible]       = useState(false);
   const [selectedMusician,  setSelectedMusician]  = useState<any>(null);
+  const [selectedInvite,    setSelectedInvite]    = useState<any>(null);
+
+  const handleOpenMusician = useCallback((musicianOrInvite: any) => {
+    // If it's an invite — extract musician and pass invite
+    if (musicianOrInvite?.fromUid || musicianOrInvite?.musicianId) {
+      setSelectedInvite(musicianOrInvite);
+      setSelectedMusician({
+        id:         musicianOrInvite.fromUid,
+        uid:        musicianOrInvite.fromUid,
+        name:       musicianOrInvite.fromName,
+        emoji:      '👤',
+        instrument: '',
+        city:       musicianOrInvite.fromCity ?? '',
+        rating:     5,
+        reviews:    0,
+      });
+    } else {
+      setSelectedInvite(null);
+      setSelectedMusician(musicianOrInvite);
+    }
+  }, []);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -395,7 +416,7 @@ export default function ProfileScreen() {
           {activeTab === 5 && (
             <InvitesScreen
               onBack={() => setActiveTab(0)}
-              onOpenMusician={setSelectedMusician}
+              onOpenMusician={handleOpenMusician}
             />
           )}
           {(activeTab === 1 || activeTab === 2 || activeTab === 3) && (
@@ -419,7 +440,8 @@ export default function ProfileScreen() {
       {selectedMusician && (
         <MusicianProfileScreen
           musician={selectedMusician}
-          onClose={() => setSelectedMusician(null)}
+          onClose={() => { setSelectedMusician(null); setSelectedInvite(null); }}
+          fromInvite={selectedInvite}
         />
       )}
     </SafeAreaView>

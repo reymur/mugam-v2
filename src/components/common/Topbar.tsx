@@ -5,12 +5,13 @@ import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { useT }        from '../../i18n';
-import type { Invite } from '../../store/useAppStore';
+import type { Invite, ChatItem } from '../../store/useAppStore';
 import MusicianProfileScreen from '../../screens/Musician/MusicianProfileScreen';
+import DirectChat from '../../screens/Chat/DirectChat';
 
 const SCREEN_W = Dimensions.get('window').width;
 
-// ── Single incoming invite card ───────────────────────────
+// ── Incoming invite card ──────────────────────────────────
 function IncomingCard({ invite, onPress }: { invite: Invite; onPress: () => void }) {
   const { updateInviteStatus, showToast } = useAppStore();
   const [loading, setLoading] = React.useState(false);
@@ -21,25 +22,21 @@ function IncomingCard({ invite, onPress }: { invite: Invite; onPress: () => void
     : invite.status === 'declined' ? '❌ Rədd edildi' : '🔔 Yeni dəvət';
 
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
-      <View style={s.cardTop}>
-        <View style={s.ava}>
-          <Text style={{ fontSize: 20 }}>👤</Text>
-        </View>
+    <TouchableOpacity style={nc.card} onPress={onPress} activeOpacity={0.85}>
+      <View style={nc.top}>
+        <View style={nc.ava}><Text style={{ fontSize: 20 }}>👤</Text></View>
         <View style={{ flex: 1 }}>
-          <Text style={s.cardName} numberOfLines={1}>{invite.fromName}</Text>
-          {invite.fromCity ? <Text style={s.cardSub}>📍 {invite.fromCity}</Text> : null}
-          <Text style={s.cardTime}>{invite.createdAtStr ?? 'Az əvvəl'}</Text>
+          <Text style={nc.name} numberOfLines={1}>{invite.fromName}</Text>
+          <Text style={nc.sub}>{invite.fromCity ? `📍 ${invite.fromCity}` : 'Dəvət göndərdi'}</Text>
         </View>
-        <View style={[s.statusBadge, { borderColor: statusColor, backgroundColor: `${statusColor}22` }]}>
-          <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
+        <View style={[nc.badge, { borderColor: statusColor, backgroundColor: `${statusColor}25` }]}>
+          <Text style={[nc.badgeText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
       </View>
-
       {invite.status === 'pending' && (
-        <View style={s.btns}>
+        <View style={nc.btns}>
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: Colors.green }]}
+            style={[nc.btn, { backgroundColor: Colors.green }]}
             disabled={loading}
             onPress={async () => {
               setLoading(true);
@@ -48,13 +45,11 @@ function IncomingCard({ invite, onPress }: { invite: Invite; onPress: () => void
               setLoading(false);
             }}
           >
-            {loading
-              ? <ActivityIndicator color="white" size="small" />
-              : <Text style={s.btnText}>✅ Qəbul Et</Text>
-            }
+            {loading ? <ActivityIndicator color="white" size="small" />
+              : <Text style={nc.btnText}>✅ Qəbul Et</Text>}
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red }]}
+            style={[nc.btn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red }]}
             disabled={loading}
             onPress={async () => {
               setLoading(true);
@@ -63,7 +58,7 @@ function IncomingCard({ invite, onPress }: { invite: Invite; onPress: () => void
               setLoading(false);
             }}
           >
-            <Text style={[s.btnText, { color: Colors.red }]}>❌ Rədd Et</Text>
+            <Text style={[nc.btnText, { color: Colors.red }]}>❌ Rədd Et</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -71,10 +66,32 @@ function IncomingCard({ invite, onPress }: { invite: Invite; onPress: () => void
   );
 }
 
-// ── Notifications Panel (incoming only) ───────────────────
+// ── Unread message card ───────────────────────────────────
+function UnreadChatCard({ chat, onPress }: { chat: ChatItem; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={nc.card} onPress={onPress} activeOpacity={0.85}>
+      <View style={nc.top}>
+        <View style={nc.ava}><Text style={{ fontSize: 20 }}>{chat.emoji}</Text></View>
+        <View style={{ flex: 1 }}>
+          <Text style={nc.name} numberOfLines={1}>{chat.name}</Text>
+          <Text style={nc.sub} numberOfLines={1}>{chat.preview}</Text>
+        </View>
+        <View style={[nc.badge, { borderColor: Colors.gold, backgroundColor: `${Colors.gold}25` }]}>
+          <Text style={[nc.badgeText, { color: Colors.gold }]}>💬 {chat.unread}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Notifications Panel ───────────────────────────────────
 function NotificationsPanel({ onClose }: { onClose: () => void }) {
-  const { receivedInvites, musicians } = useAppStore();
-  const [selectedInvite, setSelectedInvite] = React.useState<Invite | null>(null);
+  const { receivedInvites, chats, musicians, user } = useAppStore();
+  const [selectedInvite,  setSelectedInvite]  = React.useState<Invite | null>(null);
+  const [selectedChat,    setSelectedChat]    = React.useState<ChatItem | null>(null);
+
+  // Chats with unread messages
+  const unreadChats = chats.filter(c => c.unread > 0);
 
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
 
@@ -90,7 +107,6 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
     }).start(onClose);
   };
 
-  // Build minimal musician from invite for profile screen
   const getMusicianFromInvite = (invite: Invite) => {
     const found = musicians.find(m => (m.uid ?? m.id) === invite.fromUid);
     if (found) return found;
@@ -106,43 +122,88 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
     };
   };
 
+  // Build musician from chat for DirectChat
+  const getMusicianFromChat = (chat: ChatItem) => {
+    const otherId = chat.members?.find(m => m !== user?.uid) ?? '';
+    const found = musicians.find(m => (m.uid ?? m.id) === otherId);
+    if (found) return found;
+    return {
+      id:         otherId,
+      uid:        otherId,
+      name:       chat.name,
+      emoji:      chat.emoji,
+      instrument: '',
+      city:       '',
+      rating:     5,
+      reviews:    0,
+    };
+  };
+
+  const hasNotifs = receivedInvites.length > 0 || unreadChats.length > 0;
+
   return (
     <Animated.View style={[p.panel, { transform: [{ translateX: slideAnim }] }]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-
-        {/* Header */}
         <View style={p.header}>
-          <Text style={p.title}>🔔 Daxil olan dəvətlər</Text>
+          <Text style={p.title}>🔔 Bildirişlər</Text>
           <TouchableOpacity style={p.closeBtn} onPress={handleClose} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
             <Text style={p.closeText}>✕</Text>
           </TouchableOpacity>
         </View>
 
-        {receivedInvites.length === 0 ? (
+        {!hasNotifs ? (
           <View style={p.empty}>
-            <Text style={{ fontSize: 52 }}>📭</Text>
-            <Text style={p.emptyTitle}>Dəvət yoxdur</Text>
-            <Text style={p.emptyDesc}>Kimsə sizi tədbirə dəvət etdikdə burada görünəcək</Text>
+            <Text style={{ fontSize: 48 }}>🔔</Text>
+            <Text style={p.emptyTitle}>Bildiriş yoxdur</Text>
+            <Text style={p.emptyDesc}>Dəvətlər və mesajlar burada görünəcək</Text>
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
-            {receivedInvites.map(inv => (
-              <IncomingCard
-                key={inv.id}
-                invite={inv}
-                onPress={() => setSelectedInvite(inv)}
-              />
-            ))}
+            {/* Unread messages section */}
+            {unreadChats.length > 0 && (
+              <>
+                <Text style={p.sectionLabel}>💬 Oxunmamış mesajlar</Text>
+                {unreadChats.map(chat => (
+                  <UnreadChatCard
+                    key={chat.id}
+                    chat={chat}
+                    onPress={() => setSelectedChat(chat)}
+                  />
+                ))}
+              </>
+            )}
+
+            {/* Incoming invites section */}
+            {receivedInvites.length > 0 && (
+              <>
+                <Text style={p.sectionLabel}>🔔 Dəvətlər</Text>
+                {receivedInvites.map(inv => (
+                  <IncomingCard
+                    key={inv.id}
+                    invite={inv}
+                    onPress={() => setSelectedInvite(inv)}
+                  />
+                ))}
+              </>
+            )}
           </ScrollView>
         )}
-
       </SafeAreaView>
 
-      {/* Open sender's profile on card tap */}
+      {/* Open sender profile from invite */}
       {selectedInvite && (
         <MusicianProfileScreen
           musician={getMusicianFromInvite(selectedInvite)}
           onClose={() => setSelectedInvite(null)}
+          fromInvite={selectedInvite}
+        />
+      )}
+
+      {/* Open direct chat from unread message */}
+      {selectedChat && (
+        <DirectChat
+          musician={getMusicianFromChat(selectedChat)}
+          onClose={() => setSelectedChat(null)}
         />
       )}
     </Animated.View>
@@ -156,12 +217,13 @@ interface TopbarProps {
 }
 
 export default function Topbar({ title, showLogo = true }: TopbarProps) {
-  const { lang, setLang, receivedInvites } = useAppStore();
+  const { lang, setLang, receivedInvites, chats } = useAppStore();
   const { t } = useT();
   const [showNotifs, setShowNotifs] = React.useState(false);
 
-  // Only pending incoming count for badge
-  const pendingCount = receivedInvites.filter(i => i.status === 'pending').length;
+  const pendingInvites = receivedInvites.filter(i => i.status === 'pending').length;
+  const unreadMessages = chats.reduce((sum, c) => sum + (c.unread || 0), 0);
+  const totalBadge = pendingInvites + unreadMessages;
 
   return (
     <>
@@ -185,9 +247,9 @@ export default function Topbar({ title, showLogo = true }: TopbarProps) {
         <View style={styles.topbarRight}>
           <TouchableOpacity style={styles.tbtn} onPress={() => setShowNotifs(true)}>
             <Text style={{ fontSize: 15 }}>🔔</Text>
-            {pendingCount > 0 && (
+            {totalBadge > 0 && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingCount > 9 ? '9+' : pendingCount}</Text>
+                <Text style={styles.badgeText}>{totalBadge > 9 ? '9+' : totalBadge}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -202,29 +264,29 @@ export default function Topbar({ title, showLogo = true }: TopbarProps) {
   );
 }
 
-const s = StyleSheet.create({
-  card:       { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 13, marginBottom: 10 },
-  cardTop:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  ava:        { width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, flexShrink: 0 },
-  cardName:   { fontFamily: Typography.nunito700, fontSize: 14, color: Colors.text, marginBottom: 2 },
-  cardSub:    { fontSize: 11, color: Colors.gold, fontFamily: Typography.nunito600 },
-  cardTime:   { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400, marginTop: 2 },
-  statusBadge:{ borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
-  statusText: { fontSize: 10, fontFamily: Typography.nunito700 },
-  btns:       { flexDirection: 'row', gap: 8, marginTop: 10 },
-  btn:        { flex: 1, paddingVertical: 9, borderRadius: 20, alignItems: 'center' },
-  btnText:    { fontSize: 12, fontFamily: Typography.nunito700, color: 'white' },
+const nc = StyleSheet.create({
+  card:     { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 12, marginBottom: 10 },
+  top:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ava:      { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, flexShrink: 0 },
+  name:     { fontFamily: Typography.nunito700, fontSize: 14, color: Colors.text, marginBottom: 2 },
+  sub:      { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
+  badge:    { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
+  badgeText:{ fontSize: 10, fontFamily: Typography.nunito700 },
+  btns:     { flexDirection: 'row', gap: 8, marginTop: 10 },
+  btn:      { flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center' },
+  btnText:  { fontSize: 12, fontFamily: Typography.nunito700, color: 'white' },
 });
 
 const p = StyleSheet.create({
-  panel:     { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.bg, zIndex: 200 },
-  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  title:     { fontFamily: Typography.playfair700, fontSize: 18, color: Colors.text },
-  closeBtn:  { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  closeText: { fontSize: 16, color: Colors.muted, fontFamily: Typography.nunito700 },
-  empty:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 30 },
-  emptyTitle:{ fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
-  emptyDesc: { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400 },
+  panel:      { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.bg, zIndex: 200 },
+  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  title:      { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
+  closeBtn:   { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  closeText:  { fontSize: 16, color: Colors.muted, fontFamily: Typography.nunito700 },
+  sectionLabel: { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
+  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 30 },
+  emptyTitle: { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
+  emptyDesc:  { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400 },
 });
 
 const styles = StyleSheet.create({

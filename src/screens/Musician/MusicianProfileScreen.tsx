@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Animated, Dimensions, ActivityIndicator,
@@ -8,6 +8,7 @@ import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import type { Musician, Invite } from '../../store/useAppStore';
+import DirectChat from '../Chat/DirectChat';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -18,38 +19,24 @@ const SERVICES = [
   { icon: '📸', label: 'Çəkiliş', price: '150–250 AZN' },
 ];
 
-// ── Received Invite Card ──────────────────────────────────
-function ReceivedInviteCard({ invite }: { invite: Invite }) {
+// ── Received Invite Card (shown on own profile) ───────────
+function ReceivedInviteCard({
+  invite,
+  onOpenSender,
+}: {
+  invite: Invite;
+  onOpenSender: (invite: Invite) => void;
+}) {
   const { updateInviteStatus, showToast } = useAppStore();
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handle = useCallback(async (status: 'accepted' | 'declined') => {
-    setLoading(true);
-    try {
-      await updateInviteStatus(invite.id, status);
-      showToast(status === 'accepted'
-        ? `✅ ${invite.fromName} — dəvəti qəbul etdiniz!`
-        : `❌ ${invite.fromName} — dəvəti rədd etdiniz`
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [invite, updateInviteStatus, showToast]);
-
-  const bg = invite.status === 'accepted'
-    ? 'rgba(39,174,96,0.1)'
-    : invite.status === 'declined'
-      ? 'rgba(192,57,43,0.1)'
-      : Colors.card;
-
-  const borderC = invite.status === 'accepted'
-    ? 'rgba(39,174,96,0.4)'
-    : invite.status === 'declined'
-      ? 'rgba(192,57,43,0.4)'
-      : Colors.border;
+  const statusColor = invite.status === 'accepted' ? Colors.green
+    : invite.status === 'declined' ? Colors.red : Colors.gold;
+  const statusLabel = invite.status === 'accepted' ? '✅ Qəbul edildi'
+    : invite.status === 'declined' ? '❌ Rədd edildi' : '🔔 Yeni';
 
   return (
-    <View style={[ic.card, { backgroundColor: bg, borderColor: borderC }]}>
+    <TouchableOpacity style={ic.card} onPress={() => onOpenSender(invite)} activeOpacity={0.85}>
       <View style={ic.top}>
         <View style={ic.ava}><Text style={{ fontSize: 18 }}>👤</Text></View>
         <View style={{ flex: 1 }}>
@@ -57,68 +44,78 @@ function ReceivedInviteCard({ invite }: { invite: Invite }) {
           {invite.fromCity ? <Text style={ic.city}>📍 {invite.fromCity}</Text> : null}
           <Text style={ic.time}>{invite.createdAtStr ?? 'Az əvvəl'}</Text>
         </View>
-        {invite.status === 'pending' && (
-          <View style={ic.badge}>
-            <Text style={ic.badgeText}>🔔 Yeni</Text>
-          </View>
-        )}
-        {invite.status === 'accepted' && (
-          <View style={[ic.badge, { backgroundColor: 'rgba(39,174,96,0.2)' }]}>
-            <Text style={[ic.badgeText, { color: Colors.green }]}>✅ Qəbul</Text>
-          </View>
-        )}
-        {invite.status === 'declined' && (
-          <View style={[ic.badge, { backgroundColor: 'rgba(192,57,43,0.2)' }]}>
-            <Text style={[ic.badgeText, { color: Colors.red }]}>❌ Rədd</Text>
-          </View>
-        )}
+        <View style={[ic.badge, { borderColor: statusColor, backgroundColor: `${statusColor}20` }]}>
+          <Text style={[ic.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+        </View>
       </View>
 
       {invite.status === 'pending' && (
         <View style={ic.actions}>
           <TouchableOpacity
             style={[ic.btn, { backgroundColor: Colors.green }]}
-            onPress={() => handle('accepted')}
             disabled={loading}
+            onPress={async () => {
+              setLoading(true);
+              await updateInviteStatus(invite.id, 'accepted').catch(() => {});
+              showToast(`✅ ${invite.fromName} — dəvəti qəbul etdiniz!`);
+              setLoading(false);
+            }}
           >
             {loading ? <ActivityIndicator color="white" size="small" />
               : <Text style={ic.btnText}>✅ Qəbul Et</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             style={[ic.btn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red }]}
-            onPress={() => handle('declined')}
             disabled={loading}
+            onPress={async () => {
+              setLoading(true);
+              await updateInviteStatus(invite.id, 'declined').catch(() => {});
+              showToast('❌ Rədd edildi');
+              setLoading(false);
+            }}
           >
             <Text style={[ic.btnText, { color: Colors.red }]}>❌ Rədd Et</Text>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+
+      {/* Open sender profile button */}
+      <TouchableOpacity style={ic.profileBtn} onPress={() => onOpenSender(invite)}>
+        <Text style={ic.profileBtnText}>👤 Profilə bax →</Text>
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 }
 
 // ── Main Profile Screen ───────────────────────────────────
 interface Props {
-  musician:       Musician;
-  onClose:        () => void;
+  musician:  Musician;
+  onClose:   () => void;
+  // If opened from an invite — show "accept" button
+  fromInvite?: Invite;
 }
 
-export default function MusicianProfileScreen({ musician, onClose }: Props) {
+export default function MusicianProfileScreen({ musician, onClose, fromInvite }: Props) {
   const {
     showToast,
     invitedMusicianIds,
+    acceptedMusicianIds,
     sendInvite,
     cancelInvite,
     receivedInvites,
+    updateInviteStatus,
     user,
   } = useAppStore();
 
   const slideAnim  = React.useRef(new Animated.Value(SCREEN_W)).current;
   const musicianId = musician.uid ?? musician.id;
   const invited    = invitedMusicianIds.has(musicianId);
-
-  // Is this MY own profile? — show received invites
+  const accepted   = acceptedMusicianIds.has(musicianId);
   const isMyProfile = user?.uid && (user.uid === musician.uid);
+
+  // Nested profile for invite sender
+  const [senderMusician, setSenderMusician] = useState<Musician | null>(null);
+  const [showChat, setShowChat] = useState(false);
 
   React.useEffect(() => {
     Animated.spring(slideAnim, {
@@ -133,14 +130,49 @@ export default function MusicianProfileScreen({ musician, onClose }: Props) {
   }, [onClose]);
 
   const handleInvite = useCallback(async () => {
+    if (accepted) return; // already accepted — no action
     if (invited) {
       await cancelInvite(musicianId);
-      showToast(`❌ ${musician.name} — dəvət ləğv edildi`);
+      showToast(`❌ ${musician.name} — razılaşma ləğv edildi`);
     } else {
       await sendInvite(musician);
-      showToast(`✅ ${musician.name} — dəvət göndərildi!`);
+      showToast(`✅ ${musician.name} — razılaşma göndərildi!`);
     }
-  }, [invited, musician, musicianId, sendInvite, cancelInvite, showToast]);
+  }, [accepted, invited, musician, musicianId, sendInvite, cancelInvite, showToast]);
+
+  const handleMessage = useCallback(() => {
+    setShowChat(true);
+  }, []);
+
+  // Accept invite from profile (when opened via invite card)
+  const handleAcceptFromInvite = useCallback(async () => {
+    if (!fromInvite) return;
+    await updateInviteStatus(fromInvite.id, 'accepted');
+    showToast(`✅ ${fromInvite.fromName} — dəvəti qəbul etdiniz!`);
+    onClose();
+  }, [fromInvite, updateInviteStatus, showToast, onClose]);
+
+  // Open sender profile from received invite
+  const handleOpenSender = useCallback((invite: Invite) => {
+    const m: Musician = {
+      id:         invite.fromUid,
+      uid:        invite.fromUid,
+      name:       invite.fromName,
+      emoji:      '👤',
+      instrument: '',
+      city:       invite.fromCity ?? '',
+      rating:     5,
+      reviews:    0,
+    };
+    setSenderMusician(m);
+  }, []);
+
+  // Button label
+  const inviteBtnLabel = accepted
+    ? '✅ Qəbul etdi'
+    : invited
+    ? '❌ Ləğv Et'
+    : '🤝 Razılaşma';
 
   return (
     <Animated.View style={[
@@ -200,23 +232,62 @@ export default function MusicianProfileScreen({ musician, onClose }: Props) {
               </View>
             </View>
 
-            {/* Action buttons — only show if not own profile */}
-            {!isMyProfile && (
+            {/* Action buttons */}
+            {!isMyProfile && !fromInvite && (
               <View style={s.btns}>
+                {/* Razılaşma button */}
                 <TouchableOpacity
-                  style={[s.invBtn, invited && s.invBtnCancel]}
+                  style={[
+                    s.invBtn,
+                    invited && !accepted && s.invBtnCancel,
+                    accepted && s.invBtnAccepted,
+                  ]}
                   onPress={handleInvite}
+                  disabled={accepted}
                 >
-                  <Text style={[s.invBtnText, invited && s.invBtnCancelText]}>
-                    {invited ? '❌ Dəvəti Ləğv Et' : '🎵 Dəvət Et'}
+                  <Text style={[
+                    s.invBtnText,
+                    invited && !accepted && s.invBtnCancelText,
+                    accepted && s.invBtnAcceptedText,
+                  ]}>
+                    {inviteBtnLabel}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.msgBtn}
-                  onPress={() => showToast(`✉️ ${musician.name} — mesaj göndərildi!`)}
-                >
+
+                {/* Mesaj button */}
+                <TouchableOpacity style={s.msgBtn} onPress={handleMessage}>
                   <Text style={s.msgBtnText}>✉️ Mesaj</Text>
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Accept button — shown when opened from invite */}
+            {fromInvite && fromInvite.status === 'pending' && (
+              <View style={s.btns}>
+                <TouchableOpacity
+                  style={[s.invBtn, s.invBtnAcceptGreen]}
+                  onPress={handleAcceptFromInvite}
+                >
+                  <Text style={s.invBtnAcceptGreenText}>✅ Qəbul edirəm</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.msgBtn]}
+                  onPress={async () => {
+                    await updateInviteStatus(fromInvite.id, 'declined');
+                    showToast('❌ Rədd edildi');
+                    onClose();
+                  }}
+                >
+                  <Text style={[s.msgBtnText, { color: Colors.red }]}>❌ Rədd Et</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {fromInvite && fromInvite.status === 'accepted' && (
+              <View style={[s.btns, { justifyContent: 'center' }]}>
+                <View style={[s.invBtn, s.invBtnAccepted, { flex: 0, paddingHorizontal: 24 }]}>
+                  <Text style={s.invBtnAcceptedText}>✅ Artıq qəbul etmisiniz</Text>
+                </View>
               </View>
             )}
           </View>
@@ -226,7 +297,7 @@ export default function MusicianProfileScreen({ musician, onClose }: Props) {
             <Text style={s.sectionTitle}>Haqqında</Text>
             <Text style={s.bioText}>
               {musician.bio ||
-                `${musician.city} şəhərindən professional ${musician.instrument.toLowerCase()} ifaçısı. 10+ il səhnə təcrübəsi. Toy, konsert, restoran və çəkilişlər üçün əlçatandır.`}
+                `${musician.city} şəhərindən professional ${musician.instrument?.toLowerCase() || 'musiqiçi'}. 10+ il səhnə təcrübəsi.`}
             </Text>
           </View>
 
@@ -241,30 +312,25 @@ export default function MusicianProfileScreen({ musician, onClose }: Props) {
             ))}
           </View>
 
-          {/* Received invites — shown when viewing your own profile */}
+          {/* Received invites on own profile */}
           {isMyProfile && (
             <View style={s.section}>
-              <View style={s.invitesHeader}>
-                <Text style={s.sectionTitle}>Dəvətlər</Text>
-                {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
-                  <View style={s.invitesBadge}>
-                    <Text style={s.invitesBadgeText}>
-                      {receivedInvites.filter(i => i.status === 'pending').length} yeni
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <Text style={s.sectionTitle}>Dəvətlər</Text>
               {receivedInvites.length === 0 ? (
-                <Text style={s.emptyText}>Hələ heç bir dəvət yoxdur</Text>
+                <Text style={s.emptyText}>Hələ dəvət yoxdur</Text>
               ) : (
                 receivedInvites.map(inv => (
-                  <ReceivedInviteCard key={inv.id} invite={inv} />
+                  <ReceivedInviteCard
+                    key={inv.id}
+                    invite={inv}
+                    onOpenSender={handleOpenSender}
+                  />
                 ))
               )}
             </View>
           )}
 
-          {/* Fixed reviews section */}
+          {/* Reviews */}
           <View style={s.section}>
             <Text style={s.sectionTitle}>Rəylər ({musician.reviews})</Text>
             {[
@@ -288,22 +354,41 @@ export default function MusicianProfileScreen({ musician, onClose }: Props) {
 
         </ScrollView>
       </SafeAreaView>
+
+      {/* Nested sender profile */}
+      {senderMusician && (
+        <MusicianProfileScreen
+          musician={senderMusician}
+          onClose={() => setSenderMusician(null)}
+          fromInvite={receivedInvites.find(i => i.fromUid === senderMusician.uid)}
+        />
+      )}
+
+      {/* Direct chat overlay */}
+      {showChat && (
+        <DirectChat
+          musician={musician}
+          onClose={() => setShowChat(false)}
+        />
+      )}
     </Animated.View>
   );
 }
 
 const ic = StyleSheet.create({
-  card:     { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
-  top:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  ava:      { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' },
-  name:     { fontFamily: Typography.nunito700, fontSize: 14, color: Colors.text, marginBottom: 2 },
-  city:     { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
-  time:     { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400, marginTop: 2 },
-  badge:    { backgroundColor: 'rgba(212,160,60,0.15)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText:{ color: Colors.gold, fontSize: 11, fontFamily: Typography.nunito700 },
-  actions:  { flexDirection: 'row', gap: 8 },
-  btn:      { flex: 1, paddingVertical: 9, borderRadius: 20, alignItems: 'center' },
-  btnText:  { fontSize: 13, fontFamily: Typography.nunito700, color: 'white' },
+  card:       { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
+  top:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  ava:        { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' },
+  name:       { fontFamily: Typography.nunito700, fontSize: 14, color: Colors.text, marginBottom: 2 },
+  city:       { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
+  time:       { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400, marginTop: 2 },
+  badge:      { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText:  { fontSize: 10, fontFamily: Typography.nunito700 },
+  actions:    { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  btn:        { flex: 1, paddingVertical: 9, borderRadius: 20, alignItems: 'center' },
+  btnText:    { fontSize: 12, fontFamily: Typography.nunito700, color: 'white' },
+  profileBtn: { alignItems: 'center', paddingVertical: 6 },
+  profileBtnText: { color: Colors.gold, fontSize: 12, fontFamily: Typography.nunito700 },
 });
 
 const s = StyleSheet.create({
@@ -332,21 +417,22 @@ const s = StyleSheet.create({
   statDiv:     { width: 1, height: 36, backgroundColor: Colors.border },
   btns:        { flexDirection: 'row', gap: 10, width: '100%' },
   invBtn:      { flex: 1, backgroundColor: Colors.gold, borderRadius: 28, paddingVertical: 14, alignItems: 'center' },
-  invBtnCancel:{ backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.red },
-  invBtnText:       { color: '#1a0e00', fontSize: 15, fontFamily: Typography.nunito700 },
-  invBtnCancelText: { color: Colors.red },
+  invBtnCancel:     { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.red },
+  invBtnAccepted:   { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1.5, borderColor: Colors.green },
+  invBtnAcceptGreen:{ flex: 1, backgroundColor: Colors.green, borderRadius: 28, paddingVertical: 14, alignItems: 'center' },
+  invBtnText:           { color: '#1a0e00', fontSize: 15, fontFamily: Typography.nunito700 },
+  invBtnCancelText:     { color: Colors.red },
+  invBtnAcceptedText:   { color: Colors.green, fontSize: 15, fontFamily: Typography.nunito700 },
+  invBtnAcceptGreenText:{ color: 'white', fontSize: 15, fontFamily: Typography.nunito700 },
   msgBtn:      { paddingHorizontal: 20, borderRadius: 28, borderWidth: 1, borderColor: Colors.border, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   msgBtnText:  { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito700 },
   section:      { paddingHorizontal: 18, paddingTop: 22 },
   sectionTitle: { fontFamily: Typography.playfair700, fontSize: 18, color: Colors.text, marginBottom: 14 },
   bioText:      { fontSize: 14, color: '#b0a080', lineHeight: 22, fontFamily: Typography.nunito400 },
+  emptyText:    { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito400 },
   serviceRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   serviceIcon:  { fontSize: 14, color: Colors.text, fontFamily: Typography.nunito600 },
   servicePrice: { fontSize: 14, color: Colors.gold, fontFamily: Typography.nunito700 },
-  invitesHeader:{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  invitesBadge: { backgroundColor: Colors.red, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  invitesBadgeText: { color: 'white', fontSize: 11, fontFamily: Typography.nunito700 },
-  emptyText:    { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito400 },
   reviewCard:   { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 14, marginBottom: 10 },
   reviewTop:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   reviewAva:    { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' },
