@@ -30,11 +30,13 @@ function MusicianListItem({
   musician,
   onPress,
   invited,
+  accepted,
   onToggleInvite,
 }: {
   musician: Musician;
   onPress: () => void;
   invited: boolean;
+  accepted: boolean;
   onToggleInvite: () => void;
 }) {
   const { t }         = useT();
@@ -61,14 +63,7 @@ function MusicianListItem({
       </View>
       <View style={s.mliActions}>
         <Text style={s.mliRate}>{'★'.repeat(musician.rating)}</Text>
-        <TouchableOpacity
-          style={[s.mliHireBtn, invited && s.mliHireBtnCancel]}
-          onPress={handleInvite}
-        >
-          <Text style={[s.mliHireTxt, invited && s.mliHireTxtCancel]}>
-            {invited ? '❌' : t('hireBtn')}
-          </Text>
-        </TouchableOpacity>
+
         <TouchableOpacity style={s.mliMsgBtn} onPress={onPress}>
           <Text style={s.mliMsgTxt}>👤</Text>
         </TouchableOpacity>
@@ -87,9 +82,10 @@ export default function SearchScreen() {
   const [query,         setQuery]         = useState('');
   const [activeFilter,  setActiveFilter]  = useState('');
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null);
-  const invitedMusicianIds = useAppStore(st => st.invitedMusicianIds);
-  const storeSendInvite    = useAppStore(st => st.sendInvite);
-  const storeCancelInvite  = useAppStore(st => st.cancelInvite);
+  const invitedMusicianIds  = useAppStore(st => st.invitedMusicianIds);
+  const acceptedMusicianIds = useAppStore(st => st.acceptedMusicianIds);
+  const storeSendInvite     = useAppStore(st => st.sendInvite);
+  const storeCancelInvite   = useAppStore(st => st.cancelInvite);
 
   const filtered = musicians.filter(m => {
     const q = query.toLowerCase();
@@ -147,6 +143,7 @@ export default function SearchScreen() {
             musician={item}
             onPress={() => setSelectedMusician(item)}
             invited={invitedMusicianIds.has(item.uid ?? item.id)}
+            accepted={acceptedMusicianIds.has(item.uid ?? item.id)}
             onToggleInvite={() => { const id = item.uid ?? item.id; invitedMusicianIds.has(id) ? storeCancelInvite(id) : storeSendInvite(item); }}
           />
         )}
@@ -183,8 +180,10 @@ const s = StyleSheet.create({
   mliRate:     { fontSize: 12, color: Colors.gold },
   mliHireBtn:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: Colors.gold },
   mliHireBtnCancel: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red },
+  mliHireBtnAccepted: { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: Colors.green },
   mliHireTxt:  { color: '#1a0e00', fontSize: 11, fontFamily: Typography.nunito700 },
   mliHireTxtCancel: { color: Colors.red },
+  mliHireTxtAccepted: { color: Colors.green },
   mliMsgBtn:   { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: Colors.border },
   mliMsgTxt:   { fontSize: 13 },
   empty:       { alignItems: 'center', marginTop: 60, gap: 12 },

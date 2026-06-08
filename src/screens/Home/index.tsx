@@ -38,11 +38,13 @@ const MusicianCard = React.memo(function MusicianCard({
   musician,
   onPress,
   invited,
+  accepted,
   onToggleInvite,
 }: {
   musician: Musician;
   onPress: () => void;
   invited: boolean;
+  accepted: boolean;
   onToggleInvite: () => void;
 }) {
   const { t }         = useT();
@@ -72,16 +74,7 @@ const MusicianCard = React.memo(function MusicianCard({
       <Text style={s.musRate}>
         {'★'.repeat(musician.rating)}{'☆'.repeat(5 - musician.rating)} ({musician.reviews})
       </Text>
-      {/* Dəvət button — stopPropagation prevents opening profile */}
-      <TouchableOpacity
-        style={[s.hireBtn, invited && s.hireBtnHired]}
-        onPress={e => { handleInvite(); }}
-        activeOpacity={0.8}
-      >
-        <Text style={[s.hireBtnText, invited && s.hireBtnTextHired]}>
-          {invited ? '❌ Ləğv Et' : t('hireBtn')}
-        </Text>
-      </TouchableOpacity>
+
     </TouchableOpacity>
   );
 });
@@ -172,9 +165,10 @@ export default function HomeScreen() {
   // Selected musician for profile view
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null);
   // Use store invites — synced with Firestore
-  const invitedMusicianIds = useAppStore(st => st.invitedMusicianIds);
-  const storeSendInvite    = useAppStore(st => st.sendInvite);
-  const storeCancelInvite  = useAppStore(st => st.cancelInvite);
+  const invitedMusicianIds  = useAppStore(st => st.invitedMusicianIds);
+  const acceptedMusicianIds = useAppStore(st => st.acceptedMusicianIds);
+  const storeSendInvite     = useAppStore(st => st.sendInvite);
+  const storeCancelInvite   = useAppStore(st => st.cancelInvite);
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
@@ -199,6 +193,7 @@ export default function HomeScreen() {
               musician={m}
               onPress={() => setSelectedMusician(m)}
               invited={invitedMusicianIds.has(m.uid ?? m.id)}
+              accepted={acceptedMusicianIds.has(m.uid ?? m.id)}
               onToggleInvite={() => { const id = m.uid ?? m.id; invitedMusicianIds.has(id) ? storeCancelInvite(id) : storeSendInvite(m); }}
             />
           ))}
@@ -255,6 +250,8 @@ const s = StyleSheet.create({
   musRate: { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400 },
   hireBtn: { width: '100%', paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.gold, alignItems: 'center', marginTop: 2 },
   hireBtnHired: { backgroundColor: Colors.red, borderColor: Colors.red },
+  hireBtnAccepted: { backgroundColor: 'rgba(39,174,96,0.15)', borderColor: Colors.green },
+  hireBtnTextAccepted: { color: Colors.green },
   hireBtnText: { color: Colors.gold, fontSize: 11, fontFamily: Typography.nunito700 },
   hireBtnTextHired: { color: 'white' },
   eventCard: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 18, padding: 16, flexDirection: 'row', gap: 14, marginBottom: 12 },

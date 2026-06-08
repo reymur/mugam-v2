@@ -69,6 +69,8 @@ interface AppStore {
   receivedInvites: Invite[];          // invites received (for musician view)
   // invitedMusicianIds: set of musician IDs current user has invited (pending)
   invitedMusicianIds: Set<string>;
+  // acceptedMusicianIds: set of musician IDs who accepted the invite
+  acceptedMusicianIds: Set<string>;
   sendInvite:      (musician: Musician) => Promise<void>;
   cancelInvite:    (musicianId: string) => Promise<void>;
   subscribeInvites:(uid: string) => void;
@@ -242,6 +244,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   myInvites:          [],
   receivedInvites:    [],
   invitedMusicianIds: new Set<string>(),
+  acceptedMusicianIds: new Set<string>(),
 
   // ── Subscriptions ─────────────────────────────────────
   _unsubs:   [],
@@ -433,12 +436,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
   subscribeInvites: (uid) => {
     const { _addUnsub } = get();
     _addUnsub(FireStore.subscribeMyInvites(uid, (invites) => {
-      const ids = new Set(invites
+      const pendingIds  = new Set(invites
         .filter(i => i.status === 'pending' && i.musicianId !== uid)
         .map(i => i.musicianId));
+      const acceptedIds = new Set(invites
+        .filter(i => i.status === 'accepted' && i.musicianId !== uid)
+        .map(i => i.musicianId));
       set({
-        myInvites:          invites.filter(i => i.musicianId !== uid),
-        invitedMusicianIds: ids,
+        myInvites:           invites.filter(i => i.musicianId !== uid),
+        invitedMusicianIds:  pendingIds,
+        acceptedMusicianIds: acceptedIds,
       });
     }));
     _addUnsub(FireStore.subscribeReceivedInvites(uid, (invites) => {
@@ -477,7 +484,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
           authLoading: false,
         });
         get().subscribeRealtime(firebaseUser.uid);
-        get().subscribeInvites(firebaseUser.uid);
+        // Wait for Firestore to be in sync before subscribing to invites
+        const { onSnapshotsInSync } = await import('firebase/firestore');
+        const { fbFirestore } = await import('../firebase/config');
+        const unsubSync = onSnapshotsInSync(fbFirestore, () => {
+          unsubSync(); // one-time sync signal
+          get().subscribeInvites(firebaseUser.uid);
+        });
+        get()._addUnsub(unsubSync);
         FireMsg.registerFCMToken(firebaseUser.uid).then(unsub => get()._addUnsub(unsub)).catch(() => {});
       } else {
         set({ user: null, isAuthenticated: false, authLoading: false });
