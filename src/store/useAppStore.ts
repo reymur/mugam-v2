@@ -11,11 +11,11 @@ import { COLLECTIONS }  from '../firebase/config';
 // Re-export all shared types from types.ts (screens import from here)
 export type {
   UserProfile, Musician, Event, Room, GigItem, BoardItem,
-  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite,
+  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite, Agreement,
 } from '../types';
 import type {
   UserProfile, Musician, Event, Room, GigItem, BoardItem,
-  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite,
+  MarketItem, FunCard, VideoItem, ChatItem, Message, Invite, Agreement,
 } from '../types';
 
 interface AppStore {
@@ -75,6 +75,11 @@ interface AppStore {
   cancelInvite:    (musicianId: string) => Promise<void>;
   subscribeInvites:(uid: string) => void;
   updateInviteStatus: (inviteId: string, status: 'accepted' | 'declined') => Promise<void>;
+
+  // Agreements
+  agreements:         Agreement[];
+  createAgreement:    (toUid: string, toName: string) => Promise<void>;
+  hasAgreementWith:   (uid: string) => boolean;
 
   initApp: () => Promise<void>;
 }
@@ -245,6 +250,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   receivedInvites:    [],
   invitedMusicianIds: new Set<string>(),
   acceptedMusicianIds: new Set<string>(),
+  agreements:          [],
 
   // ── Subscriptions ─────────────────────────────────────
   _unsubs:   [],
@@ -462,6 +468,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }));
   },
 
+  // ── Agreements ────────────────────────────────────────
+  createAgreement: async (toUid, toName) => {
+    const user = get().user;
+    if (!user) return;
+    await FireStore.createAgreement(user.uid, user.displayName, toUid, toName);
+  },
+
+  hasAgreementWith: (uid) => {
+    const user = get().user;
+    if (!user) return false;
+    return get().agreements.some(a =>
+      (a.fromUid === user.uid && a.toUid === uid) ||
+      (a.toUid === user.uid && a.fromUid === uid)
+    );
+  },
+
   // ── App init ──────────────────────────────────────────
   initApp: async () => {
     const storedLang = await AsyncStorage.getItem('lang');
@@ -490,6 +512,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
         const unsubSync = onSnapshotsInSync(fbFirestore, () => {
           unsubSync(); // one-time sync signal
           get().subscribeInvites(firebaseUser.uid);
+          // Subscribe to agreements
+          const unsubAgreements = FireStore.subscribeAgreements(firebaseUser.uid, (agreements) => {
+            set({ agreements });
+          });
+          get()._addUnsub(unsubAgreements);
         });
         get()._addUnsub(unsubSync);
         FireMsg.registerFCMToken(firebaseUser.uid).then(unsub => get()._addUnsub(unsub)).catch(() => {});

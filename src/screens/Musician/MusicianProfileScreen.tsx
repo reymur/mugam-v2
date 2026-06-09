@@ -105,15 +105,14 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
     receivedInvites,
     updateInviteStatus,
     user,
+    hasAgreementWith,
   } = useAppStore();
 
   const slideAnim  = React.useRef(new Animated.Value(SCREEN_W)).current;
   const musicianId = musician.uid ?? musician.id;
-  const invited    = invitedMusicianIds.has(musicianId);
-  const accepted   = acceptedMusicianIds.has(musicianId);
+  const agreed     = hasAgreementWith(musicianId);
   const isMyProfile = user?.uid && (user.uid === musician.uid);
 
-  // Nested profile for invite sender
   const [senderMusician, setSenderMusician] = useState<Musician | null>(null);
   const [showChat, setShowChat] = useState(false);
 
@@ -129,22 +128,11 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
     }).start(onClose);
   }, [onClose]);
 
-  const handleInvite = useCallback(async () => {
-    if (accepted) return; // already accepted — no action
-    if (invited) {
-      await cancelInvite(musicianId);
-      showToast(`❌ ${musician.name} — razılaşma ləğv edildi`);
-    } else {
-      await sendInvite(musician);
-      showToast(`✅ ${musician.name} — razılaşma göndərildi!`);
-    }
-  }, [accepted, invited, musician, musicianId, sendInvite, cancelInvite, showToast]);
-
   const handleMessage = useCallback(() => {
     setShowChat(true);
   }, []);
 
-  // Accept invite from profile (when opened via invite card)
+  // Rəfaəl nажимает "Qəbul edirəm" — меняет статус в Firestore
   const handleAcceptFromInvite = useCallback(async () => {
     if (!fromInvite) return;
     await updateInviteStatus(fromInvite.id, 'accepted');
@@ -152,7 +140,6 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
     onClose();
   }, [fromInvite, updateInviteStatus, showToast, onClose]);
 
-  // Open sender profile from received invite
   const handleOpenSender = useCallback((invite: Invite) => {
     const m: Musician = {
       id:         invite.fromUid,
@@ -166,13 +153,6 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
     };
     setSenderMusician(m);
   }, []);
-
-  // Button label
-  const inviteBtnLabel = accepted
-    ? '✅ Qəbul etdi'
-    : invited
-    ? '❌ Ləğv Et'
-    : '🤝 Razılaşma';
 
   return (
     <Animated.View style={[
@@ -232,29 +212,17 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
               </View>
             </View>
 
-            {/* Action buttons */}
+            {/* Action buttons — only when viewing someone else's profile */}
             {!isMyProfile && !fromInvite && (
               <View style={s.btns}>
-                {/* Razılaşma button */}
-                <TouchableOpacity
-                  style={[
-                    s.invBtn,
-                    invited && !accepted && s.invBtnCancel,
-                    accepted && s.invBtnAccepted,
-                  ]}
-                  onPress={handleInvite}
-                  disabled={accepted}
-                >
-                  <Text style={[
-                    s.invBtnText,
-                    invited && !accepted && s.invBtnCancelText,
-                    accepted && s.invBtnAcceptedText,
-                  ]}>
-                    {inviteBtnLabel}
+                {/* Razılaşma — grey/inactive until agreed, then green Qəbul etdi */}
+                <View style={[s.invBtn, agreed ? s.invBtnAccepted : s.invBtnGrey]}>
+                  <Text style={[s.invBtnText, agreed ? s.invBtnAcceptedText : s.invBtnGreyText]}>
+                    {agreed ? '✅ Qəbul etdi' : '🤝 Razılaşma'}
                   </Text>
-                </TouchableOpacity>
+                </View>
 
-                {/* Mesaj button */}
+                {/* Mesaj — always active */}
                 <TouchableOpacity style={s.msgBtn} onPress={handleMessage}>
                   <Text style={s.msgBtnText}>✉️ Mesaj</Text>
                 </TouchableOpacity>
@@ -369,6 +337,7 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
         <DirectChat
           musician={musician}
           onClose={() => setShowChat(false)}
+          fromInvite={receivedInvites.find(i => i.fromUid === musicianId)}
         />
       )}
     </Animated.View>
@@ -417,10 +386,12 @@ const s = StyleSheet.create({
   statDiv:     { width: 1, height: 36, backgroundColor: Colors.border },
   btns:        { flexDirection: 'row', gap: 10, width: '100%' },
   invBtn:      { flex: 1, backgroundColor: Colors.gold, borderRadius: 28, paddingVertical: 14, alignItems: 'center' },
+  invBtnGrey:       { backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border },
   invBtnCancel:     { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.red },
   invBtnAccepted:   { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1.5, borderColor: Colors.green },
   invBtnAcceptGreen:{ flex: 1, backgroundColor: Colors.green, borderRadius: 28, paddingVertical: 14, alignItems: 'center' },
   invBtnText:           { color: '#1a0e00', fontSize: 15, fontFamily: Typography.nunito700 },
+  invBtnGreyText:       { color: Colors.muted, fontSize: 15, fontFamily: Typography.nunito700 },
   invBtnCancelText:     { color: Colors.red },
   invBtnAcceptedText:   { color: Colors.green, fontSize: 15, fontFamily: Typography.nunito700 },
   invBtnAcceptGreenText:{ color: 'white', fontSize: 15, fontFamily: Typography.nunito700 },

@@ -9,7 +9,7 @@ import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import type { Musician } from '../../store/useAppStore';
+import type { Musician, Invite } from '../../store/useAppStore';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -36,60 +36,65 @@ function VoicePlayer({ uri, mine }: { uri: string; mine: boolean }) {
         { uri },
         { shouldPlay: true },
         (status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setPlaying(false);
-          }
+          if (status.isLoaded && status.didJustFinish) setPlaying(false);
         }
       );
       setSound(newSound);
       setPlaying(true);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   };
 
   return (
     <TouchableOpacity style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]} onPress={handlePlay}>
       {loading
         ? <ActivityIndicator size="small" color={mine ? '#1a0e00' : Colors.gold} />
-        : <Text style={[vs.icon, { color: mine ? '#1a0e00' : Colors.gold }]}>
-            {playing ? '⏹' : '▶'}
-          </Text>
+        : <Text style={[vs.icon, { color: mine ? '#1a0e00' : Colors.gold }]}>{playing ? '⏹' : '▶'}</Text>
       }
       <View style={vs.bars}>
         {Array.from({ length: 16 }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              vs.bar,
-              { height: 4 + Math.sin(i * 0.8) * 8 + 4 },
-              playing && { backgroundColor: mine ? '#1a0e00' : Colors.gold },
-            ]}
-          />
+          <View key={i} style={[vs.bar, { height: 4 + Math.sin(i * 0.8) * 8 + 4 }, playing && { backgroundColor: mine ? '#1a0e00' : Colors.gold }]} />
         ))}
       </View>
-      <Text style={[vs.label, { color: mine ? '#1a0e00' : Colors.muted }]}>
-        🎤
-      </Text>
+      <Text style={[vs.label, { color: mine ? '#1a0e00' : Colors.muted }]}>🎤</Text>
     </TouchableOpacity>
   );
 }
 
 // ── Main DirectChat ───────────────────────────────────────
 interface Props {
-  musician: Musician;
-  onClose:  () => void;
+  musician:   Musician;
+  onClose:    () => void;
+  fromInvite?: Invite;  // passed when opened from bell notification
 }
 
-export default function DirectChat({ musician, onClose }: Props) {
-  const { user, messages, sendMessage, loadMessages, showToast } = useAppStore();
-  const [chatId,    setChatId]    = useState<string | null>(null);
-  const [inputText, setInputText] = useState('');
-  const [loading,   setLoading]   = useState(true);
-  const [recording, setRecording] = useState(false);
+export default function DirectChat({ musician, onClose, fromInvite: fromInviteProp }: Props) {
+  const {
+    user, messages, sendMessage, loadMessages, showToast,
+    updateInviteStatus, receivedInvites,
+    createAgreement, hasAgreementWith,
+  } = useAppStore();
+
+  const [chatId,      setChatId]      = useState<string | null>(null);
+  const [inputText,   setInputText]   = useState('');
+  const [loading,     setLoading]     = useState(true);
+  const [recording,   setRecording]   = useState(false);
   const [recDuration, setRecDuration] = useState(0);
+  const [accepting,   setAccepting]   = useState(false);
+  const [justAgreed,  setJustAgreed]  = useState(false);
+  const [initiatorUid, setInitiatorUid] = useState<string | null>(null);
+
+  const musicianUid = musician.uid ?? musician.id;
+
+  // Already agreed?
+  const agreed = hasAgreementWith(musicianUid) || justAgreed;
+
+  // Recipient = current user is NOT the one who started the chat
+  // initiatorUid is loaded from Firestore chat document
+  const isRecipient = initiatorUid !== null && initiatorUid !== user?.uid;
+
+  const showInitiatorBanner = !agreed && !isRecipient && initiatorUid !== null;
+  const showRecipientBanner = !agreed && isRecipient;
 
   const scrollRef  = useRef<ScrollView>(null);
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
@@ -109,15 +114,26 @@ export default function DirectChat({ musician, onClose }: Props) {
     const init = async () => {
       try {
         const { createOrGetDirectChat, markChatAsRead } = await import('../../firebase/firestore');
+        const { getDoc, doc } = await import('firebase/firestore');
+        const { fbFirestore, COLLECTIONS } = await import('../../firebase/config');
+
         const id = await createOrGetDirectChat(
           user.uid,
           musician.uid ?? musician.id,
           musician.name,
           musician.emoji,
+          user.displayName,
+          user.city,
         );
         setChatId(id);
         loadMessages(id);
         await markChatAsRead(id, user.uid).catch(() => {});
+
+        // Load initiatorUid to determine who is recipient
+        const chatSnap = await getDoc(doc(fbFirestore, COLLECTIONS.CHATS, id));
+        if (chatSnap.exists()) {
+          setInitiatorUid(chatSnap.data().initiatorUid ?? user.uid);
+        }
       } catch {
         showToast('⚠️ Çat açılmadı');
       } finally {
@@ -224,6 +240,54 @@ export default function DirectChat({ musician, onClose }: Props) {
           <View style={{ width: 40 }} />
         </View>
 
+        {/* Teymur sees: "Sevgi fikirləşir..." — no buttons */}
+        {showInitiatorBanner && (
+          <View style={s.acceptBanner}>
+            <Text style={s.acceptBannerText}>
+              🤔 {musician.name} fikirləşir....
+            </Text>
+          </View>
+        )}
+
+        {/* Sevgi sees: "Teymur cavab gözləyir" + Razıyam button */}
+        {showRecipientBanner && (
+          <View style={s.acceptBanner}>
+            <Text style={s.acceptBannerText}>
+              🤝 {musician.name} cavab gözləyir
+            </Text>
+            <TouchableOpacity
+              style={[s.acceptBtn, accepting && { opacity: 0.6 }]}
+              onPress={async () => {
+                setAccepting(true);
+                try {
+                  await createAgreement(musicianUid, musician.name);
+                  setJustAgreed(true);
+                  showToast(`✅ ${musician.name} ilə razılaşdınız!`);
+                  // Close chat and go to Agreements tab
+                  setTimeout(() => onClose(), 1500);
+                } finally {
+                  setAccepting(false);
+                }
+              }}
+              disabled={accepting}
+            >
+              {accepting
+                ? <ActivityIndicator size="small" color="white" />
+                : <Text style={s.acceptBtnText}>✅ Razıyam</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Both see agreed banner after agreement */}
+        {agreed && (
+          <View style={[s.acceptBanner, { backgroundColor: 'rgba(39,174,96,0.1)', borderColor: Colors.green }]}>
+            <Text style={[s.acceptBannerText, { color: Colors.green }]}>
+              ✅ Razılaşma qəbul edildi — Müqavilələr bölməsinə baxın
+            </Text>
+          </View>
+        )}
+
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -324,6 +388,10 @@ const vs = StyleSheet.create({
 
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  acceptBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(212,160,60,0.08)', borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 10 },
+  acceptBannerText: { flex: 1, fontSize: 13, color: Colors.text, fontFamily: Typography.nunito600 },
+  acceptBtn:    { backgroundColor: Colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  acceptBtnText:{ color: 'white', fontSize: 13, fontFamily: Typography.nunito700 },
   backBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backText:    { fontSize: 24, color: Colors.text },
   headerInfo:  { flexDirection: 'row', alignItems: 'center', gap: 10 },

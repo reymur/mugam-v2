@@ -133,15 +133,16 @@ export interface VideoItem {
 }
 
 export interface ChatItem {
-  id:       string;
-  name:     string;
-  emoji:    string;
-  preview:  string;
-  time:     string;
-  unread?:  number;
-  online?:  boolean;
-  isGroup?: boolean;
-  members?: string[];
+  id:           string;
+  name:         string;
+  emoji:        string;
+  preview:      string;
+  time:         string;
+  unread?:      number;
+  online?:      boolean;
+  isGroup?:     boolean;
+  members?:     string[];
+  initiatorUid?: string;  // who started the chat
 }
 
 export interface Message {
@@ -166,4 +167,14 @@ export interface Invite {
   status:          'pending' | 'accepted' | 'declined';
   createdAt:       any;      // Firestore Timestamp
   createdAtStr?:   string;   // formatted for display
+}
+
+export interface Agreement {
+  id:         string;
+  fromUid:    string;   // who initiated chat
+  fromName:   string;
+  toUid:      string;   // who agreed
+  toName:     string;
+  status:     'agreed';
+  createdAt:  any;
 }

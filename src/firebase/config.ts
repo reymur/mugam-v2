@@ -1,30 +1,32 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk",
-  authDomain: "mugam-club.firebaseapp.com",
-  projectId: "mugam-club",
-  storageBucket: "mugam-club.firebasestorage.app",
-  messagingSenderId: "1034748814848",
-  appId: "1:1034748814848:web:4b2edc2575a211efbc9ae5",
-  measurementId: "G-G7ZP3P85DN"
+  apiKey:            'AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk',
+  authDomain:        'mugam-club.firebaseapp.com',
+  projectId:         'mugam-club',
+  storageBucket:     'mugam-club.firebasestorage.app',
+  messagingSenderId: '1034748814848',
+  appId:             '1:1034748814848:web:4b2edc2575a211efbc9ae5',
 };
 
 let app = getApps().length === 0
   ? initializeApp(FIREBASE_CONFIG)
   : getApp();
 
-// Use initializeAuth with AsyncStorage on first init
-// Use getAuth on subsequent hot reloads
-export const fbAuth = getApps().length === 1
-  ? initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    })
-  : getAuth(app);
+// initializeAuth only on FIRST init, getAuth on hot reload
+let fbAuth;
+try {
+  fbAuth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch {
+  fbAuth = getAuth(app);
+}
 
+export { fbAuth };
 export const fbFirestore = getFirestore(app);
 export const fbStorage   = null as any;
 
@@ -42,6 +44,7 @@ export const COLLECTIONS = {
   ROOMS:         'rooms',
   NOTIFICATIONS: 'notifications',
   INVITES:       'invites',
+  AGREEMENTS:    'agreements',
 } as const;
 
 export const STORAGE_PATHS = {

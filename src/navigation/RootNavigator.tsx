@@ -8,16 +8,17 @@ import { Typography } from '../theme/typography';
 import { useT } from '../i18n';
 import { useAppStore } from '../store/useAppStore';
 
-import HomeScreen    from '../screens/Home';
-import SearchScreen  from '../screens/Search';
-import BoardScreen   from '../screens/Board';
-import GigsScreen    from '../screens/Gigs';
-import MarketScreen  from '../screens/Market';
-import StoriesScreen from '../screens/Stories';
-import VideoScreen   from '../screens/Video';
-import ChatsScreen   from '../screens/Chat';
-import ProfileScreen from '../screens/Profile';
-import AuthNavigator from '../screens/Auth/AuthNavigator';
+import HomeScreen       from '../screens/Home';
+import SearchScreen     from '../screens/Search';
+import BoardScreen      from '../screens/Board';
+import GigsScreen       from '../screens/Gigs';
+import MarketScreen     from '../screens/Market';
+import StoriesScreen    from '../screens/Stories';
+import VideoScreen      from '../screens/Video';
+import ChatsScreen      from '../screens/Chat';
+import ProfileScreen    from '../screens/Profile';
+import AgreementsScreen from '../screens/Agreements';
+import AuthNavigator    from '../screens/Auth/AuthNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -61,6 +62,7 @@ export default function RootNavigator() {
   const totalUnread     = useAppStore(
     s => s.chats.reduce((acc, c) => acc + (c.unread ?? 0), 0)
   );
+  const agreementsCount = useAppStore(s => s.agreements.length);
 
   const homeIcon    = useCallback(({ focused }: { focused: boolean }) =>
     <TabIcon emoji="🏠" label={t('navKlub')}    focused={focused} />, [t]);
@@ -76,10 +78,12 @@ export default function RootNavigator() {
     <TabIcon emoji="😄" label={t('navHekaye')}  focused={focused} />, [t]);
   const videoIcon   = useCallback(({ focused }: { focused: boolean }) =>
     <TabIcon emoji="🎬" label={t('navVideo')}   focused={focused} />, [t]);
-  const chatsIcon   = useCallback(({ focused }: { focused: boolean }) =>
-    <TabIcon emoji="💬" label={t('navMesaj')}   focused={focused} badge={totalUnread} />, [t, totalUnread]);
-  const profileIcon = useCallback(({ focused }: { focused: boolean }) =>
-    <TabIcon emoji="👤" label="Profil"          focused={focused} />, []);
+  const chatsIcon      = useCallback(({ focused }: { focused: boolean }) =>
+    <TabIcon emoji="💬" label={t('navMesaj')}      focused={focused} badge={totalUnread} />, [t, totalUnread]);
+  const agreementsIcon = useCallback(({ focused }: { focused: boolean }) =>
+    <TabIcon emoji="📋" label="Müqavilə"           focused={focused} badge={agreementsCount} />, [agreementsCount]);
+  const profileIcon    = useCallback(({ focused }: { focused: boolean }) =>
+    <TabIcon emoji="👤" label="Profil"             focused={focused} />, []);
 
   return (
     <NavigationContainer>
@@ -98,15 +102,16 @@ export default function RootNavigator() {
             tabBarShowLabel: false,
           }}
         >
-          <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarIcon: homeIcon }} />
-          <Tab.Screen name="Search"  component={SearchScreen}  options={{ tabBarIcon: searchIcon }} />
-          <Tab.Screen name="Board"   component={BoardScreen}   options={{ tabBarIcon: boardIcon }} />
-          <Tab.Screen name="Gigs"    component={GigsScreen}    options={{ tabBarIcon: gigsIcon }} />
-          <Tab.Screen name="Market"  component={MarketScreen}  options={{ tabBarIcon: marketIcon }} />
-          <Tab.Screen name="Stories" component={StoriesScreen} options={{ tabBarIcon: storiesIcon }} />
-          <Tab.Screen name="Video"   component={VideoScreen}   options={{ tabBarIcon: videoIcon }} />
-          <Tab.Screen name="Chats"   component={ChatsScreen}   options={{ tabBarIcon: chatsIcon }} />
-          <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: profileIcon }} />
+          <Tab.Screen name="Home"       component={HomeScreen}       options={{ tabBarIcon: homeIcon }} />
+          <Tab.Screen name="Search"     component={SearchScreen}     options={{ tabBarIcon: searchIcon }} />
+          <Tab.Screen name="Board"      component={BoardScreen}      options={{ tabBarIcon: boardIcon }} />
+          <Tab.Screen name="Gigs"       component={GigsScreen}       options={{ tabBarIcon: gigsIcon }} />
+          <Tab.Screen name="Market"     component={MarketScreen}     options={{ tabBarIcon: marketIcon }} />
+          <Tab.Screen name="Stories"    component={StoriesScreen}    options={{ tabBarIcon: storiesIcon }} />
+          <Tab.Screen name="Video"      component={VideoScreen}      options={{ tabBarIcon: videoIcon }} />
+          <Tab.Screen name="Chats"      component={ChatsScreen}      options={{ tabBarIcon: chatsIcon }} />
+          <Tab.Screen name="Agreements" component={AgreementsScreen} options={{ tabBarIcon: agreementsIcon }} />
+          <Tab.Screen name="Profile"    component={ProfileScreen}    options={{ tabBarIcon: profileIcon }} />
         </Tab.Navigator>
       )}
     </NavigationContainer>

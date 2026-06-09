@@ -147,20 +147,33 @@ export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): ()
     orderBy('lastMessageAt', 'desc'),
   );
   return onSnapshot(q, snap => {
-    const chats = snap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        name: data.name ?? '',
-        emoji: data.emoji ?? '💬',
-        preview: data.preview ?? '',
-        time: tsToTime(data.lastMessageAt),
-        unread: data.unreadCount?.[uid] ?? data[`unreadCount.${uid}`] ?? 0,
-        isGroup: data.isGroup ?? false,
-        members: data.members ?? [],
-        online: data.online ?? false,
-      } as ChatItem;
-    });
+    const chats = snap.docs
+      .map(d => {
+        const data = d.data();
+        const isInitiator = (data.initiatorUid ?? '') === uid;
+        // Initiator sees recipient's name (data.name)
+        // Recipient sees initiator's name (data.initiatorName)
+        const name = isInitiator
+          ? (data.name ?? '')
+          : (data.initiatorName ?? data.name ?? '');
+        return {
+          id: d.id,
+          name,
+          emoji: data.emoji ?? '💬',
+          preview: data.preview ?? '',
+          time: tsToTime(data.lastMessageAt),
+          unread: data.unreadCount?.[uid] ?? data[`unreadCount.${uid}`] ?? 0,
+          isGroup: data.isGroup ?? false,
+          members: data.members ?? [],
+          online: data.online ?? false,
+          initiatorUid: data.initiatorUid ?? '',
+        } as ChatItem;
+      })
+      .filter(c => {
+        const isInitiator = c.initiatorUid === uid;
+        const hasMessages = !!c.preview;
+        return isInitiator || hasMessages;
+      });
     cb(chats);
   });
 }
@@ -281,10 +294,12 @@ export async function updateInviteStatus(inviteId: string, status: 'accepted' | 
 
 // ── DIRECT CHAT ───────────────────────────────────────────
 export async function createOrGetDirectChat(
-  myId:      string,
-  otherId:   string,
-  otherName: string,
+  myId:       string,
+  otherId:    string,
+  otherName:  string,
   otherEmoji: string,
+  myName?:    string,
+  myCity?:    string,
 ): Promise<string> {
   // Check if direct chat already exists
   const q = query(
@@ -303,12 +318,107 @@ export async function createOrGetDirectChat(
   const ref = await addDoc(collection(fbFirestore, COLLECTIONS.CHATS), {
     members:       [myId, otherId],
     isGroup:       false,
-    name:          otherName,
+    name:          otherName,      // recipient's name (for initiator view)
+    initiatorName: myName ?? '',   // initiator's name (for recipient view)
+    initiatorUid:  myId,
     emoji:         otherEmoji,
     preview:       '',
     lastMessageAt: serverTimestamp(),
     unreadCount:   {},
     createdAt:     serverTimestamp(),
   });
+
+  // Auto-create invite so recipient sees "cavab gözləyir" banner
+  if (myName) {
+    const existingInvite = await getDocs(query(
+      collection(fbFirestore, COLLECTIONS.INVITES),
+      where('fromUid',    '==', myId),
+      where('musicianId', '==', otherId),
+      where('status',     '==', 'pending'),
+    ));
+    if (existingInvite.empty) {
+      await addDoc(collection(fbFirestore, COLLECTIONS.INVITES), {
+        musicianId:   otherId,
+        musicianName: otherName,
+        musicianEmoji: otherEmoji,
+        musicianInst: '',
+        fromUid:      myId,
+        fromName:     myName,
+        fromCity:     myCity ?? '',
+        status:       'pending',
+        createdAt:    serverTimestamp(),
+      });
+    }
+  }
+
   return ref.id;
+}
+
+// ── AGREEMENTS ────────────────────────────────────────────
+import type { Agreement } from '../types';
+
+// Create agreement when Sevgi clicks "Razıyam"
+export async function createAgreement(
+  fromUid:  string,
+  fromName: string,
+  toUid:    string,
+  toName:   string,
+): Promise<string> {
+  // Check if already exists
+  const existing = await getDocs(query(
+    collection(fbFirestore, COLLECTIONS.AGREEMENTS),
+    where('fromUid', '==', fromUid),
+    where('toUid',   '==', toUid),
+  ));
+  if (!existing.empty) return existing.docs[0].id;
+
+  const ref = await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
+    fromUid, fromName, toUid, toName,
+    status:    'agreed',
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+// Subscribe to agreements for current user (both as from and to)
+export function subscribeAgreements(
+  uid: string,
+  cb: (agreements: Agreement[]) => void,
+): () => void {
+  // Two queries — as initiator and as responder
+  const q1 = query(collection(fbFirestore, COLLECTIONS.AGREEMENTS), where('fromUid', '==', uid));
+  const q2 = query(collection(fbFirestore, COLLECTIONS.AGREEMENTS), where('toUid',   '==', uid));
+
+  let list1: Agreement[] = [];
+  let list2: Agreement[] = [];
+
+  const merge = () => {
+    const merged = [...list1, ...list2];
+    const unique = merged.filter((a, i) => merged.findIndex(b => b.id === a.id) === i);
+    cb(unique);
+  };
+
+  const unsub1 = onSnapshot(q1, snap => { list1 = snapToList<Agreement>(snap); merge(); });
+  const unsub2 = onSnapshot(q2, snap => { list2 = snapToList<Agreement>(snap); merge(); });
+
+  return () => { unsub1(); unsub2(); };
+}
+
+// Check if agreement exists between two users
+export async function getAgreement(uid1: string, uid2: string): Promise<Agreement | null> {
+  const q1 = await getDocs(query(
+    collection(fbFirestore, COLLECTIONS.AGREEMENTS),
+    where('fromUid', '==', uid1),
+    where('toUid',   '==', uid2),
+  ));
+  if (!q1.empty) return { id: q1.docs[0].id, ...q1.docs[0].data() } as Agreement;
+
+  const q2 = await getDocs(query(
+    collection(fbFirestore, COLLECTIONS.AGREEMENTS),
+    where('fromUid', '==', uid2),
+    where('toUid',   '==', uid1),
+  ));
+  if (!q2.empty) return { id: q2.docs[0].id, ...q2.docs[0].data() } as Agreement;
+
+  return null;
 }

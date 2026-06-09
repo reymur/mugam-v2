@@ -139,7 +139,7 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
     };
   };
 
-  const hasNotifs = receivedInvites.length > 0 || unreadChats.length > 0;
+  const hasNotifs = unreadChats.length > 0;
 
   return (
     <Animated.View style={[p.panel, { transform: [{ translateX: slideAnim }] }]}>
@@ -155,11 +155,11 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
           <View style={p.empty}>
             <Text style={{ fontSize: 48 }}>🔔</Text>
             <Text style={p.emptyTitle}>Bildiriş yoxdur</Text>
-            <Text style={p.emptyDesc}>Dəvətlər və mesajlar burada görünəcək</Text>
+            <Text style={p.emptyDesc}>Mesajlar burada görünəcək</Text>
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
-            {/* Unread messages section */}
+            {/* Unread messages section only */}
             {unreadChats.length > 0 && (
               <>
                 <Text style={p.sectionLabel}>💬 Oxunmamış mesajlar</Text>
@@ -168,20 +168,6 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
                     key={chat.id}
                     chat={chat}
                     onPress={() => setSelectedChat(chat)}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* Incoming invites section */}
-            {receivedInvites.length > 0 && (
-              <>
-                <Text style={p.sectionLabel}>🔔 Dəvətlər</Text>
-                {receivedInvites.map(inv => (
-                  <IncomingCard
-                    key={inv.id}
-                    invite={inv}
-                    onPress={() => setSelectedInvite(inv)}
                   />
                 ))}
               </>
@@ -199,11 +185,14 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
         />
       )}
 
-      {/* Open direct chat from unread message */}
+      {/* Open direct chat from unread message — pass invite if exists */}
       {selectedChat && (
         <DirectChat
           musician={getMusicianFromChat(selectedChat)}
           onClose={() => setSelectedChat(null)}
+          fromInvite={receivedInvites.find(inv =>
+            inv.fromUid === (selectedChat.members?.find(m => m !== user?.uid) ?? '')
+          )}
         />
       )}
     </Animated.View>
@@ -223,7 +212,7 @@ export default function Topbar({ title, showLogo = true }: TopbarProps) {
 
   const pendingInvites = receivedInvites.filter(i => i.status === 'pending').length;
   const unreadMessages = chats.reduce((sum, c) => sum + (c.unread || 0), 0);
-  const totalBadge = pendingInvites + unreadMessages;
+  const totalBadge = unreadMessages; // only messages, not invites
 
   return (
     <>
