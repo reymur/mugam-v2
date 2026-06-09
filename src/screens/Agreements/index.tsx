@@ -28,10 +28,11 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
     }).start(onClose);
   };
 
-  const isFrom    = agreement.fromUid === user?.uid;
-  const otherName = isFrom ? agreement.toName : agreement.fromName;
-  const myRole    = isFrom ? 'Təklif edən' : 'Qəbul edən';
-  const otherRole = isFrom ? 'Qəbul edən' : 'Təklif edən';
+  // fromUid = initiator (Teymur who sent), toUid = acceptor (Sevgi who agreed)
+  const isSender  = agreement.fromUid === user?.uid;
+  const myRole    = isSender ? 'Göndərən (Təklif edən)' : 'Qəbul edən';
+  const otherRole = isSender ? 'Qəbul edən' : 'Göndərən (Təklif edən)';
+  const otherName = isSender ? agreement.toName : agreement.fromName;
 
   const date = agreement.createdAt?.toDate
     ? agreement.createdAt.toDate().toLocaleDateString('az-AZ', {
@@ -62,22 +63,22 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <Text style={d.dateText}>{date}</Text>
           </View>
 
-          {/* Parties */}
+          {/* Parties — always sender first, acceptor second */}
           <View style={d.card}>
             <Text style={d.cardTitle}>Tərəflər</Text>
             <View style={d.party}>
               <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
               <View>
-                <Text style={d.partyName}>{user?.displayName ?? 'Siz'}</Text>
-                <Text style={d.partyRole}>{myRole}</Text>
+                <Text style={d.partyName}>{agreement.fromName}</Text>
+                <Text style={d.partyRole}>Göndərən (Təklif edən)</Text>
               </View>
             </View>
             <View style={d.divider} />
             <View style={d.party}>
               <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
               <View>
-                <Text style={d.partyName}>{otherName}</Text>
-                <Text style={d.partyRole}>{otherRole}</Text>
+                <Text style={d.partyName}>{agreement.toName}</Text>
+                <Text style={d.partyRole}>Qəbul edən</Text>
               </View>
             </View>
           </View>
@@ -138,8 +139,8 @@ export default function AgreementsScreen() {
           </View>
         ) : (
           agreements.map(ag => {
-            const isFrom    = ag.fromUid === user?.uid;
-            const otherName = isFrom ? ag.toName : ag.fromName;
+            const isSender  = ag.fromUid === user?.uid;
+            const otherName = isSender ? ag.toName : ag.fromName;
             const date = ag.createdAt?.toDate
               ? ag.createdAt.toDate().toLocaleDateString('az-AZ', {
                   day: 'numeric', month: 'long', year: 'numeric',
@@ -160,7 +161,7 @@ export default function AgreementsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={s.cardName}>{otherName}</Text>
                     <Text style={s.cardRole}>
-                      {isFrom ? 'Siz təklif etdiniz' : 'Sizə təklif edildi'}
+                      {isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi'}
                     </Text>
                     <Text style={s.cardDate}>{date}</Text>
                   </View>

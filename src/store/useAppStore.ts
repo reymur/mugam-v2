@@ -472,7 +472,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   createAgreement: async (toUid, toName) => {
     const user = get().user;
     if (!user) return;
-    await FireStore.createAgreement(user.uid, user.displayName, toUid, toName);
+    // toUid = initiator (Teymur who opened chat)
+    // user = acceptor (Sevgi who clicked Razıyam)
+    // Store as: fromUid = initiator (Teymur), toUid = acceptor (Sevgi)
+    await FireStore.createAgreement(toUid, toName, user.uid, user.displayName);
   },
 
   hasAgreementWith: (uid) => {
