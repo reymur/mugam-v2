@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  TextInput, StyleSheet, FlatList,
+  TextInput, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
@@ -155,13 +155,12 @@ export default function StoriesScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={stories}
-        keyExtractor={s => s.id}
+      <ScrollView
         contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <StoryCard story={item} />}
-      />
+      >
+        {stories.map(item => <StoryCard key={item.id} story={item} />)}
+      </ScrollView>
 
       <BottomSheet visible={shareModal} onClose={() => setShareModal(false)}>
         <Text style={styles.modalTitle}>{t('funModalTitle')}</Text>
