@@ -228,23 +228,22 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
     : '';
 
   return (
-    <TouchableOpacity style={[s.card, isUnread && s.cardUnread]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[s.card, isUnread ? s.cardUnread : s.cardRead]} onPress={onPress} activeOpacity={0.85}>
       <View style={s.cardLeft}>
         <View style={s.cardAva}>
           <Text style={{ fontSize: 22 }}>📋</Text>
           {isUnread && <View style={s.unreadDot} />}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.cardName}>{otherName}</Text>
-          <Text style={s.cardRole}>
+          <Text style={[s.cardName, !isUnread && s.cardNameRead]}>{otherName}</Text>
+          <Text style={[s.cardRole, !isUnread && s.cardRoleRead]}>
             {isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi'}
           </Text>
-          <Text style={s.cardDate}>{date}</Text>
+          <Text style={[s.cardDate, !isUnread && s.cardDateRead]}>{date}</Text>
         </View>
-      </View>
-      <View style={s.cardStatus}>
-        <Text style={s.cardStatusText}>✅</Text>
-        <Text style={s.cardArrow}>›</Text>
+        <View style={s.cardRight}>
+          {isUnread && <View style={s.unreadCircle} />}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -253,12 +252,11 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
 // ── Agreements List Screen ────────────────────────────────
 export default function AgreementsScreen({ route }: { route?: any }) {
   const { agreements, user, markAgreementAsRead } = useAppStore();
-  const readAgreementIds = useAppStore(s => s.readAgreementIds ?? []);
+  const readAgreementIds: string[] = useAppStore(s => (s as any).readAgreementIds ?? []);
   const autoOpenUid = route?.params?.musicianUid ?? null;
 
   // Mark all as seen when screen opens (clears badge)
   React.useEffect(() => {
-    
   }, []);
 
   // Auto-open agreement with specific musician
@@ -294,7 +292,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
               ag={ag}
               isUnread={!readAgreementIds.includes(ag.id)}
               onPress={() => {
-                markAgreementAsRead(ag.id);
+                markAgreementAsRead?.(ag.id);
                 setSelected(ag);
               }}
             />
@@ -358,17 +356,21 @@ const s = StyleSheet.create({
   emptyEmoji:  { fontSize: 52 },
   emptyTitle:  { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
   emptyDesc:   { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400, paddingHorizontal: 20 },
-  card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 14, marginBottom: 10 },
-  cardUnread:  { borderColor: Colors.gold, backgroundColor: 'rgba(212,160,60,0.05)' },
+  card:        { borderRadius: 16, padding: 14, marginBottom: 10 },
+  cardUnread:  { backgroundColor: Colors.card },
+  cardRead:    { backgroundColor: 'rgba(255,255,255,0.03)' },
   cardLeft:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardAva:     { width: 46, height: 46, borderRadius: 14, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, position: 'relative' },
   unreadDot:   { position: 'absolute', top: -3, right: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.gold, borderWidth: 2, borderColor: Colors.bg },
-  cardName:    { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text, marginBottom: 2 },
-  cardRole:    { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600, marginBottom: 2 },
-  cardDate:    { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
-  cardStatus:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardStatusText: { fontSize: 18 },
-  cardArrow:   { fontSize: 20, color: Colors.muted },
+  cardName:     { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text, marginBottom: 2 },
+  cardNameRead: { color: Colors.muted },
+  cardRole:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600, marginBottom: 2 },
+  cardRoleRead: { color: Colors.muted },
+  cardDate:     { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
+  cardDateRead: { color: Colors.border },
+  cardRight:    { alignItems: 'center', gap: 6 },
+  unreadCircle: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.green },
+  cardArrow:    { fontSize: 20, color: Colors.muted },
   msgsWrap:    { marginTop: 10, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, gap: 6 },
   msgLine:     { flexDirection: 'row', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' },
   msgLineName: { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, flexShrink: 0 },
