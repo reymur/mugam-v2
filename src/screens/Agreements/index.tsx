@@ -230,9 +230,16 @@ function AgreementCard({ ag, onPress }: { ag: Agreement; onPress: () => void }) 
 }
 
 // ── Agreements List Screen ────────────────────────────────
-export default function AgreementsScreen() {
+export default function AgreementsScreen({ route }: { route?: any }) {
   const { agreements, user } = useAppStore();
-  const [selected, setSelected] = useState<Agreement | null>(null);
+  const autoOpenUid = route?.params?.musicianUid ?? null;
+
+  // Auto-open agreement with specific musician
+  const autoAgreement = autoOpenUid
+    ? agreements.find(a => a.fromUid === autoOpenUid || a.toUid === autoOpenUid) ?? null
+    : null;
+
+  const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>

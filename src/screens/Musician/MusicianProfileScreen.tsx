@@ -4,6 +4,7 @@ import {
   StyleSheet, Animated, Dimensions, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
@@ -110,7 +111,12 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
 
   const slideAnim  = React.useRef(new Animated.Value(SCREEN_W)).current;
   const musicianId = musician.uid ?? musician.id;
+  const navigation = useNavigation<any>();
   const agreed     = hasAgreementWith(musicianId);
+  const agreements = useAppStore(s => s.agreements);
+  const agreementCount = agreements.filter(a =>
+    (a.fromUid === musicianId || a.toUid === musicianId)
+  ).length;
   const isMyProfile = user?.uid && (user.uid === musician.uid);
 
   const [senderMusician, setSenderMusician] = useState<Musician | null>(null);
@@ -215,12 +221,21 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
             {/* Action buttons — only when viewing someone else's profile */}
             {!isMyProfile && !fromInvite && (
               <View style={s.btns}>
-                {/* Razılaşma — grey/inactive until agreed, then green Qəbul etdi */}
-                <View style={[s.invBtn, agreed ? s.invBtnAccepted : s.invBtnGrey]}>
-                  <Text style={[s.invBtnText, agreed ? s.invBtnAcceptedText : s.invBtnGreyText]}>
-                    {agreed ? '✅ Qəbul etdi' : '🤝 Razılaşma'}
-                  </Text>
-                </View>
+                {/* Razılaşma — grey until agreed, then gold + clickable → Agreements */}
+                {agreed ? (
+                  <TouchableOpacity
+                    style={[s.invBtn, s.invBtnAccepted]}
+                    onPress={() => { onClose(); navigation.navigate('Agreements', { musicianUid: musicianId }); }}
+                  >
+                    <Text style={s.invBtnAcceptedText}>
+                      🤝 Razılaşma ({agreementCount})
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={[s.invBtn, s.invBtnGrey]}>
+                    <Text style={s.invBtnGreyText}>🤝 Razılaşma</Text>
+                  </View>
+                )}
 
                 {/* Mesaj — always active */}
                 <TouchableOpacity style={s.msgBtn} onPress={handleMessage}>
@@ -388,12 +403,12 @@ const s = StyleSheet.create({
   invBtn:      { flex: 1, backgroundColor: Colors.gold, borderRadius: 28, paddingVertical: 14, alignItems: 'center' },
   invBtnGrey:       { backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border },
   invBtnCancel:     { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.red },
-  invBtnAccepted:   { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1.5, borderColor: Colors.green },
+  invBtnAccepted:   { backgroundColor: Colors.gold, borderWidth: 1.5, borderColor: Colors.gold },
   invBtnAcceptGreen:{ flex: 1, backgroundColor: Colors.green, borderRadius: 28, paddingVertical: 14, alignItems: 'center' },
   invBtnText:           { color: '#1a0e00', fontSize: 15, fontFamily: Typography.nunito700 },
   invBtnGreyText:       { color: Colors.muted, fontSize: 15, fontFamily: Typography.nunito700 },
   invBtnCancelText:     { color: Colors.red },
-  invBtnAcceptedText:   { color: Colors.green, fontSize: 15, fontFamily: Typography.nunito700 },
+  invBtnAcceptedText:   { color: '#1a0e00', fontSize: 15, fontFamily: Typography.nunito700 },
   invBtnAcceptGreenText:{ color: 'white', fontSize: 15, fontFamily: Typography.nunito700 },
   msgBtn:      { paddingHorizontal: 20, borderRadius: 28, borderWidth: 1, borderColor: Colors.border, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   msgBtnText:  { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito700 },
