@@ -1,21 +1,18 @@
 import az, { TranslationKeys } from './az';
 import ru from './ru';
 import { useAppStore } from '../store/useAppStore';
-// Re-export Lang from types.ts — single source of truth, no duplication
+
 export type { Lang } from '../types';
 
-const translations = { az, ru };
+const translations = { az, ru } as const;
 
 export function useT() {
-  const lang = useAppStore(s => s.lang);
-  return {
-    t: (key: TranslationKeys): string => {
-      return (translations[lang] as Record<string, string>)[key]
-          ?? (translations.az  as Record<string, string>)[key]
-          ?? key;
-    },
-    lang,
-  };
+  const lang = useAppStore.getState().lang;
+  const t = (key: TranslationKeys): string =>
+    (translations[lang] as Record<string, string>)[key]
+    ?? (translations.az as Record<string, string>)[key]
+    ?? key;
+  return { t, lang };
 }
 
 export { az, ru };

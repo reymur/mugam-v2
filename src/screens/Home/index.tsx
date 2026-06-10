@@ -40,12 +40,14 @@ const MusicianCard = React.memo(function MusicianCard({
   invited,
   accepted,
   onToggleInvite,
+  agreementCount,
 }: {
   musician: Musician;
   onPress: () => void;
   invited: boolean;
   accepted: boolean;
   onToggleInvite: () => void;
+  agreementCount: number;
 }) {
   const { t }         = useT();
   const { showToast } = useAppStore();
@@ -65,6 +67,15 @@ const MusicianCard = React.memo(function MusicianCard({
       activeOpacity={0.85}
     >
       {musician.available && <View style={s.availableDot} />}
+
+      {/* Agreement badge — top right */}
+      {agreementCount > 0 && (
+        <View style={s.agreementBadge}>
+          <Text>🤝</Text>
+          <Text style={s.agreementBadgeText}>{agreementCount}</Text>
+        </View>
+      )}
+
       <View style={[s.musAva, musician.goldRing && s.musAvaGold]}>
         <Text style={{ fontSize: 26 }}>{musician.emoji}</Text>
       </View>
@@ -167,6 +178,17 @@ export default function HomeScreen() {
   // Use store invites — synced with Firestore
   const invitedMusicianIds  = useAppStore(st => st.invitedMusicianIds);
   const acceptedMusicianIds = useAppStore(st => st.acceptedMusicianIds);
+  const agreements          = useAppStore(st => st.agreements);
+
+  // Pre-compute agreement counts per musician
+  const agreementCountMap = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    agreements.forEach(a => {
+      map[a.fromUid] = (map[a.fromUid] ?? 0) + 1;
+      map[a.toUid]   = (map[a.toUid]   ?? 0) + 1;
+    });
+    return map;
+  }, [agreements]);
   const storeSendInvite     = useAppStore(st => st.sendInvite);
   const storeCancelInvite   = useAppStore(st => st.cancelInvite);
 
@@ -194,6 +216,7 @@ export default function HomeScreen() {
               onPress={() => setSelectedMusician(m)}
               invited={invitedMusicianIds.has(m.uid ?? m.id)}
               accepted={acceptedMusicianIds.has(m.uid ?? m.id)}
+              agreementCount={agreementCountMap[m.uid ?? m.id] ?? 0}
               onToggleInvite={() => { const id = m.uid ?? m.id; invitedMusicianIds.has(id) ? storeCancelInvite(id) : storeSendInvite(m); }}
             />
           ))}
@@ -241,7 +264,9 @@ const s = StyleSheet.create({
   secLink: { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700 },
   musCard: { width: 140, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 18, padding: 16, alignItems: 'center', gap: 5, flexShrink: 0 },
   musCardGold: { borderColor: Colors.gold },
-  availableDot: { position: 'absolute', top: 10, right: 10, width: 10, height: 10, backgroundColor: Colors.green, borderRadius: 5, borderWidth: 2, borderColor: Colors.card },
+  availableDot:    { position: 'absolute', top: 10, right: 10, width: 10, height: 10, backgroundColor: Colors.green, borderRadius: 5, borderWidth: 2, borderColor: Colors.card },
+  agreementBadge:  { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  agreementBadgeText: { fontSize: 11, color: Colors.gold, fontFamily: Typography.nunito700 },
   musAva: { width: 58, height: 58, borderRadius: 29, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.border },
   musAvaGold: { borderColor: Colors.gold },
   musName: { fontFamily: Typography.playfair700, fontSize: 13, color: Colors.text, textAlign: 'center' },

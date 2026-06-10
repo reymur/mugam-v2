@@ -1,55 +1,24 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput,
-  StyleSheet, FlatList,
+  View, Text, TouchableOpacity, StyleSheet,
+  TextInput, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
-import { useT }       from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import type { Musician } from '../../store/useAppStore';
-import Topbar from '../../components/common/Topbar';
 import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
-
-const FILTERS = [
-  { key: 'filterAll',     value: '' },
-  { key: 'filterKaman',   value: 'Kaman' },
-  { key: 'filterSinger',  value: 'Müğənni' },
-  { key: 'filterGarmon',  value: 'Qarmon' },
-  { key: 'filterTar',     value: 'Tar' },
-  { key: 'filterBalaban', value: 'Balaban' },
-  { key: 'filterZerb',    value: 'Zərb' },
-  { key: 'filterGuitar',  value: 'Gitara' },
-  { key: 'filterPiano',   value: 'Fortepiano' },
-  { key: 'filterBaku',    value: 'Bakı' },
-  { key: 'filterGence',   value: 'Gəncə' },
-] as const;
 
 function MusicianListItem({
   musician,
   onPress,
-  invited,
-  accepted,
-  onToggleInvite,
+  agreementCount,
 }: {
   musician: Musician;
   onPress: () => void;
-  invited: boolean;
-  accepted: boolean;
-  onToggleInvite: () => void;
+  agreementCount: number;
 }) {
-  const { t }         = useT();
-  const { showToast } = useAppStore();
-
-  const handleInvite = useCallback(() => {
-    onToggleInvite();
-    showToast(invited
-      ? `❌ ${musician.name} — dəvət ləğv edildi`
-      : `✅ ${musician.name} — dəvət göndərildi!`
-    );
-  }, [invited, musician.name, onToggleInvite, showToast]);
-
   return (
     <TouchableOpacity style={s.mliItem} onPress={onPress} activeOpacity={0.8}>
       <View style={[s.mliAva, musician.online && s.mliAvaOnline]}>
@@ -63,7 +32,12 @@ function MusicianListItem({
       </View>
       <View style={s.mliActions}>
         <Text style={s.mliRate}>{'★'.repeat(musician.rating)}</Text>
-
+        {agreementCount > 0 && (
+          <View style={s.mliAgreementBadge}>
+            <Text style={{ fontSize: 12 }}>🤝</Text>
+            <Text style={s.mliAgreementText}>{agreementCount}</Text>
+          </View>
+        )}
         <TouchableOpacity style={s.mliMsgBtn} onPress={onPress}>
           <Text style={s.mliMsgTxt}>👤</Text>
         </TouchableOpacity>
@@ -73,87 +47,115 @@ function MusicianListItem({
 }
 
 export default function SearchScreen() {
-  const { t }      = useT();
-  const allMusicians = useAppStore(st => st.musicians);
-  const currentUser  = useAppStore(st => st.user);
+  const st           = useAppStore();
+  const allMusicians = st.musicians;
+  const currentUser  = st.user;
+  const agreements   = st.agreements;
+  const lang         = st.lang;
 
-  // Don't show current user's own card
-  const musicians = allMusicians.filter(m => m.uid !== currentUser?.uid && m.id !== currentUser?.uid);
-  const [query,         setQuery]         = useState('');
-  const [activeFilter,  setActiveFilter]  = useState('');
-  const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null);
-  const invitedMusicianIds  = useAppStore(st => st.invitedMusicianIds);
-  const acceptedMusicianIds = useAppStore(st => st.acceptedMusicianIds);
-  const storeSendInvite     = useAppStore(st => st.sendInvite);
-  const storeCancelInvite   = useAppStore(st => st.cancelInvite);
+  const az_trans = require('../../i18n/az').default;
+  const ru_trans = require('../../i18n/ru').default;
+  const t = (key: string) => (lang === 'ru' ? ru_trans : az_trans)[key] ?? az_trans[key] ?? key;
+
+  const musicians = allMusicians.filter(m =>
+    m.uid !== currentUser?.uid && m.id !== currentUser?.uid
+  );
+
+  const [query,            setQuery]            = useState('');
+  const [activeFilter,     setActiveFilter]      = useState('');
+  const [selectedMusician, setSelectedMusician]  = useState<Musician | null>(null);
+
+  const agreementCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    agreements.forEach(a => {
+      map[a.fromUid] = (map[a.fromUid] ?? 0) + 1;
+      map[a.toUid]   = (map[a.toUid]   ?? 0) + 1;
+    });
+    return map;
+  }, [agreements]);
+
+  const FILTERS = ['🎻 Kaman','🎤 Müğənni','🪗 Qarmon','🎵 Tar','🎷 Balaban','🥁 Zərb','🎸 Gitara','🎹 Piano','🎺 Zurna'];
 
   const filtered = musicians.filter(m => {
     const q = query.toLowerCase();
-    const matchQuery  = !q || m.name.toLowerCase().includes(q) || m.instrument.toLowerCase().includes(q) || m.city.toLowerCase().includes(q);
-    const matchFilter = !activeFilter || m.instrument.includes(activeFilter) || m.city.includes(activeFilter);
-    return matchQuery && matchFilter;
+    const matchQ = !q || m.name.toLowerCase().includes(q) || m.instrument?.toLowerCase().includes(q) || m.city?.toLowerCase().includes(q);
+    const matchF = !activeFilter || m.instrument === activeFilter;
+    return matchQ && matchF;
   });
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
-      <Topbar showLogo={false} title={t('navAxtar')} />
-
-      <View style={s.searchWrap}>
-        <TextInput
-          style={s.searchField}
-          placeholder={t('searchPlaceholder')}
-          placeholderTextColor={Colors.muted}
-          value={query}
-          onChangeText={setQuery}
-        />
+      {/* Search bar */}
+      <View style={s.searchRow}>
+        <View style={s.searchBox}>
+          <Text style={s.searchIcon}>🔍</Text>
+          <TextInput
+            style={s.searchInput}
+            placeholder={t('searchPlaceholder')}
+            placeholderTextColor={Colors.muted}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')} style={s.clearBtn}>
+              <Text style={{ color: Colors.muted, fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={m => m.id}
-        contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 20 }}
+      {/* Filter chips */}
+      <View style={s.filtersRow}>
+        <TouchableOpacity
+          style={[s.filterChip, !activeFilter && s.filterChipActive]}
+          onPress={() => setActiveFilter('')}
+        >
+          <Text style={[s.filterChipText, !activeFilter && s.filterChipTextActive]}>
+            {t('filterAll')}
+          </Text>
+        </TouchableOpacity>
+        {FILTERS.map(f => (
+          <TouchableOpacity
+            key={f}
+            style={[s.filterChip, activeFilter === f && s.filterChipActive]}
+            onPress={() => setActiveFilter(activeFilter === f ? '' : f)}
+          >
+            <Text style={[s.filterChipText, activeFilter === f && s.filterChipTextActive]}>{f}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Results count */}
+      <Text style={s.resultCount}>
+        {filtered.length} {t('searchResults')}
+      </Text>
+
+      <ScrollView
+        contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={FILTERS}
-            keyExtractor={f => f.key}
-            contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
-            renderItem={({ item: f }) => (
-              <TouchableOpacity
-                style={[s.ftag, activeFilter === f.value && s.ftagActive]}
-                onPress={() => setActiveFilter(f.value)}
-              >
-                <Text style={[s.ftagText, activeFilter === f.value && s.ftagTextActive]}>
-                  {t(f.key as Parameters<typeof t>[0])}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        }
-        ListEmptyComponent={
-          <View style={s.empty}>
-            <Text style={s.emptyEmoji}>🔍</Text>
+        keyboardShouldPersistTaps="handled"
+      >
+        {filtered.length === 0 ? (
+          <View style={s.emptyWrap}>
             <Text style={s.emptyText}>Heç nə tapılmadı</Text>
           </View>
-        }
-        renderItem={({ item }) => (
-          <MusicianListItem
-            musician={item}
-            onPress={() => setSelectedMusician(item)}
-            invited={invitedMusicianIds.has(item.uid ?? item.id)}
-            accepted={acceptedMusicianIds.has(item.uid ?? item.id)}
-            onToggleInvite={() => { const id = item.uid ?? item.id; invitedMusicianIds.has(id) ? storeCancelInvite(id) : storeSendInvite(item); }}
-          />
+        ) : (
+          filtered.map(item => (
+            <MusicianListItem
+              key={item.id}
+              musician={item}
+              onPress={() => setSelectedMusician(item)}
+              agreementCount={agreementCountMap[item.uid ?? item.id] ?? 0}
+            />
+          ))
         )}
-      />
+      </ScrollView>
 
       {selectedMusician && (
         <MusicianProfileScreen
           musician={selectedMusician}
           onClose={() => setSelectedMusician(null)}
-
         />
       )}
     </SafeAreaView>
@@ -162,31 +164,34 @@ export default function SearchScreen() {
 
 const s = StyleSheet.create({
   screen:      { flex: 1, backgroundColor: Colors.bg },
-  searchWrap:  { paddingHorizontal: 14, paddingBottom: 8 },
-  searchField: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, color: Colors.text, fontSize: 14, fontFamily: Typography.nunito400 },
-  ftag:        { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.border },
-  ftagActive:  { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  ftagText:    { color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700 },
-  ftagTextActive: { color: '#1a0e00' },
-  mliItem:     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  mliAva:      { width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.border, flexShrink: 0 },
+  searchRow:   { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8 },
+  searchBox:   { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, paddingHorizontal: 12, height: 46 },
+  searchIcon:  { fontSize: 16, marginRight: 8 },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 15, fontFamily: Typography.nunito400 },
+  clearBtn:    { padding: 4 },
+  filtersRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 10 },
+  filterChip:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border },
+  filterChipActive: { backgroundColor: 'rgba(212,160,60,0.15)', borderColor: Colors.gold },
+  filterChipText:   { color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700 },
+  filterChipTextActive: { color: Colors.gold },
+  resultCount: { paddingHorizontal: 14, paddingBottom: 6, fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
+  listContent: { paddingHorizontal: 14, paddingBottom: 20 },
+  emptyWrap:   { alignItems: 'center', paddingTop: 40 },
+  emptyText:   { color: Colors.muted, fontSize: 14, fontFamily: Typography.nunito400 },
+  mliItem:     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  mliAva:      { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, position: 'relative' },
   mliAvaOnline:{ borderColor: Colors.green },
   mliOnlineDot:{ position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, backgroundColor: Colors.green, borderRadius: 6, borderWidth: 2, borderColor: Colors.bg },
-  mliInfo:     { flex: 1, minWidth: 0 },
+  mliInfo:     { flex: 1 },
   mliName:     { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text, marginBottom: 2 },
-  mliRole:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 2 },
+  mliRole:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600, marginBottom: 1 },
   mliLoc:      { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
-  mliActions:  { alignItems: 'flex-end', gap: 6, flexShrink: 0 },
-  mliRate:     { fontSize: 12, color: Colors.gold },
-  mliHireBtn:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: Colors.gold },
-  mliHireBtnCancel: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.red },
-  mliHireBtnAccepted: { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: Colors.green },
-  mliHireTxt:  { color: '#1a0e00', fontSize: 11, fontFamily: Typography.nunito700 },
-  mliHireTxtCancel: { color: Colors.red },
-  mliHireTxtAccepted: { color: Colors.green },
+  mliActions:  { alignItems: 'center', gap: 6 },
+  mliRate:     { fontSize: 11, color: Colors.gold, fontFamily: Typography.nunito400 },
   mliMsgBtn:   { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: Colors.border },
-  mliMsgTxt:   { fontSize: 13 },
-  empty:       { alignItems: 'center', marginTop: 60, gap: 12 },
-  emptyEmoji:  { fontSize: 40 },
-  emptyText:   { color: Colors.muted, fontSize: 14, fontFamily: Typography.nunito400 },
+  mliMsgTxt:   { fontSize: 14 },
+  mliAgreementBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  mliAgreementText:  { fontSize: 10, color: '#1a0e00', fontFamily: Typography.nunito700 },
+  mliHireBtnAccepted: { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: Colors.green },
+  mliHireTxtAccepted: { color: Colors.green },
 });
