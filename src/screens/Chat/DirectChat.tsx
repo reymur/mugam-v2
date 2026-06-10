@@ -318,7 +318,7 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
         )}
 
         {/* Both see agreed banner briefly before navigating */}
-        {(justAgreed || (agreedBefore && !navigating)) && (
+        {(justAgreed || navigating) && (
           <View style={[s.acceptBanner, { backgroundColor: 'rgba(39,174,96,0.1)', borderColor: Colors.green }]}>
             <Text style={[s.acceptBannerText, { color: Colors.green }]}>
               ✅ Razılaşma qəbul edildi — Müqavilələr bölməsinə keçirik...
