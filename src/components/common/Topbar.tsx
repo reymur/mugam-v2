@@ -74,7 +74,7 @@ function UnreadChatCard({ chat, onPress }: { chat: ChatItem; onPress: () => void
         <View style={nc.ava}><Text style={{ fontSize: 20 }}>{chat.emoji}</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={nc.name} numberOfLines={1}>{chat.name}</Text>
-          <Text style={nc.sub} numberOfLines={1}>{chat.preview}</Text>
+          <Text style={nc.sub}>💬 Yeni mesaj</Text>
         </View>
         <View style={[nc.badge, { borderColor: Colors.gold, backgroundColor: `${Colors.gold}25` }]}>
           <Text style={[nc.badgeText, { color: Colors.gold }]}>💬 {chat.unread}</Text>

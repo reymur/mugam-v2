@@ -224,23 +224,7 @@ function AgreementCard({ ag, onPress }: { ag: Agreement; onPress: () => void }) 
         </View>
       </View>
 
-      {/* Chat messages preview */}
-      {msgs.length > 0 && (
-        <View style={s.msgsWrap}>
-          {msgs.map((msg, i) => {
-            const isVoice = msg.text?.startsWith('🎤 VOICE:');
-            return (
-              <View key={msg.id ?? i} style={s.msgLine}>
-                <Text style={s.msgLineName}>{msg.senderName}:</Text>
-                <Text style={s.msgLineText} numberOfLines={1}>
-                  {isVoice ? '🎤 Səs mesajı' : msg.text}
-                </Text>
-                <Text style={s.msgLineTime}>{msg.date} {msg.time}</Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
+      {/* No messages preview in list — see detail screen */}
     </TouchableOpacity>
   );
 }
