@@ -1,80 +1,52 @@
-# Muğam Club — Полная документация проекта
+# Mugam Club — Полная документация проекта v2026
 
-## Обзор
-Мобильное приложение для азербайджанских музыкантов. Платформа для поиска музыкантов, общения, заключения договоров о сотрудничестве.
+## Что это
+Мобильное приложение для азербайджанских музыкантов на React Native / Expo Go.
+Платформа для поиска музыкантов, общения в чате и заключения договоров о сотрудничестве.
 
 ---
 
 ## Технический стек
 
-| Технология | Версия | Назначение |
+| Технология | Версия | Зачем |
 |---|---|---|
 | Expo SDK | 54.0.x | Основной фреймворк |
 | React Native | 0.81.5 | Мобильный UI |
-| React | 18.3.1 | UI библиотека |
-| Firebase JS SDK | 9.23.0 | Backend (Auth + Firestore) |
+| React | 18.3.1 | UI |
+| Firebase JS SDK | **9.23.0** | Auth + Firestore |
 | Zustand | 4.5.x | Стейт менеджмент |
 | React Navigation | 6.x | Навигация |
 | expo-av | SDK54 | Голосовые сообщения |
+| AsyncStorage | — | Персистентная сессия |
 
-### Критически важно:
-- Firebase **v9.23.0** — более новые версии (v10/v11) ломаются с New Architecture
-- React Native **0.81.5** — точно совпадает с Expo Go SDK 54
-- `metro.config.js` должен иметь `unstable_enablePackageExports = false`
+---
+
+## КРИТИЧЕСКИ ВАЖНО (без этого не работает)
+
+1. Firebase **строго v9.23.0** — v10/v11 ломаются с New Architecture
+2. `metro.config.js` — обязательно `unstable_enablePackageExports = false`
+3. Search экран — **только ScrollView + .map()**, НЕ FlatList (ломает Hermes + Zustand Set)
+4. Emoji в Text — всегда в **отдельном** `<Text>` без стилей (иначе Hermes crash)
+5. `initializeAuth` — обязательно в `try/catch` (hot reload вызывает повторную инициализацию)
+6. Zustand — не хранить `Set` в store (Hermes не поддерживает). Использовать `string[]`
+7. Вызов функций в useAppStore selector (`s => s.someFunc()`) — иногда ломается. Лучше вычислять прямо в selector
 
 ---
 
 ## Восстановление проекта
 
 ```bash
-# Клонировать или перейти в папку
 cd ~/Downloads/mugam-v2
-
-# Установить зависимости
-npm install --legacy-peer-deps
-
-# Запустить
-npx expo start --clear
-```
-
-### Git коммиты (рабочие версии):
-```bash
-git log --oneline
-# d65a694 — Working version (база)
-# f12502c — Fix invites
-# ... последующие коммиты
-```
-
-### Откат к рабочей версии:
-```bash
-git checkout .
 npm install --legacy-peer-deps
 npx expo start --clear
 ```
 
 ---
 
-## Конфигурационные файлы
+## Firebase конфиг (реальные ключи)
 
-### `metro.config.js`
-```js
-const { getDefaultConfig } = require('expo/metro-config');
-const config = getDefaultConfig(__dirname);
-config.resolver.sourceExts = [...config.resolver.sourceExts, 'cjs'];
-config.resolver.unstable_enablePackageExports = false;
-module.exports = config;
-```
-
-### `babel.config.js`
-```js
-module.exports = function (api) {
-  api.cache(true);
-  return { presets: ['babel-preset-expo'] };
-};
-```
-
-### `src/firebase/config.ts`
 ```ts
+// src/firebase/config.ts
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
@@ -93,16 +65,44 @@ let app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApp();
 
 let fbAuth;
 try {
-  fbAuth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
+  fbAuth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
 } catch {
   fbAuth = getAuth(app);
 }
 
 export { fbAuth };
 export const fbFirestore = getFirestore(app);
-export const fbStorage = null as any; // Storage не работает в Expo Go
+export const fbStorage = null as any; // не работает в Expo Go
+
+export const COLLECTIONS = {
+  USERS: 'users', MUSICIANS: 'musicians', GIGS: 'gigs', BOARD: 'board',
+  MARKET: 'market', STORIES: 'stories', VIDEOS: 'videos', CHATS: 'chats',
+  MESSAGES: 'messages', EVENTS: 'events', ROOMS: 'rooms',
+  NOTIFICATIONS: 'notifications', INVITES: 'invites', AGREEMENTS: 'agreements',
+} as const;
+```
+
+---
+
+## metro.config.js
+
+```js
+const { getDefaultConfig } = require('expo/metro-config');
+const config = getDefaultConfig(__dirname);
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'cjs'];
+config.resolver.unstable_enablePackageExports = false;
+module.exports = config;
+```
+
+---
+
+## babel.config.js
+
+```js
+module.exports = function (api) {
+  api.cache(true);
+  return { presets: ['babel-preset-expo'] };
+};
 ```
 
 ---
@@ -111,128 +111,115 @@ export const fbStorage = null as any; // Storage не работает в Expo G
 
 ```
 mugam-v2/
-├── App.tsx                          # Точка входа
-├── metro.config.js                  # Metro конфиг (критично!)
-├── babel.config.js                  # Babel конфиг
+├── App.tsx                          # Точка входа + AppState онлайн статус
+├── metro.config.js                  # КРИТИЧНО!
+├── babel.config.js
 ├── src/
 │   ├── types.ts                     # Все TypeScript типы
 │   ├── theme/
-│   │   ├── colors.ts                # Цвета приложения
-│   │   └── typography.ts            # Шрифты (Playfair + Nunito)
+│   │   ├── colors.ts
+│   │   └── typography.ts
 │   ├── i18n/
 │   │   ├── az.ts                    # Азербайджанские переводы
 │   │   ├── ru.ts                    # Русские переводы
-│   │   └── index.ts                 # Хук useT()
+│   │   └── index.ts                 # useT() хук
 │   ├── firebase/
-│   │   ├── config.ts                # Firebase инициализация + ключи
-│   │   ├── auth.ts                  # Авторизация (register, login, logout)
+│   │   ├── config.ts                # Ключи + инициализация + COLLECTIONS
+│   │   ├── auth.ts                  # register, login, logout
 │   │   ├── firestore.ts             # Все Firestore операции
-│   │   ├── storage.ts               # Stub (не работает в Expo Go)
-│   │   └── messaging.ts             # Stub (не работает в Expo Go)
+│   │   ├── storage.ts               # Stub
+│   │   └── messaging.ts             # Stub
 │   ├── store/
 │   │   └── useAppStore.ts           # Zustand store (весь стейт приложения)
 │   ├── navigation/
-│   │   └── RootNavigator.tsx        # Tab навигация (10 вкладок)
+│   │   └── RootNavigator.tsx        # 10 вкладок
 │   ├── components/
 │   │   └── common/
-│   │       ├── Topbar.tsx           # Верхняя панель + колокольчик
-│   │       └── Toast.tsx            # Уведомления
+│   │       ├── Topbar.tsx           # Колокольчик + уведомления + DirectChat
+│   │       └── Toast.tsx
 │   └── screens/
 │       ├── Auth/
-│       │   ├── LoginScreen.tsx      # Экран входа
-│       │   ├── RegisterScreen.tsx   # Регистрация с выбором роли
-│       │   └── AuthNavigator.tsx    # Auth навигация
-│       ├── Home/index.tsx           # Главная — карточки музыкантов
-│       ├── Search/index.tsx         # Поиск музыкантов
-│       ├── Board/index.tsx          # Объявления
-│       ├── Gigs/index.tsx           # Заказы
-│       ├── Market/index.tsx         # Маркет
-│       ├── Stories/index.tsx        # Истории
-│       ├── Video/index.tsx          # Видео плеер
+│       │   ├── LoginScreen.tsx
+│       │   ├── RegisterScreen.tsx   # Выбор роли Musiqiçi / Qonaq
+│       │   └── AuthNavigator.tsx
+│       ├── Home/index.tsx           # Карточки + онлайн dot + agreement badge
+│       ├── Search/index.tsx         # ScrollView+map (НЕ FlatList!)
+│       ├── Board/index.tsx
+│       ├── Gigs/index.tsx
+│       ├── Market/index.tsx
+│       ├── Stories/index.tsx
+│       ├── Video/index.tsx
 │       ├── Chat/
 │       │   ├── index.tsx            # Список чатов
-│       │   └── DirectChat.tsx       # Прямой чат (текст + голос)
+│       │   └── DirectChat.tsx       # Чат договора (ленивое создание)
 │       ├── Profile/
-│       │   ├── index.tsx            # Профиль пользователя
-│       │   └── InvitesScreen.tsx    # Входящие/исходящие приглашения
+│       │   ├── index.tsx
+│       │   └── InvitesScreen.tsx
 │       ├── Musician/
-│       │   └── MusicianProfileScreen.tsx  # Профиль музыканта
+│       │   └── MusicianProfileScreen.tsx
 │       └── Agreements/
-│           └── index.tsx            # Список и детали договоров
+│           └── index.tsx            # Список + детали договоров
 ```
 
 ---
 
-## Firebase — Коллекции Firestore
+## Firebase коллекции
 
-### `users`
+### users
 ```
-{
-  uid, displayName, email, instrument, city,
-  emoji, bio, rating, reviews, available,
-  verified, followers, gigs, fcmToken,
-  createdAt, updatedAt
-}
+uid, displayName, email, instrument, city, emoji, bio,
+rating, reviews, available, online, lastSeen, createdAt
 ```
 
-### `musicians`
-Только пользователи выбравшие роль "Musiqiçi" при регистрации, или нажавшие кнопку "Musiqiçi kimi əlavə ol" в профиле.
+### musicians
+Только пользователи с ролью "Musiqiçi" при регистрации.
 ```
-{
-  id, uid, name, emoji, instrument, city,
-  bio, rating, reviews, available, goldRing, online,
-  createdAt, updatedAt
-}
+id, uid, name, emoji, instrument, city, bio, rating,
+reviews, available, goldRing, online, lastSeen, updatedAt
 ```
 
-### `chats`
+### chats
 ```
-{
-  members: [uid1, uid2],    // массив участников
-  isGroup: false,
-  name: "имя получателя",   // для инициатора
-  initiatorName: "имя отправителя",  // для получателя
-  initiatorUid: uid,        // кто создал чат
-  emoji, preview,
-  lastMessageAt, unreadCount: { [uid]: number },
-  createdAt
-}
+members: [uid1, uid2]
+isGroup: false
+name: "имя получателя"          // Теймур видит имя Sevgi
+initiatorName: "имя Теймура"    // Sevgi видит имя Теймура
+initiatorUid: uid               // кто открыл чат первым
+emoji, preview
+completed: false                // → true после нажатия Razıyam
+lastMessageAt
+unreadCount: { [uid]: number }
+createdAt
+```
+ВАЖНО: чат создаётся ТОЛЬКО при отправке первого сообщения, не при нажатии Mesaj!
+
+### chats/{id}/messages
+```
+text, senderId, senderName, createdAt
+```
+Голосовые: `text = "🎤 VOICE:{localUri}"`
+
+### invites
+Создаётся автоматически вместе с первым сообщением.
+```
+musicianId, musicianName, musicianEmoji, musicianInst,
+fromUid, fromName, fromCity, status: 'pending', createdAt
 ```
 
-### `chats/{id}/messages`
+### agreements
+Создаётся когда получатель нажимает "Razıyam".
+Множественные договоры между одними пользователями разрешены.
 ```
-{
-  text, senderId, senderName, createdAt
-}
-```
-Голосовые сообщения: `text = "🎤 VOICE:{localUri}"`
-
-### `invites`
-Создаётся автоматически когда инициатор открывает чат. Используется для определения кто "получатель" в чате.
-```
-{
-  musicianId, musicianName, musicianEmoji, musicianInst,
-  fromUid, fromName, fromCity,
-  status: 'pending' | 'accepted' | 'declined',
-  createdAt
-}
-```
-
-### `agreements`
-Создаётся когда получатель нажимает "Razıyam" в чате.
-```
-{
-  fromUid, fromName,   // инициатор (Teymur — кто открыл чат)
-  toUid, toName,       // получатель (Sevgi — кто нажал Razıyam)
-  chatId,              // ссылка на чат для истории переписки
-  status: 'agreed',
-  createdAt
-}
+fromUid, fromName   // инициатор (Теймур — кто написал первым)
+toUid, toName       // принявший (Sevgi — кто нажал Razıyam)
+chatId              // ссылка на чат с историей переписки
+status: 'agreed'
+createdAt
 ```
 
 ---
 
-## Firestore индексы (нужно создать вручную)
+## Firestore индексы (создать в консоли вручную)
 
 | Коллекция | Поля | Порядок |
 |---|---|---|
@@ -243,6 +230,7 @@ mugam-v2/
 ---
 
 ## Firestore правила (для разработки)
+
 ```
 rules_version = '2';
 service cloud.firestore {
@@ -253,115 +241,183 @@ service cloud.firestore {
   }
 }
 ```
-⚠️ Перед релизом заменить на строгие правила!
+ВАЖНО: закрыть перед релизом!
 
 ---
 
-## Навигация (10 вкладок)
+## Навигация — 10 вкладок
 
-| Вкладка | Компонент | Описание |
+| Вкладка | Экран | Описание |
 |---|---|---|
-| KLUB | HomeScreen | Карточки музыкантов + события |
-| AXTAR | SearchScreen | Поиск + фильтры |
+| KLUB | HomeScreen | Карточки музыкантов + онлайн dot + agreement badge |
+| AXTAR | SearchScreen | Поиск + фильтры по инструменту |
 | ELANLAR | BoardScreen | Объявления |
 | SİFARİŞ | GigsScreen | Заказы |
 | BAZAR | MarketScreen | Маркет инструментов |
 | HEKAYƏ | StoriesScreen | Истории |
 | VİDEO | VideoScreen | Видео плеер |
-| MESAJ | ChatsScreen | Список чатов |
-| MÜQAV. | AgreementsScreen | Договоры |
-| PROFİL | ProfileScreen | Профиль |
+| MESAJ | ChatsScreen | Список чатов (badge = непрочитанные сообщения) |
+| MÜQAV. | AgreementsScreen | Договоры (badge = непрочитанные договоры) |
+| PROFİL | ProfileScreen | Профиль пользователя |
 
 ---
 
-## Функционал — подробное описание
+## Полный поток договора (самое важное)
 
-### 1. Авторизация
-- Email/пароль
-- Сессия сохраняется через AsyncStorage (не нужно входить каждый раз)
-- При регистрации выбор роли:
-  - **🎵 Musiqiçi** → добавляется в коллекцию `musicians`, виден в карточках
-  - **👤 Qonaq** → только в `users`, не виден в карточках
-- В профиле кнопка "🎵 Musiqiçi kimi əlavə ol" / "Musiqiçi siyahısından çıx"
+### Шаг 1 — Открытие чата
+- Теймур открывает профиль Sevgi
+- Видит: `🤝 Razılaşma` (серая) и `✉️ Mesaj`
+- Нажимает **Mesaj** — открывается чистый UI чата
+- В Firestore НИЧЕГО НЕ СОЗДАЁТСЯ
 
-### 2. Карточки музыкантов (Home + Search)
-- Данные из Firestore в реальном времени
-- Свой профиль не показывается
-- Нажатие → открывается `MusicianProfileScreen`
+### Шаг 2 — Первое сообщение
+- Теймур пишет первое сообщение и отправляет
+- ТОЛЬКО ТОГДА создаётся: документ в `chats` + документ в `invites`
+- Sevgi видит уведомление в колокольчике
 
-### 3. Профиль музыканта
-**Кнопки:**
-- `🤝 Razılaşma` — серая, неактивная (до договора)
-- `✅ Qəbul etdi` — зелёная (после договора, меняется в реальном времени)
-- `✉️ Mesaj` — всегда активна, открывает DirectChat
+### Шаг 3 — Баннеры в чате
+- Теймур видит: `🤔 Sevgi Orucova fikirləşir....` (без кнопок)
+- Sevgi видит: `🤝 Teymur Orucov cavab gözləyir` + кнопка `✅ Razıyam`
 
-### 4. Прямой чат (DirectChat)
-**Как работает:**
-1. Teymur открывает профиль Sevgi → нажимает **Mesaj**
-2. Создаётся чат в `chats` + автоматически invite в `invites`
-3. Чат скрыт от Sevgi пока Teymur не отправит сообщение
-4. После первого сообщения Sevgi видит чат в списке и колокольчике
+### Шаг 4 — Нажатие Razıyam
+- Создаётся документ в `agreements` с `chatId`
+- Чат помечается `completed: true`
+- Оба видят баннер: `✅ Razılaşma qəbul edildi — Müqavilələr bölməsinə keçirik...`
+- Через 2 секунды оба автоматически переходят на вкладку **Müqavilələr**
 
-**Баннеры в чате:**
-- **Teymur** видит: `"🤔 Sevgi Orucova fikirləşir...."` (без кнопок)
-- **Sevgi** видит: `"🤝 Teymur Orucov cavab gözləyir"` + кнопка `✅ Razıyam`
+### Шаг 5 — После договора
+- У Теймура кнопка `🤝 Razılaşma (1)` — золотая, кликабельна — открывает договор
+- Следующий **Mesaj** — создаётся новый чистый чат
+- Завершённые чаты (`completed: true`) скрыты из списка
 
-**Голосовые сообщения:**
-- Зажми 🎤 → запись → отпусти → отправляет
-- ▶/⏹ для воспроизведения
-- ⚠️ В Expo Go голос слышен только на том же устройстве (нет Storage)
+---
 
-### 5. Договор (Agreement)
-**Поток:**
-1. Они общаются в чате
-2. Договорились → Sevgi нажимает `✅ Razıyam`
-3. Создаётся документ в `agreements` с `chatId`
-4. У Teymur кнопка `Razılaşma` сразу меняется на `✅ Qəbul etdi`
-5. Оба видят договор во вкладке **MÜQAV.**
+## Экран договора — детали
 
-**Экран договора (детали):**
-- Стороны: Teymur (Göndərən) и Sevgi (Qəbul edən)
-- Номер договора, дата, статус
-- `💬 Yazışma tarixi` — полная история переписки: Имя: сообщение, дата, время
+- **Tərəflər** — стороны с онлайн/офлайн кружком, кликабельны — открывают профиль музыканта
+- **💬 Yazışma tarixi** — полная история переписки с именем, датой и временем каждого сообщения
+- Внизу секции — номер договора и дата
 - Заметка о взаимном согласии
 
-### 6. Колокольчик 🔔
-Показывает только непрочитанные сообщения (не приглашения).
-- Бейдж = сумма непрочитанных
-- Нажатие → открывается чат
+---
 
-### 7. Видео плеер
-- Кнопка ✕ (floating, 16px от верха)
-- Ползунок — 44px зона касания
-- `«` 10s / 10s `»` — перемотка (прозрачные кнопки)
+## Непрочитанные договоры
+
+- Новый договор → badge на вкладке MÜQAV. + зелёный кружок на карточке + яркий текст
+- Пользователь нажимает на договор → `markAgreementAsRead(id)` → badge уменьшается
+- Все прочитаны → badge исчезает
+- Следующий договор → снова появляется
+
+### Как реализовано в store:
+```ts
+readAgreementIds: string[]  // массив прочитанных id (не Set!)
+
+markAgreementAsRead: (id) => {
+  const already = get().readAgreementIds ?? [];
+  if (!already.includes(id)) set({ readAgreementIds: [...already, id] });
+}
+```
+В navigation badge вычисляется прямо в selector:
+```ts
+const agreementsCount = useAppStore(s => {
+  const ids = s.readAgreementIds ?? [];
+  return s.agreements.filter(a => !ids.includes(a.id)).length;
+});
+```
 
 ---
 
-## Zustand Store — основные поля
+## Онлайн статус
+
+### Логика (App.tsx с AppState)
+```ts
+AppState active     → setUserOnlineStatus(uid, true)
+AppState background → setUserOnlineStatus(uid, false)
+logout              → setUserOnlineStatus(uid, false)
+```
+
+### Показывается везде
+- Home карточки — кружок внизу слева аватара (зелёный/серый)
+- Search список — кружок на аватаре
+- Профиль музыканта — `● Onlayn` / `○ Oflayn` бейдж + кружок на аватаре
+- Договор (Tərəflər) — кружок + текст рядом с именем
+
+### Сброс всех в офлайн (запускать при необходимости)
+```bash
+cd ~/Downloads/mugam-v2
+node -e "
+const {initializeApp} = require('firebase/app');
+const {getFirestore, collection, getDocs, updateDoc, doc} = require('firebase/firestore');
+const app = initializeApp({apiKey:'AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk', projectId:'mugam-club'});
+const db = getFirestore(app);
+getDocs(collection(db,'musicians')).then(s => {
+  s.docs.forEach(d => updateDoc(doc(db,'musicians',d.id), {online: false}));
+  setTimeout(() => process.exit(0), 2000);
+});
+"
+```
+
+---
+
+## Agreement badge на карточках Home и Search
+
+- Показывает `🤝` + число договоров с этим музыкантом
+- Вычисляется через `useMemo` — `agreementCountMap` (не filter в каждом рендере!)
+```ts
+const agreementCountMap = useMemo(() => {
+  const map: Record<string, number> = {};
+  agreements.forEach(a => {
+    map[a.fromUid] = (map[a.fromUid] ?? 0) + 1;
+    map[a.toUid]   = (map[a.toUid]   ?? 0) + 1;
+  });
+  return map;
+}, [agreements]);
+```
+- Emoji и число в отдельных Text элементах (иначе Hermes crash):
+```tsx
+<Text>🤝</Text>
+<Text style={s.count}>{count}</Text>
+```
+
+---
+
+## Колокольчик (Topbar)
+
+- Только непрочитанные сообщения (не приглашения)
+- Завершённые чаты (`completed: true`) не показываются
+- При нажатии на чат — открывает DirectChat с `onAgreed` callback
+- `onAgreed` закрывает чат и переходит на вкладку Agreements
+
+---
+
+## Zustand Store — ключевые поля
 
 ```ts
 // Пользователь
 user: UserProfile | null
 isAuthenticated: boolean
 authLoading: boolean
+lang: 'az' | 'ru'
 
-// Данные
-musicians: Musician[]      // реалтайм
-chats: ChatItem[]          // реалтайм
+// Данные (realtime через onSnapshot)
+musicians: Musician[]
+chats: ChatItem[]             // только не завершённые
 messages: Record<string, Message[]>
-agreements: Agreement[]    // реалтайм
-receivedInvites: Invite[]  // реалтайм
-myInvites: Invite[]        // реалтайм
-invitedMusicianIds: Set<string>
-acceptedMusicianIds: Set<string>
+agreements: Agreement[]
+receivedInvites: Invite[]
 
-// Основные действия
-register(email, pass, name, inst, city, role)
+// Непрочитанные договоры
+readAgreementIds: string[]    // МАССИВ, не Set!
+
+// Действия
 login(email, pass)
-logout()
+logout()                      // ставит offline перед выходом
+register(email, pass, name, inst, city, role)
 sendMessage(chatId, text)
 createAgreement(toUid, toName, chatId?)
 hasAgreementWith(uid): boolean
+markAgreementAsRead(id)
+setUserOnlineStatus(uid, online)
 ```
 
 ---
@@ -372,39 +428,39 @@ hasAgreementWith(uid): boolean
 |---|---|---|
 | Текстовые сообщения | ✅ | ✅ |
 | Голосовые (запись) | ✅ | ✅ |
-| Голосовые (другому) | ❌ | ✅ |
+| Голосовые (другому устройству) | ❌ нет Storage | ✅ |
 | Push-уведомления | ❌ | ✅ |
 | Загрузка фото | ❌ | ✅ |
-| Телефонный вход | ❌ | ✅ |
+| Online при force-close iOS | ⚠️ background=offline | ✅ надёжно |
 
 ---
 
-## Следующие шаги (после Expo Go)
+## Частые ошибки и решения
 
-1. **EAS Build** — нативная сборка:
-   ```bash
-   npm install -g eas-cli
-   eas login
-   eas build --platform ios
-   ```
-
-2. **@react-native-firebase** — заменить Firebase JS SDK на нативный (стабильнее, поддерживает Storage)
-
-3. **Загрузка фото** — `expo-image-picker` уже установлен, нужен Storage
-
-4. **Закрыть Firestore правила** перед релизом
-
-5. **Реальные видео** — заменить emoji на реальные видео файлы
-
----
-
-## Частые проблемы и решения
-
-| Проблема | Причина | Решение |
+| Ошибка | Причина | Решение |
 |---|---|---|
+| `property is not configurable` | FlatList + Zustand в Hermes | ScrollView + .map() вместо FlatList |
 | `private properties not supported` | Firebase v10/v11 | Использовать firebase@9.23.0 |
-| `PlatformConstants not found` | Неверная версия RN | RN 0.81.5 |
-| `Cannot read property 'S'` | Metro берёт ESM вместо CJS | `unstable_enablePackageExports = false` |
-| `auth/already-initialized` | Hot reload | `try/catch` при `initializeAuth` |
-| Сессия сбрасывается | Нет AsyncStorage | `getReactNativePersistence(AsyncStorage)` |
-| Чат не показывается у получателя | Пустой `preview` | Фильтр: показывать только если `preview` не пустой или ты инициатор |
+| `auth/already-initialized` | Hot reload | try/catch при initializeAuth |
+| Сессия сбрасывается | Нет AsyncStorage | getReactNativePersistence(AsyncStorage) |
+| Property X doesn't exist | Zustand кэш устарел | Добавить `?? defaultValue` в selector |
+| Emoji ломает рендер | Hermes + кастомный стиль | Emoji в отдельном Text без стилей |
+| Badge не обновляется | Вызов функции в selector | Вычислять прямо в selector |
+| Чат не показывается у получателя | Пустой preview или completed:true | Фильтр в subscribeChats |
+
+---
+
+## Следующие шаги (EAS Build)
+
+```bash
+npm install -g eas-cli
+eas login
+eas build --platform ios
+```
+
+После EAS Build:
+1. Заменить Firebase JS SDK на `@react-native-firebase` — стабильнее
+2. Загрузка фото через `expo-image-picker` + Firebase Storage
+3. Push-уведомления через FCM
+4. Закрыть Firestore правила
+5. Надёжный онлайн статус через нативный Firebase Presence
