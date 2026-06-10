@@ -217,10 +217,8 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 }
 
 // ── Agreement Card with messages ─────────────────────────
-function AgreementCard({ ag, onPress }: { ag: Agreement; onPress: () => void }) {
+function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () => void; isUnread: boolean }) {
   const { user } = useAppStore();
-  const [msgs, setMsgs] = React.useState<any[]>([]);
-
   const isSender  = ag.fromUid === user?.uid;
   const otherName = isSender ? ag.toName : ag.fromName;
   const date = ag.createdAt?.toDate
@@ -229,37 +227,12 @@ function AgreementCard({ ag, onPress }: { ag: Agreement; onPress: () => void }) 
       })
     : '';
 
-  React.useEffect(() => {
-    if (!ag.chatId) return;
-    const load = async () => {
-      try {
-        const snap = await getDocs(query(
-          collection(fbFirestore, COLLECTIONS.CHATS, ag.chatId!, COLLECTIONS.MESSAGES),
-          fbOrderBy('createdAt', 'asc'),
-        ));
-        setMsgs(snap.docs.map(d => {
-          const data = d.data();
-          const ts = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-          return {
-            id:         d.id,
-            text:       data.text ?? '',
-            senderName: data.senderName ?? '',
-            senderId:   data.senderId ?? '',
-            time:       ts.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
-            date:       ts.toLocaleDateString('az-AZ', { day: 'numeric', month: 'short' }),
-          };
-        }));
-      } catch { /* ignore */ }
-    };
-    load();
-  }, [ag.chatId]);
-
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
-      {/* Header */}
+    <TouchableOpacity style={[s.card, isUnread && s.cardUnread]} onPress={onPress} activeOpacity={0.85}>
       <View style={s.cardLeft}>
         <View style={s.cardAva}>
           <Text style={{ fontSize: 22 }}>📋</Text>
+          {isUnread && <View style={s.unreadDot} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.cardName}>{otherName}</Text>
@@ -268,21 +241,25 @@ function AgreementCard({ ag, onPress }: { ag: Agreement; onPress: () => void }) 
           </Text>
           <Text style={s.cardDate}>{date}</Text>
         </View>
-        <View style={s.cardStatus}>
-          <Text style={s.cardStatusText}>✅</Text>
-          <Text style={s.cardArrow}>›</Text>
-        </View>
       </View>
-
-      {/* No messages preview in list — see detail screen */}
+      <View style={s.cardStatus}>
+        <Text style={s.cardStatusText}>✅</Text>
+        <Text style={s.cardArrow}>›</Text>
+      </View>
     </TouchableOpacity>
   );
 }
 
 // ── Agreements List Screen ────────────────────────────────
 export default function AgreementsScreen({ route }: { route?: any }) {
-  const { agreements, user } = useAppStore();
+  const { agreements, user, markAgreementAsRead } = useAppStore();
+  const readAgreementIds = useAppStore(s => s.readAgreementIds ?? []);
   const autoOpenUid = route?.params?.musicianUid ?? null;
+
+  // Mark all as seen when screen opens (clears badge)
+  React.useEffect(() => {
+    
+  }, []);
 
   // Auto-open agreement with specific musician
   const autoAgreement = autoOpenUid
@@ -315,7 +292,11 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             <AgreementCard
               key={ag.id}
               ag={ag}
-              onPress={() => setSelected(ag)}
+              isUnread={!readAgreementIds.includes(ag.id)}
+              onPress={() => {
+                markAgreementAsRead(ag.id);
+                setSelected(ag);
+              }}
             />
           ))
         )}
@@ -378,8 +359,10 @@ const s = StyleSheet.create({
   emptyTitle:  { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
   emptyDesc:   { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400, paddingHorizontal: 20 },
   card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 14, marginBottom: 10 },
+  cardUnread:  { borderColor: Colors.gold, backgroundColor: 'rgba(212,160,60,0.05)' },
   cardLeft:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cardAva:     { width: 46, height: 46, borderRadius: 14, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  cardAva:     { width: 46, height: 46, borderRadius: 14, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, position: 'relative' },
+  unreadDot:   { position: 'absolute', top: -3, right: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.gold, borderWidth: 2, borderColor: Colors.bg },
   cardName:    { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text, marginBottom: 2 },
   cardRole:    { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600, marginBottom: 2 },
   cardDate:    { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },

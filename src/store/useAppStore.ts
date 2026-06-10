@@ -78,6 +78,9 @@ interface AppStore {
 
   // Agreements
   agreements:         Agreement[];
+  readAgreementIds:    string[];
+  markAgreementAsRead: (id: string) => void;
+  unreadAgreementsCount: () => number;
   createAgreement:    (toUid: string, toName: string, chatId?: string) => Promise<void>;
   hasAgreementWith:   (uid: string) => boolean;
 
@@ -254,7 +257,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   receivedInvites:    [],
   invitedMusicianIds: new Set<string>(),
   acceptedMusicianIds: new Set<string>(),
-  agreements:          [],
+  agreements:               [],
+  readAgreementIds:         [] as string[],
 
   // ── Subscriptions ─────────────────────────────────────
   _unsubs:   [],
@@ -473,6 +477,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── Agreements ────────────────────────────────────────
+  markAgreementAsRead: (id) => {
+    const already = get().readAgreementIds ?? [];
+    if (!already.includes(id)) {
+      set({ readAgreementIds: [...already, id] });
+    }
+  },
+
+  unreadAgreementsCount: () => {
+    const { agreements, readAgreementIds } = get();
+    const safeIds = readAgreementIds ?? [];
+    return agreements.filter(a => !safeIds.includes(a.id)).length;
+  },
+
   createAgreement: async (toUid, toName, chatId?) => {
     const user = get().user;
     if (!user) return;

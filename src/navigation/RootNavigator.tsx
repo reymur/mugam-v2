@@ -62,7 +62,10 @@ export default function RootNavigator() {
   const totalUnread     = useAppStore(
     s => s.chats.reduce((acc, c) => acc + (c.unread ?? 0), 0)
   );
-  const agreementsCount = useAppStore(s => s.agreements.length);
+  const agreementsCount = useAppStore(s => {
+    const ids = s.readAgreementIds ?? [];
+    return s.agreements.filter(a => !ids.includes(a.id)).length;
+  });
 
   const homeIcon    = useCallback(({ focused }: { focused: boolean }) =>
     <TabIcon emoji="🏠" label={t('navKlub')}    focused={focused} />, [t]);
