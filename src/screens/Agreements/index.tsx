@@ -10,19 +10,29 @@ import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import type { Agreement } from '../../store/useAppStore';
+import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
 
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Agreement Detail Screen ───────────────────────────────
 function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose: () => void }) {
   const { user, musicians } = useAppStore();
-  const [chatMessages, setChatMessages] = React.useState<any[]>([]);
+  const [chatMessages,    setChatMessages]    = React.useState<any[]>([]);
+  const [selectedMusician, setSelectedMusician] = React.useState<any>(null);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
 
   // Check online status from musicians list
   const fromMusician = musicians.find(m => (m.uid ?? m.id) === agreement.fromUid);
   const toMusician   = musicians.find(m => (m.uid ?? m.id) === agreement.toUid);
   const fromOnline   = fromMusician?.online ?? false;
+
+  const openMusician = (uid: string, name: string) => {
+    const found = musicians.find(m => (m.uid ?? m.id) === uid);
+    setSelectedMusician(found ?? {
+      id: uid, uid, name, emoji: '👤',
+      instrument: '', city: '', rating: 5, reviews: 0,
+    });
+  };
   const toOnline     = toMusician?.online ?? false;
 
   React.useEffect(() => {
@@ -93,10 +103,14 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <Text style={d.dateText}>{date}</Text>
           </View>
 
-          {/* Parties — always sender first, acceptor second */}
+          {/* Parties — clickable to open profile */}
           <View style={d.card}>
             <Text style={d.cardTitle}>Tərəflər</Text>
-            <View style={d.party}>
+            <TouchableOpacity
+              style={d.party}
+              onPress={() => openMusician(agreement.fromUid, agreement.fromName)}
+              activeOpacity={0.7}
+            >
               <View style={d.partyAvaWrap}>
                 <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
                 <View style={[d.onlineDot, { backgroundColor: fromOnline ? Colors.green : Colors.muted }]} />
@@ -108,9 +122,14 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
               <Text style={[d.onlineLabel, { color: fromOnline ? Colors.green : Colors.muted }]}>
                 {fromOnline ? '● Onlayn' : '○ Oflayn'}
               </Text>
-            </View>
+              <Text style={d.partyArrow}>›</Text>
+            </TouchableOpacity>
             <View style={d.divider} />
-            <View style={d.party}>
+            <TouchableOpacity
+              style={d.party}
+              onPress={() => openMusician(agreement.toUid, agreement.toName)}
+              activeOpacity={0.7}
+            >
               <View style={d.partyAvaWrap}>
                 <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
                 <View style={[d.onlineDot, { backgroundColor: toOnline ? Colors.green : Colors.muted }]} />
@@ -122,7 +141,8 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
               <Text style={[d.onlineLabel, { color: toOnline ? Colors.green : Colors.muted }]}>
                 {toOnline ? '● Onlayn' : '○ Oflayn'}
               </Text>
-            </View>
+              <Text style={d.partyArrow}>›</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Agreement details card removed — number and date shown in chat history footer */}
@@ -184,6 +204,14 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Open musician profile on party tap */}
+      {selectedMusician && (
+        <MusicianProfileScreen
+          musician={selectedMusician}
+          onClose={() => setSelectedMusician(null)}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -320,6 +348,7 @@ const d = StyleSheet.create({
   partyAva:    { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' },
   onlineDot:   { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: Colors.card },
   onlineLabel: { fontSize: 11, fontFamily: Typography.nunito700 },
+  partyArrow:  { fontSize: 20, color: Colors.muted, marginLeft: 4 },
   partyName:   { fontFamily: Typography.nunito700, fontSize: 15, color: Colors.text },
   partyRole:   { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600 },
   divider:     { height: 1, backgroundColor: Colors.border },
