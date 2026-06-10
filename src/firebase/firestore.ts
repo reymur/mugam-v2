@@ -438,3 +438,18 @@ export async function setUserOnlineStatus(uid: string, online: boolean): Promise
     });
   } catch { /* ignore — user may not be in musicians */ }
 }
+export async function saveReadAgreementId(uid: string, agreementId: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
+      readAgreementIds: arrayUnion(agreementId),
+    });
+  } catch { /* ignore */ }
+}
+
+export async function loadReadAgreementIds(uid: string): Promise<string[]> {
+  try {
+    const snap = await getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid));
+    if (snap.exists()) return snap.data().readAgreementIds ?? [];
+  } catch { /* ignore */ }
+  return [];
+}

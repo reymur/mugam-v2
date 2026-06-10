@@ -5,7 +5,7 @@ import * as FireAuth    from '../firebase/auth';
 import * as FireStore   from '../firebase/firestore';
 import * as FireMsg     from '../firebase/messaging';
 import { fbFirestore }  from '../firebase/config';
-import { doc, getDoc }  from 'firebase/firestore';
+import { doc, getDoc, onSnapshotsInSync } from 'firebase/firestore';
 import { COLLECTIONS }  from '../firebase/config';
 
 // Re-export all shared types from types.ts (screens import from here)
@@ -242,7 +242,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── Data ──────────────────────────────────────────────
-  musicians:   SEED_MUSICIANS,
+  musicians:   [],
   events:      SEED_EVENTS,
   rooms:       SEED_ROOMS,
   gigs:        SEED_GIGS,
@@ -281,7 +281,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         FireStore.fetchVideos().catch(() => [] as VideoItem[]),
       ]);
       set({
-        musicians:   musicians.length   ? musicians   : SEED_MUSICIANS,
+        musicians:   musicians,
         gigs:        gigs.length        ? gigs        : SEED_GIGS,
         boardItems:  board.length       ? board       : SEED_BOARD,
         marketItems: market.length      ? market      : SEED_MARKET,
@@ -294,7 +294,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   subscribeRealtime: (uid) => {
     const { _addUnsub } = get();
     // Musicians — realtime so new registrations appear instantly
-    _addUnsub(FireStore.subscribeMusicians(ms => set({ musicians: ms.length ? ms : SEED_MUSICIANS })));
+    _addUnsub(FireStore.subscribeMusicians(ms => set({ musicians: ms })));
     _addUnsub(FireStore.subscribeGigs(         gs  => set({ gigs:        gs.length  ? gs  : SEED_GIGS        })));
     _addUnsub(FireStore.subscribeBoardItems(   bs  => set({ boardItems:  bs.length  ? bs  : SEED_BOARD       })));
     _addUnsub(FireStore.subscribeMarketItems(  ms  => set({ marketItems: ms.length  ? ms  : SEED_MARKET      })));
@@ -480,7 +480,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   markAgreementAsRead: (id) => {
     const already = get().readAgreementIds ?? [];
     if (!already.includes(id)) {
-      set({ readAgreementIds: [...already, id] });
+      const updated = [...already, id];
+      set({ readAgreementIds: updated });
+      const uid = get().user?.uid;
+      if (uid) FireStore.saveReadAgreementId(uid, id).catch(() => {});
     }
   },
 
@@ -510,8 +513,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const storedLang = await AsyncStorage.getItem('lang');
     if (storedLang === 'az' || storedLang === 'ru') set({ lang: storedLang });
 
+    // Restore read agreement ids from Firestore
+    const storedIds = await AsyncStorage.getItem('readAgreementIds');
+    if (storedIds) {
+      try {
+        const ids = JSON.parse(storedIds);
+        if (Array.isArray(ids)) set({ readAgreementIds: ids });
+      } catch { /* ignore */ }
+    }
+
     // Auth state listener
     const unsubAuth = FireAuth.onAuthStateChanged(async (firebaseUser) => {
+      console.log('Auth state changed:', firebaseUser?.uid ?? 'null');
       if (firebaseUser) {
         const profile = await loadUserDoc(firebaseUser.uid);
         set({
@@ -527,17 +540,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
           authLoading: false,
         });
         get().subscribeRealtime(firebaseUser.uid);
-        // Wait for Firestore to be in sync before subscribing to invites
-        const { onSnapshotsInSync } = await import('firebase/firestore');
-        const { fbFirestore } = await import('../firebase/config');
+        // Load read agreement ids from Firestore
+        FireStore.loadReadAgreementIds(firebaseUser.uid).then(ids => {
+          if (ids.length > 0) set({ readAgreementIds: ids });
+        }).catch(() => {});
+        // Subscribe to agreements immediately
+        const unsubAgreements = FireStore.subscribeAgreements(firebaseUser.uid, (agreements) => {
+          set({ agreements });
+        });
+        get()._addUnsub(unsubAgreements);
+
         const unsubSync = onSnapshotsInSync(fbFirestore, () => {
           unsubSync(); // one-time sync signal
           get().subscribeInvites(firebaseUser.uid);
-          // Subscribe to agreements
-          const unsubAgreements = FireStore.subscribeAgreements(firebaseUser.uid, (agreements) => {
-            set({ agreements });
-          });
-          get()._addUnsub(unsubAgreements);
         });
         get()._addUnsub(unsubSync);
         FireMsg.registerFCMToken(firebaseUser.uid).then(unsub => get()._addUnsub(unsub)).catch(() => {});
