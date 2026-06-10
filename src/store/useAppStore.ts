@@ -211,6 +211,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   logout: async () => {
+    const uid = get().user?.uid;
+    if (uid) {
+      await FireStore.setUserOnlineStatus(uid, false).catch(() => {});
+    }
     get().unsubscribeAll();
     set({ user: null, isAuthenticated: false, chats: [], messages: {} });
     await FireAuth.logout();
@@ -469,12 +473,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── Agreements ────────────────────────────────────────
-  createAgreement: async (toUid, toName, chatId) => {
+  createAgreement: async (toUid, toName, chatId?) => {
     const user = get().user;
     if (!user) return;
-    // toUid = initiator (Teymur who opened chat)
-    // user = acceptor (Sevgi who clicked Razıyam)
-    // Store as: fromUid = initiator (Teymur), toUid = acceptor (Sevgi)
     await FireStore.createAgreement(toUid, toName, user.uid, user.displayName, chatId);
   },
 

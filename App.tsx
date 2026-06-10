@@ -39,21 +39,19 @@ export default function App() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Track online status via AppState
+  // Simple reliable approach for Expo Go:
+  // active = online, background = offline, logout = offline
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Set online when app becomes active
     setUserOnlineStatus(user.uid, true).catch(() => {});
 
-    const sub = AppState.addEventListener('change', state => {
+    const sub = AppState.addEventListener('change', nextState => {
       if (!user?.uid) return;
-      setUserOnlineStatus(user.uid, state === 'active').catch(() => {});
+      setUserOnlineStatus(user.uid, nextState === 'active').catch(() => {});
     });
 
     return () => {
-      // Set offline when component unmounts
-      setUserOnlineStatus(user.uid, false).catch(() => {});
       sub.remove();
     };
   }, [user?.uid]);

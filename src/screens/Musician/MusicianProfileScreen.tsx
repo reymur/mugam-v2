@@ -357,6 +357,11 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
         <DirectChat
           musician={musician}
           onClose={() => setShowChat(false)}
+          onAgreed={() => {
+            setShowChat(false);
+            onClose();
+            navigation.navigate('Agreements');
+          }}
           fromInvite={receivedInvites.find(i => i.fromUid === musicianId)}
         />
       )}

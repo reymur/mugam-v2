@@ -65,10 +65,11 @@ function VoicePlayer({ uri, mine }: { uri: string; mine: boolean }) {
 interface Props {
   musician:   Musician;
   onClose:    () => void;
-  fromInvite?: Invite;  // passed when opened from bell notification
+  onAgreed?:  () => void;  // navigate to Müqavilələr after agreement
+  fromInvite?: Invite;
 }
 
-export default function DirectChat({ musician, onClose, fromInvite: fromInviteProp }: Props) {
+export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fromInviteProp }: Props) {
   const {
     user, messages, sendMessage, loadMessages, showToast,
     updateInviteStatus, receivedInvites,
@@ -83,18 +84,42 @@ export default function DirectChat({ musician, onClose, fromInvite: fromInvitePr
   const [accepting,   setAccepting]   = useState(false);
   const [justAgreed,  setJustAgreed]  = useState(false);
   const [initiatorUid, setInitiatorUid] = useState<string | null>(null);
+  const [navigating,  setNavigating]  = useState(false);
 
   const musicianUid = musician.uid ?? musician.id;
 
-  // Already agreed?
-  const agreed = hasAgreementWith(musicianUid) || justAgreed;
+  // Already agreed before opening chat?
+  const agreedBefore = hasAgreementWith(musicianUid);
+  // Just agreed in this session?
+  const agreed = agreedBefore || justAgreed;
+
+  // Auto-navigate BOTH users when agreement is created
+  const agreedRef = React.useRef(false);
+  React.useEffect(() => {
+    // Trigger for Teymur (initiator) — Sevgi agreed via Firestore update
+    if (
+      agreedBefore &&
+      !agreedRef.current &&
+      !isRecipient &&
+      initiatorUid !== null &&
+      !navigating
+    ) {
+      agreedRef.current = true;
+      setNavigating(true);
+      showToast('✅ Razılaşma qəbul edildi!');
+      setTimeout(() => {
+        onClose();
+        setTimeout(() => onAgreed?.(), 300);
+      }, 2000);
+    }
+  }, [agreedBefore, initiatorUid]);
 
   // Recipient = current user is NOT the one who started the chat
   // initiatorUid is loaded from Firestore chat document
   const isRecipient = initiatorUid !== null && initiatorUid !== user?.uid;
 
-  const showInitiatorBanner = !agreed && !isRecipient && initiatorUid !== null;
-  const showRecipientBanner = !agreed && isRecipient;
+  const showInitiatorBanner = !agreedBefore && !justAgreed && !isRecipient && initiatorUid !== null;
+  const showRecipientBanner = !agreedBefore && !justAgreed && isRecipient;
 
   const scrollRef  = useRef<ScrollView>(null);
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
@@ -262,9 +287,12 @@ export default function DirectChat({ musician, onClose, fromInvite: fromInvitePr
                 try {
                   await createAgreement(musicianUid, musician.name, chatId ?? undefined);
                   setJustAgreed(true);
+                  setNavigating(true);
                   showToast(`✅ ${musician.name} ilə razılaşdınız!`);
-                  // Close chat and go to Agreements tab
-                  setTimeout(() => onClose(), 1500);
+                  setTimeout(() => {
+                    onClose();
+                    setTimeout(() => onAgreed?.(), 300);
+                  }, 2000);
                 } finally {
                   setAccepting(false);
                 }
@@ -279,11 +307,11 @@ export default function DirectChat({ musician, onClose, fromInvite: fromInvitePr
           </View>
         )}
 
-        {/* Both see agreed banner after agreement */}
-        {agreed && (
+        {/* Both see agreed banner briefly before navigating */}
+        {(justAgreed || (agreedBefore && !navigating)) && (
           <View style={[s.acceptBanner, { backgroundColor: 'rgba(39,174,96,0.1)', borderColor: Colors.green }]}>
             <Text style={[s.acceptBannerText, { color: Colors.green }]}>
-              ✅ Razılaşma qəbul edildi — Müqavilələr bölməsinə baxın
+              ✅ Razılaşma qəbul edildi — Müqavilələr bölməsinə keçirik...
             </Text>
           </View>
         )}

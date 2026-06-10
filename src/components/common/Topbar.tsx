@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
@@ -87,6 +88,7 @@ function UnreadChatCard({ chat, onPress }: { chat: ChatItem; onPress: () => void
 // ── Notifications Panel ───────────────────────────────────
 function NotificationsPanel({ onClose }: { onClose: () => void }) {
   const { receivedInvites, chats, musicians, user } = useAppStore();
+  const navigation = useNavigation<any>();
   const [selectedInvite,  setSelectedInvite]  = React.useState<Invite | null>(null);
   const [selectedChat,    setSelectedChat]    = React.useState<ChatItem | null>(null);
 
@@ -190,6 +192,11 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
         <DirectChat
           musician={getMusicianFromChat(selectedChat)}
           onClose={() => setSelectedChat(null)}
+          onAgreed={() => {
+            setSelectedChat(null);
+            onClose();
+            navigation.navigate('Agreements');
+          }}
           fromInvite={receivedInvites.find(inv =>
             inv.fromUid === (selectedChat.members?.find(m => m !== user?.uid) ?? '')
           )}
