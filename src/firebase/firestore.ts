@@ -167,12 +167,15 @@ export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): ()
           members: data.members ?? [],
           online: data.online ?? false,
           initiatorUid: data.initiatorUid ?? '',
+          completed: data.completed ?? false,
         } as ChatItem;
       })
       .filter(c => {
         const isInitiator = c.initiatorUid === uid;
         const hasMessages = !!c.preview;
-        return isInitiator || hasMessages;
+        const isCompleted = !!(c as any).completed;
+        // Hide completed chats and hide empty chats from recipient
+        return !isCompleted && (isInitiator || hasMessages);
       });
     cb(chats);
   });
@@ -293,6 +296,14 @@ export async function updateInviteStatus(inviteId: string, status: 'accepted' | 
 }
 
 // ── DIRECT CHAT ───────────────────────────────────────────
+export async function completeChat(chatId: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      completed: true,
+    });
+  } catch { /* ignore */ }
+}
+
 export async function createOrGetDirectChat(
   myId:       string,
   otherId:    string,
@@ -301,7 +312,7 @@ export async function createOrGetDirectChat(
   myName?:    string,
   myCity?:    string,
 ): Promise<string> {
-  // Check if direct chat already exists
+  // Check if there's an existing uncompleted chat
   const q = query(
     collection(fbFirestore, COLLECTIONS.CHATS),
     where('members', 'array-contains', myId),
@@ -309,20 +320,22 @@ export async function createOrGetDirectChat(
   );
   const snap = await getDocs(q);
   const existing = snap.docs.find(d => {
-    const m: string[] = d.data().members ?? [];
-    return m.includes(otherId);
+    const data = d.data();
+    const m: string[] = data.members ?? [];
+    return m.includes(otherId) && !data.completed;
   });
   if (existing) return existing.id;
 
-  // Create new direct chat
+  // Create new chat (first time or after completed chat)
   const ref = await addDoc(collection(fbFirestore, COLLECTIONS.CHATS), {
     members:       [myId, otherId],
     isGroup:       false,
-    name:          otherName,      // recipient's name (for initiator view)
-    initiatorName: myName ?? '',   // initiator's name (for recipient view)
+    name:          otherName,
+    initiatorName: myName ?? '',
     initiatorUid:  myId,
     emoji:         otherEmoji,
     preview:       '',
+    completed:     false,
     lastMessageAt: serverTimestamp(),
     unreadCount:   {},
     createdAt:     serverTimestamp(),
@@ -330,25 +343,17 @@ export async function createOrGetDirectChat(
 
   // Auto-create invite so recipient sees "cavab gözləyir" banner
   if (myName) {
-    const existingInvite = await getDocs(query(
-      collection(fbFirestore, COLLECTIONS.INVITES),
-      where('fromUid',    '==', myId),
-      where('musicianId', '==', otherId),
-      where('status',     '==', 'pending'),
-    ));
-    if (existingInvite.empty) {
-      await addDoc(collection(fbFirestore, COLLECTIONS.INVITES), {
-        musicianId:   otherId,
-        musicianName: otherName,
-        musicianEmoji: otherEmoji,
-        musicianInst: '',
-        fromUid:      myId,
-        fromName:     myName,
-        fromCity:     myCity ?? '',
-        status:       'pending',
-        createdAt:    serverTimestamp(),
-      });
-    }
+    await addDoc(collection(fbFirestore, COLLECTIONS.INVITES), {
+      musicianId:    otherId,
+      musicianName:  otherName,
+      musicianEmoji: otherEmoji,
+      musicianInst:  '',
+      fromUid:       myId,
+      fromName:      myName,
+      fromCity:      myCity ?? '',
+      status:        'pending',
+      createdAt:     serverTimestamp(),
+    });
   }
 
   return ref.id;
@@ -365,14 +370,6 @@ export async function createAgreement(
   toName:   string,
   chatId?:  string,
 ): Promise<string> {
-  // Check if already exists
-  const existing = await getDocs(query(
-    collection(fbFirestore, COLLECTIONS.AGREEMENTS),
-    where('fromUid', '==', fromUid),
-    where('toUid',   '==', toUid),
-  ));
-  if (!existing.empty) return existing.docs[0].id;
-
   const ref = await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
     fromUid, fromName, toUid, toName,
     chatId:    chatId ?? null,

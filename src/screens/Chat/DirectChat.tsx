@@ -93,18 +93,23 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
   // Just agreed in this session?
   const agreed = agreedBefore || justAgreed;
 
-  // Auto-navigate BOTH users when agreement is created
-  const agreedRef = React.useRef(false);
+  // Auto-navigate Teymur when Sevgi agrees (fresh agreement via onSnapshot)
+  const agreedCountRef = React.useRef<number | null>(null);
+  const agreements = useAppStore(s => s.agreements);
+  const agreementCount = agreements.filter(a =>
+    (a.fromUid === musicianUid && a.toUid === user?.uid) ||
+    (a.toUid === musicianUid && a.fromUid === user?.uid)
+  ).length;
+
   React.useEffect(() => {
-    // Trigger for Teymur (initiator) — Sevgi agreed via Firestore update
-    if (
-      agreedBefore &&
-      !agreedRef.current &&
-      !isRecipient &&
-      initiatorUid !== null &&
-      !navigating
-    ) {
-      agreedRef.current = true;
+    // Initialize count reference on first render
+    if (agreedCountRef.current === null) {
+      agreedCountRef.current = agreementCount;
+      return;
+    }
+    // New agreement appeared AND this user didn't click Razıyam (justAgreed)
+    if (agreementCount > agreedCountRef.current && !justAgreed && !navigating) {
+      agreedCountRef.current = agreementCount;
       setNavigating(true);
       showToast('✅ Razılaşma qəbul edildi!');
       setTimeout(() => {
@@ -112,14 +117,14 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
         setTimeout(() => onAgreed?.(), 300);
       }, 2000);
     }
-  }, [agreedBefore, initiatorUid]);
+  }, [agreementCount]);
 
   // Recipient = current user is NOT the one who started the chat
   // initiatorUid is loaded from Firestore chat document
   const isRecipient = initiatorUid !== null && initiatorUid !== user?.uid;
 
-  const showInitiatorBanner = !agreedBefore && !justAgreed && !isRecipient && initiatorUid !== null;
-  const showRecipientBanner = !agreedBefore && !justAgreed && isRecipient;
+  const showInitiatorBanner = !justAgreed && !navigating && !isRecipient && initiatorUid !== null;
+  const showRecipientBanner = !justAgreed && !navigating && isRecipient;
 
   const scrollRef  = useRef<ScrollView>(null);
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
@@ -286,6 +291,11 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
                 setAccepting(true);
                 try {
                   await createAgreement(musicianUid, musician.name, chatId ?? undefined);
+                  // Mark chat as completed so next Mesaj creates fresh chat
+                  if (chatId) {
+                    const { completeChat } = await import('../../firebase/firestore');
+                    await completeChat(chatId).catch(() => {});
+                  }
                   setJustAgreed(true);
                   setNavigating(true);
                   showToast(`✅ ${musician.name} ilə razılaşdınız!`);
