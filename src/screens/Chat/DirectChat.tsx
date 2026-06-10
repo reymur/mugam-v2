@@ -138,31 +138,39 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
     }).start();
   }, []);
 
-  // Init chat
+  // Init chat — only load existing chat, don't create new one yet
   useEffect(() => {
     if (!user) return;
     const init = async () => {
       try {
-        const { createOrGetDirectChat, markChatAsRead } = await import('../../firebase/firestore');
-        const { getDoc, doc } = await import('firebase/firestore');
+        const { getDocs, query, collection, where, getDoc, doc } = await import('firebase/firestore');
         const { fbFirestore, COLLECTIONS } = await import('../../firebase/config');
+        const { markChatAsRead } = await import('../../firebase/firestore');
 
-        const id = await createOrGetDirectChat(
-          user.uid,
-          musician.uid ?? musician.id,
-          musician.name,
-          musician.emoji,
-          user.displayName,
-          user.city,
+        const musicianUid = musician.uid ?? musician.id;
+
+        // Look for existing uncompleted chat
+        const q = query(
+          collection(fbFirestore, COLLECTIONS.CHATS),
+          where('members', 'array-contains', user.uid),
+          where('isGroup', '==', false),
         );
-        setChatId(id);
-        loadMessages(id);
-        await markChatAsRead(id, user.uid).catch(() => {});
+        const snap = await getDocs(q);
+        const existing = snap.docs.find(d => {
+          const data = d.data();
+          return data.members?.includes(musicianUid) && !data.completed;
+        });
 
-        // Load initiatorUid to determine who is recipient
-        const chatSnap = await getDoc(doc(fbFirestore, COLLECTIONS.CHATS, id));
-        if (chatSnap.exists()) {
-          setInitiatorUid(chatSnap.data().initiatorUid ?? user.uid);
+        if (existing) {
+          const id = existing.id;
+          setChatId(id);
+          loadMessages(id);
+          await markChatAsRead(id, user.uid).catch(() => {});
+          const data = existing.data();
+          setInitiatorUid(data.initiatorUid ?? user.uid);
+        } else {
+          // No existing chat — will be created on first message
+          setInitiatorUid(user.uid); // current user will be initiator
         }
       } catch {
         showToast('⚠️ Çat açılmadı');
@@ -189,12 +197,36 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
 
   // Send text message
   const handleSend = useCallback(async () => {
-    if (!inputText.trim() || !chatId || !user) return;
+    if (!inputText.trim() || !user) return;
     const text = inputText.trim();
     setInputText('');
-    await sendMessage(chatId, text);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [inputText, chatId, user, sendMessage]);
+
+    try {
+      let activeChatId = chatId;
+
+      // Create chat on first message if not exists yet
+      if (!activeChatId) {
+        const { createOrGetDirectChat } = await import('../../firebase/firestore');
+        const id = await createOrGetDirectChat(
+          user.uid,
+          musician.uid ?? musician.id,
+          musician.name,
+          musician.emoji,
+          user.displayName,
+          user.city,
+        );
+        activeChatId = id;
+        setChatId(id);
+        loadMessages(id);
+        setInitiatorUid(user.uid);
+      }
+
+      await sendMessage(activeChatId, text);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch {
+      showToast('⚠️ Mesaj göndərilmədi');
+    }
+  }, [inputText, chatId, user, musician, sendMessage, loadMessages, showToast]);
 
   // Start voice recording
   const startRecording = useCallback(async () => {
@@ -224,7 +256,7 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
 
   // Stop and send voice message
   const stopRecording = useCallback(async () => {
-    if (!recRef.current || !chatId || !user) return;
+    if (!recRef.current || !user) return;
     if (timerRef.current) clearInterval(timerRef.current);
     setRecording(false);
     setRecDuration(0);
@@ -234,9 +266,21 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
       recRef.current = null;
       if (!uri) return;
 
-      // Send voice message as text with special prefix
-      // In production — upload to Storage, here we use local URI
-      await sendMessage(chatId, `🎤 VOICE:${uri}`);
+      let activeChatId = chatId;
+      if (!activeChatId) {
+        const { createOrGetDirectChat } = await import('../../firebase/firestore');
+        const id = await createOrGetDirectChat(
+          user.uid, musician.uid ?? musician.id,
+          musician.name, musician.emoji,
+          user.displayName, user.city,
+        );
+        activeChatId = id;
+        setChatId(id);
+        loadMessages(id);
+        setInitiatorUid(user.uid);
+      }
+
+      await sendMessage(activeChatId, `🎤 VOICE:${uri}`);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       showToast('⚠️ Səs mesajı göndərilmədi');
@@ -317,7 +361,7 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
           </View>
         )}
 
-        {/* Both see agreed banner briefly before navigating */}
+        {/* Agreed banner — only show when just agreed in this session */}
         {(justAgreed || navigating) && (
           <View style={[s.acceptBanner, { backgroundColor: 'rgba(39,174,96,0.1)', borderColor: Colors.green }]}>
             <Text style={[s.acceptBannerText, { color: Colors.green }]}>
