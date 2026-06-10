@@ -260,7 +260,7 @@ export default function DirectChat({ musician, onClose, fromInvite: fromInvitePr
               onPress={async () => {
                 setAccepting(true);
                 try {
-                  await createAgreement(musicianUid, musician.name);
+                  await createAgreement(musicianUid, musician.name, chatId ?? undefined);
                   setJustAgreed(true);
                   showToast(`✅ ${musician.name} ilə razılaşdınız!`);
                   // Close chat and go to Agreements tab

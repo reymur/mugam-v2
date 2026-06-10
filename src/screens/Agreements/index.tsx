@@ -4,6 +4,8 @@ import {
   ScrollView, Animated, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getDocs, query, collection, orderBy as fbOrderBy } from 'firebase/firestore';
+import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
@@ -14,6 +16,7 @@ const SCREEN_W = Dimensions.get('window').width;
 // ── Agreement Detail Screen ───────────────────────────────
 function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose: () => void }) {
   const { user } = useAppStore();
+  const [chatMessages, setChatMessages] = React.useState<any[]>([]);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
 
   React.useEffect(() => {
@@ -22,17 +25,38 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
     }).start();
   }, []);
 
+  // Load chat messages
+  React.useEffect(() => {
+    if (!agreement.chatId) return;
+    const load = async () => {
+      try {
+        const snap = await getDocs(query(
+          collection(fbFirestore, COLLECTIONS.CHATS, agreement.chatId!, COLLECTIONS.MESSAGES),
+          fbOrderBy('createdAt', 'asc'),
+        ));
+        const msgs = snap.docs.map(d => {
+          const data = d.data();
+          const ts = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+          return {
+            id:         d.id,
+            text:       data.text ?? '',
+            senderId:   data.senderId ?? '',
+            senderName: data.senderName ?? '',
+            time:       ts.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
+            date:       ts.toLocaleDateString('az-AZ', { day: 'numeric', month: 'short' }),
+          };
+        });
+        setChatMessages(msgs);
+      } catch { /* ignore */ }
+    };
+    load();
+  }, [agreement.chatId]);
+
   const handleClose = () => {
     Animated.timing(slideAnim, {
       toValue: SCREEN_W, duration: 220, useNativeDriver: true,
     }).start(onClose);
   };
-
-  // fromUid = initiator (Teymur who sent), toUid = acceptor (Sevgi who agreed)
-  const isSender  = agreement.fromUid === user?.uid;
-  const myRole    = isSender ? 'Göndərən (Təklif edən)' : 'Qəbul edən';
-  const otherRole = isSender ? 'Qəbul edən' : 'Göndərən (Təklif edən)';
-  const otherName = isSender ? agreement.toName : agreement.fromName;
 
   const date = agreement.createdAt?.toDate
     ? agreement.createdAt.toDate().toLocaleDateString('az-AZ', {
@@ -100,6 +124,35 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             </View>
           </View>
 
+          {/* Chat history */}
+          {chatMessages.length > 0 && (
+            <View style={d.card}>
+              <Text style={d.cardTitle}>💬 Yazışma tarixi</Text>
+              {chatMessages.map((msg, i) => {
+                const isVoice = msg.text?.startsWith('🎤 VOICE:');
+                const isMine  = msg.senderId === user?.uid;
+                return (
+                  <View key={msg.id ?? i} style={d.msgRow}>
+                    <View style={[d.msgAva, { backgroundColor: isMine ? Colors.gold + '33' : Colors.bg3 }]}>
+                      <Text style={{ fontSize: 12 }}>👤</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={d.msgHeader}>
+                        <Text style={[d.msgSender, { color: isMine ? Colors.gold : Colors.text }]}>
+                          {msg.senderName}
+                        </Text>
+                        <Text style={d.msgTime}>{msg.date} {msg.time}</Text>
+                      </View>
+                      <Text style={d.msgText}>
+                        {isVoice ? '🎤 Səs mesajı' : msg.text}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           {/* Note */}
           <View style={d.noteCard}>
             <Text style={d.noteText}>
@@ -110,6 +163,85 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         </ScrollView>
       </SafeAreaView>
     </Animated.View>
+  );
+}
+
+// ── Agreement Card with messages ─────────────────────────
+function AgreementCard({ ag, onPress }: { ag: Agreement; onPress: () => void }) {
+  const { user } = useAppStore();
+  const [msgs, setMsgs] = React.useState<any[]>([]);
+
+  const isSender  = ag.fromUid === user?.uid;
+  const otherName = isSender ? ag.toName : ag.fromName;
+  const date = ag.createdAt?.toDate
+    ? ag.createdAt.toDate().toLocaleDateString('az-AZ', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : '';
+
+  React.useEffect(() => {
+    if (!ag.chatId) return;
+    const load = async () => {
+      try {
+        const snap = await getDocs(query(
+          collection(fbFirestore, COLLECTIONS.CHATS, ag.chatId!, COLLECTIONS.MESSAGES),
+          fbOrderBy('createdAt', 'asc'),
+        ));
+        setMsgs(snap.docs.map(d => {
+          const data = d.data();
+          const ts = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+          return {
+            id:         d.id,
+            text:       data.text ?? '',
+            senderName: data.senderName ?? '',
+            senderId:   data.senderId ?? '',
+            time:       ts.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
+            date:       ts.toLocaleDateString('az-AZ', { day: 'numeric', month: 'short' }),
+          };
+        }));
+      } catch { /* ignore */ }
+    };
+    load();
+  }, [ag.chatId]);
+
+  return (
+    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
+      {/* Header */}
+      <View style={s.cardLeft}>
+        <View style={s.cardAva}>
+          <Text style={{ fontSize: 22 }}>📋</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cardName}>{otherName}</Text>
+          <Text style={s.cardRole}>
+            {isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi'}
+          </Text>
+          <Text style={s.cardDate}>{date}</Text>
+        </View>
+        <View style={s.cardStatus}>
+          <Text style={s.cardStatusText}>✅</Text>
+          <Text style={s.cardArrow}>›</Text>
+        </View>
+      </View>
+
+      {/* Chat messages preview */}
+      {msgs.length > 0 && (
+        <View style={s.msgsWrap}>
+          {msgs.map((msg, i) => {
+            const isVoice = msg.text?.startsWith('🎤 VOICE:');
+            return (
+              <View key={msg.id ?? i} style={s.msgLine}>
+                <Text style={s.msgLineName}>{msg.senderName}:</Text>
+                <Text style={s.msgLineText} numberOfLines={1}>
+                  {isVoice ? '🎤 Səs mesajı' : msg.text}
+                </Text>
+                <Text style={s.msgLineTime}>{msg.date} {msg.time}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -138,41 +270,13 @@ export default function AgreementsScreen() {
             </Text>
           </View>
         ) : (
-          agreements.map(ag => {
-            const isSender  = ag.fromUid === user?.uid;
-            const otherName = isSender ? ag.toName : ag.fromName;
-            const date = ag.createdAt?.toDate
-              ? ag.createdAt.toDate().toLocaleDateString('az-AZ', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                })
-              : '';
-
-            return (
-              <TouchableOpacity
-                key={ag.id}
-                style={s.card}
-                onPress={() => setSelected(ag)}
-                activeOpacity={0.85}
-              >
-                <View style={s.cardLeft}>
-                  <View style={s.cardAva}>
-                    <Text style={{ fontSize: 22 }}>📋</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.cardName}>{otherName}</Text>
-                    <Text style={s.cardRole}>
-                      {isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi'}
-                    </Text>
-                    <Text style={s.cardDate}>{date}</Text>
-                  </View>
-                </View>
-                <View style={s.cardStatus}>
-                  <Text style={s.cardStatusText}>✅</Text>
-                  <Text style={s.cardArrow}>›</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
+          agreements.map(ag => (
+            <AgreementCard
+              key={ag.id}
+              ag={ag}
+              onPress={() => setSelected(ag)}
+            />
+          ))
         )}
       </ScrollView>
 
@@ -207,6 +311,12 @@ const d = StyleSheet.create({
   rowLabel:    { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito400 },
   rowValue:    { fontSize: 13, color: Colors.text, fontFamily: Typography.nunito700 },
   noteCard:    { backgroundColor: Colors.bg3, borderRadius: 12, padding: 14 },
+  msgRow:      { flexDirection: 'row', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  msgAva:      { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  msgHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  msgSender:   { fontFamily: Typography.nunito700, fontSize: 12 },
+  msgTime:     { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400 },
+  msgText:     { fontSize: 13, color: Colors.text, lineHeight: 18, fontFamily: Typography.nunito400 },
   noteText:    { fontSize: 13, color: Colors.muted, lineHeight: 20, fontFamily: Typography.nunito400 },
 });
 
@@ -220,8 +330,8 @@ const s = StyleSheet.create({
   emptyEmoji:  { fontSize: 52 },
   emptyTitle:  { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
   emptyDesc:   { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400, paddingHorizontal: 20 },
-  card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardLeft:    { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 14, marginBottom: 10 },
+  cardLeft:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardAva:     { width: 46, height: 46, borderRadius: 14, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
   cardName:    { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text, marginBottom: 2 },
   cardRole:    { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600, marginBottom: 2 },
@@ -229,4 +339,9 @@ const s = StyleSheet.create({
   cardStatus:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardStatusText: { fontSize: 18 },
   cardArrow:   { fontSize: 20, color: Colors.muted },
+  msgsWrap:    { marginTop: 10, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, gap: 6 },
+  msgLine:     { flexDirection: 'row', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' },
+  msgLineName: { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, flexShrink: 0 },
+  msgLineText: { fontSize: 12, color: Colors.text, fontFamily: Typography.nunito400, flex: 1 },
+  msgLineTime: { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400, flexShrink: 0 },
 });

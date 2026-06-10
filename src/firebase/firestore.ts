@@ -363,6 +363,7 @@ export async function createAgreement(
   fromName: string,
   toUid:    string,
   toName:   string,
+  chatId?:  string,
 ): Promise<string> {
   // Check if already exists
   const existing = await getDocs(query(
@@ -374,6 +375,7 @@ export async function createAgreement(
 
   const ref = await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
     fromUid, fromName, toUid, toName,
+    chatId:    chatId ?? null,
     status:    'agreed',
     createdAt: serverTimestamp(),
   });

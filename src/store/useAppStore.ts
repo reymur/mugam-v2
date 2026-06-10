@@ -78,7 +78,7 @@ interface AppStore {
 
   // Agreements
   agreements:         Agreement[];
-  createAgreement:    (toUid: string, toName: string) => Promise<void>;
+  createAgreement:    (toUid: string, toName: string, chatId?: string) => Promise<void>;
   hasAgreementWith:   (uid: string) => boolean;
 
   initApp: () => Promise<void>;
@@ -469,13 +469,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── Agreements ────────────────────────────────────────
-  createAgreement: async (toUid, toName) => {
+  createAgreement: async (toUid, toName, chatId) => {
     const user = get().user;
     if (!user) return;
     // toUid = initiator (Teymur who opened chat)
     // user = acceptor (Sevgi who clicked Razıyam)
     // Store as: fromUid = initiator (Teymur), toUid = acceptor (Sevgi)
-    await FireStore.createAgreement(toUid, toName, user.uid, user.displayName);
+    await FireStore.createAgreement(toUid, toName, user.uid, user.displayName, chatId);
   },
 
   hasAgreementWith: (uid) => {
