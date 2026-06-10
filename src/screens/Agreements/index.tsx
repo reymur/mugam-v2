@@ -15,9 +15,15 @@ const SCREEN_W = Dimensions.get('window').width;
 
 // ── Agreement Detail Screen ───────────────────────────────
 function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose: () => void }) {
-  const { user } = useAppStore();
+  const { user, musicians } = useAppStore();
   const [chatMessages, setChatMessages] = React.useState<any[]>([]);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
+
+  // Check online status from musicians list
+  const fromMusician = musicians.find(m => (m.uid ?? m.id) === agreement.fromUid);
+  const toMusician   = musicians.find(m => (m.uid ?? m.id) === agreement.toUid);
+  const fromOnline   = fromMusician?.online ?? false;
+  const toOnline     = toMusician?.online ?? false;
 
   React.useEffect(() => {
     Animated.spring(slideAnim, {
@@ -91,38 +97,35 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           <View style={d.card}>
             <Text style={d.cardTitle}>Tərəflər</Text>
             <View style={d.party}>
-              <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
-              <View>
+              <View style={d.partyAvaWrap}>
+                <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
+                <View style={[d.onlineDot, { backgroundColor: fromOnline ? Colors.green : Colors.muted }]} />
+              </View>
+              <View style={{ flex: 1 }}>
                 <Text style={d.partyName}>{agreement.fromName}</Text>
                 <Text style={d.partyRole}>Göndərən (Təklif edən)</Text>
               </View>
+              <Text style={[d.onlineLabel, { color: fromOnline ? Colors.green : Colors.muted }]}>
+                {fromOnline ? '● Onlayn' : '○ Oflayn'}
+              </Text>
             </View>
             <View style={d.divider} />
             <View style={d.party}>
-              <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
-              <View>
+              <View style={d.partyAvaWrap}>
+                <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
+                <View style={[d.onlineDot, { backgroundColor: toOnline ? Colors.green : Colors.muted }]} />
+              </View>
+              <View style={{ flex: 1 }}>
                 <Text style={d.partyName}>{agreement.toName}</Text>
                 <Text style={d.partyRole}>Qəbul edən</Text>
               </View>
+              <Text style={[d.onlineLabel, { color: toOnline ? Colors.green : Colors.muted }]}>
+                {toOnline ? '● Onlayn' : '○ Oflayn'}
+              </Text>
             </View>
           </View>
 
-          {/* Agreement details */}
-          <View style={d.card}>
-            <Text style={d.cardTitle}>Müqavilə məlumatları</Text>
-            <View style={d.row}>
-              <Text style={d.rowLabel}>Müqavilə №</Text>
-              <Text style={d.rowValue}>{agreement.id.slice(0, 8).toUpperCase()}</Text>
-            </View>
-            <View style={d.row}>
-              <Text style={d.rowLabel}>Tarix</Text>
-              <Text style={d.rowValue}>{date}</Text>
-            </View>
-            <View style={d.row}>
-              <Text style={d.rowLabel}>Status</Text>
-              <Text style={[d.rowValue, { color: Colors.green }]}>✅ Aktiv</Text>
-            </View>
-          </View>
+          {/* Agreement details card removed — number and date shown in chat history footer */}
 
           {/* Chat history */}
           {chatMessages.length > 0 && (
@@ -150,6 +153,25 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                   </View>
                 );
               })}
+              {/* Number and date at bottom */}
+              <View style={d.chatFooter}>
+                <Text style={d.chatFooterText}>№ {agreement.id.slice(0, 8).toUpperCase()}</Text>
+                <Text style={d.chatFooterText}>{date}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* If no messages yet — still show number and date */}
+          {chatMessages.length === 0 && (
+            <View style={d.card}>
+              <Text style={d.cardTitle}>💬 Yazışma tarixi</Text>
+              <Text style={[d.msgText, { color: Colors.muted, paddingVertical: 8 }]}>
+                Yazışma yoxdur
+              </Text>
+              <View style={d.chatFooter}>
+                <Text style={d.chatFooterText}>№ {agreement.id.slice(0, 8).toUpperCase()}</Text>
+                <Text style={d.chatFooterText}>{date}</Text>
+              </View>
             </View>
           )}
 
@@ -294,7 +316,10 @@ const d = StyleSheet.create({
   card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 16, gap: 12 },
   cardTitle:   { fontFamily: Typography.playfair700, fontSize: 16, color: Colors.text, marginBottom: 4 },
   party:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  partyAvaWrap:{ position: 'relative' },
   partyAva:    { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' },
+  onlineDot:   { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: Colors.card },
+  onlineLabel: { fontSize: 11, fontFamily: Typography.nunito700 },
   partyName:   { fontFamily: Typography.nunito700, fontSize: 15, color: Colors.text },
   partyRole:   { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600 },
   divider:     { height: 1, backgroundColor: Colors.border },
@@ -309,6 +334,8 @@ const d = StyleSheet.create({
   msgTime:     { fontSize: 10, color: Colors.muted, fontFamily: Typography.nunito400 },
   msgText:     { fontSize: 13, color: Colors.text, lineHeight: 18, fontFamily: Typography.nunito400 },
   noteText:    { fontSize: 13, color: Colors.muted, lineHeight: 20, fontFamily: Typography.nunito400 },
+  chatFooter:  { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.border },
+  chatFooterText: { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito600 },
 });
 
 const s = StyleSheet.create({
