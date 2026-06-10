@@ -67,6 +67,8 @@ const MusicianCard = React.memo(function MusicianCard({
       activeOpacity={0.85}
     >
       {musician.available && <View style={s.availableDot} />}
+      {/* Online status dot — bottom left of avatar */}
+      <View style={[s.onlineStatusDot, { backgroundColor: musician.online ? Colors.green : Colors.muted }]} />
 
       {/* Agreement badge — top right */}
       {agreementCount > 0 && (
@@ -265,6 +267,7 @@ const s = StyleSheet.create({
   musCard: { width: 140, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 18, padding: 16, alignItems: 'center', gap: 5, flexShrink: 0 },
   musCardGold: { borderColor: Colors.gold },
   availableDot:    { position: 'absolute', top: 10, right: 10, width: 10, height: 10, backgroundColor: Colors.green, borderRadius: 5, borderWidth: 2, borderColor: Colors.card },
+  onlineStatusDot: { position: 'absolute', bottom: 6, left: 6, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: Colors.card },
   agreementBadge:  { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 2 },
   agreementBadgeText: { fontSize: 11, color: Colors.gold, fontFamily: Typography.nunito700 },
   musAva: { width: 58, height: 58, borderRadius: 29, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.border },

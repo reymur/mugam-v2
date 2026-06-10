@@ -5,10 +5,11 @@ import { Nunito_300Light, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBol
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View } from 'react-native';
+import { View, AppState } from 'react-native';
 import RootNavigator from './src/navigation/RootNavigator';
 import ToastOverlay  from './src/components/common/Toast';  // FIX: Toast здесь — вне NavigationContainer, поверх всего
 import { useAppStore } from './src/store/useAppStore';
+import { setUserOnlineStatus } from './src/firebase/firestore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,6 +25,7 @@ export default function App() {
   });
 
   const initApp = useAppStore(s => s.initApp);
+  const user    = useAppStore(s => s.user);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded || fontError) {
@@ -36,6 +38,25 @@ export default function App() {
       initApp();
     }
   }, [fontsLoaded, fontError]);
+
+  // Track online status via AppState
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Set online when app becomes active
+    setUserOnlineStatus(user.uid, true).catch(() => {});
+
+    const sub = AppState.addEventListener('change', state => {
+      if (!user?.uid) return;
+      setUserOnlineStatus(user.uid, state === 'active').catch(() => {});
+    });
+
+    return () => {
+      // Set offline when component unmounts
+      setUserOnlineStatus(user.uid, false).catch(() => {});
+      sub.remove();
+    };
+  }, [user?.uid]);
 
   if (!fontsLoaded && !fontError) return null;
 

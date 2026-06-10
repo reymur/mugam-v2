@@ -424,3 +424,20 @@ export async function getAgreement(uid1: string, uid2: string): Promise<Agreemen
 
   return null;
 }
+
+// ── ONLINE STATUS ─────────────────────────────────────────
+export async function setUserOnlineStatus(uid: string, online: boolean): Promise<void> {
+  try {
+    // Update in musicians collection
+    await setDoc(
+      doc(fbFirestore, COLLECTIONS.MUSICIANS, uid),
+      { online, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    // Update in users collection
+    await updateDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
+      online,
+      lastSeen: serverTimestamp(),
+    });
+  } catch { /* ignore — user may not be in musicians */ }
+}

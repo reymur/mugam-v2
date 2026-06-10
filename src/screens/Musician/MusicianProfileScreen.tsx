@@ -183,12 +183,17 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
             <View style={s.heroGlow} />
             <View style={[s.avatar, musician.goldRing && s.avatarGold]}>
               <Text style={{ fontSize: 48 }}>{musician.emoji}</Text>
-              {musician.available && <View style={s.onlineDot} />}
+              <View style={[s.onlineDot, { backgroundColor: musician.online ? Colors.green : Colors.muted }]} />
             </View>
             <Text style={s.name}>{musician.name}</Text>
             <Text style={s.instrument}>{musician.instrument}</Text>
             <View style={s.metaRow}>
               <Text style={s.city}>📍 {musician.city}</Text>
+              <View style={[s.onlineBadge, { borderColor: musician.online ? Colors.green : Colors.muted, backgroundColor: musician.online ? 'rgba(39,174,96,0.15)' : 'rgba(128,128,128,0.1)' }]}>
+                <Text style={[s.onlineBadgeText, { color: musician.online ? Colors.green : Colors.muted }]}>
+                  {musician.online ? '● Onlayn' : '○ Oflayn'}
+                </Text>
+              </View>
               {musician.available && (
                 <View style={s.availBadge}>
                   <Text style={s.availText}>✅ Hazırdır</Text>
@@ -390,6 +395,9 @@ const s = StyleSheet.create({
   metaRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   city:        { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito400 },
   availBadge:  { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: 'rgba(39,174,96,0.3)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  availText:   { color: Colors.green, fontSize: 11, fontFamily: Typography.nunito700 },
+  onlineBadge: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  onlineBadgeText: { fontSize: 11, fontFamily: Typography.nunito700 },
   availText:   { color: Colors.green, fontSize: 11, fontFamily: Typography.nunito700 },
   ratingRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   stars:       { fontSize: 16, color: Colors.gold },
