@@ -2,7 +2,7 @@ import {
   collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   getDoc, getDocs, query, where, orderBy, limit,
   onSnapshot, serverTimestamp, increment,
-  writeBatch, arrayUnion,
+  writeBatch, arrayUnion, arrayRemove,
   type QuerySnapshot, type DocumentData,
 } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from './config';
@@ -452,4 +452,43 @@ export async function loadReadAgreementIds(uid: string): Promise<string[]> {
     if (snap.exists()) return snap.data().readAgreementIds ?? [];
   } catch { /* ignore */ }
   return [];
+}
+
+export async function markChatAsReadBy(chatId: string, uid: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      readBy: arrayUnion(uid),
+    });
+  } catch { /* ignore */ }
+}
+
+export async function setTyping(chatId: string, uid: string, isTyping: boolean): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      [`typing.${uid}`]: isTyping ? Date.now() : null,
+    });
+  } catch { /* ignore */ }
+}
+
+export function subscribeChatMeta(
+  chatId: string,
+  cb: (data: { readBy: string[]; typing: Record<string, number> }) => void
+): () => void {
+  const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
+    if (snap.exists()) {
+      cb({
+        readBy: snap.data().readBy ?? [],
+        typing: snap.data().typing ?? {},
+      });
+    }
+  });
+  return unsub;
+}
+
+export async function removeReadBy(chatId: string, uid: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      readBy: arrayRemove(uid),
+    });
+  } catch { /* ignore */ }
 }

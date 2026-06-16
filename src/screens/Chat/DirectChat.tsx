@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
-  Platform, ScrollView, Dimensions, ActivityIndicator,
+  Platform, ScrollView, Dimensions, ActivityIndicator, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy } from '../../firebase/firestore';
 import type { Musician, Invite } from '../../store/useAppStore';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -77,6 +78,8 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
   } = useAppStore();
 
   const [chatId,      setChatId]      = useState<string | null>(null);
+  const [recipientRead,  setRecipientRead]  = useState(false);
+  const [recipientTyping, setRecipientTyping] = useState(false);
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
   const [recording,   setRecording]   = useState(false);
@@ -125,6 +128,53 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
 
   const showInitiatorBanner = !justAgreed && !navigating && !isRecipient && initiatorUid !== null;
   const showRecipientBanner = !justAgreed && !navigating && isRecipient;
+
+  // Subscribe to readBy and typing
+  const typingTsRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!chatId || !user?.uid) return;
+    markChatAsReadBy(chatId, user.uid).catch(() => {});
+    const unsub = subscribeChatMeta(chatId, ({ readBy, typing }) => {
+      const otherUid = musician.uid;
+      setRecipientRead(readBy.includes(otherUid));
+      typingTsRef.current = typing[otherUid] ?? null;
+      setRecipientTyping(!!typing[otherUid] && Date.now() - typing[otherUid] < 5000);
+    });
+    // Check typing every second
+    const interval = setInterval(() => {
+      if (typingTsRef.current) {
+        setRecipientTyping(Date.now() - typingTsRef.current < 5000);
+      }
+    }, 1000);
+    return () => { unsub(); clearInterval(interval); };
+  }, [chatId, user?.uid]);
+
+  // Set typing status when input changes
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // AppState — remove/add readBy when app is backgrounded
+  useEffect(() => {
+    if (!chatId || !user?.uid) return;
+    const sub = AppState.addEventListener('change', state => {
+      if (!chatId || !user?.uid) return;
+      if (state === 'active') {
+        markChatAsReadBy(chatId, user.uid).catch(() => {});
+      } else {
+        removeReadBy(chatId, user.uid).catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, [chatId, user?.uid]);
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    if (!chatId || !user?.uid) return;
+    setTyping(chatId, user.uid, true).catch(() => {});
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      setTyping(chatId, user.uid, false).catch(() => {});
+    }, 3000);
+  };
 
   const scrollRef  = useRef<ScrollView>(null);
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
@@ -317,8 +367,12 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
         {/* Teymur sees: "Sevgi fikirləşir..." — no buttons */}
         {showInitiatorBanner && (
           <View style={s.acceptBanner}>
-            <Text style={s.acceptBannerText}>
-              🤔 {musician.name} fikirləşir....
+            <Text style={[s.acceptBannerText, (recipientTyping || recipientRead) ? s.bannerBlue : s.bannerGray]}>
+              {recipientTyping
+                ? `✍️ ${musician.name} yazır...`
+                : recipientRead
+                  ? `👁 ${musician.name} baxdı`
+                  : `⏳ ${musician.name} hələ baxmayıb`}
             </Text>
           </View>
         )}
@@ -326,8 +380,12 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
         {/* Sevgi sees: "Teymur cavab gözləyir" + Razıyam button */}
         {showRecipientBanner && (
           <View style={s.acceptBanner}>
-            <Text style={s.acceptBannerText}>
-              🤝 {musician.name} cavab gözləyir
+            <Text style={[s.acceptBannerText, (recipientTyping || recipientRead) ? s.bannerBlue : s.bannerGray]}>
+              {recipientTyping
+                ? `✍️ ${musician.name} yazır...`
+                : recipientRead
+                  ? `👁 ${musician.name} baxdı`
+                  : `🤝 ${musician.name} cavab gözləyir`}
             </Text>
             <TouchableOpacity
               style={[s.acceptBtn, accepting && { opacity: 0.6 }]}
@@ -437,7 +495,7 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
               placeholder="Mesaj yaz..."
               placeholderTextColor={Colors.muted}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleInputChange}
               multiline
               maxLength={500}
               returnKeyType="send"
@@ -471,7 +529,9 @@ const vs = StyleSheet.create({
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   acceptBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(212,160,60,0.08)', borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 10 },
-  acceptBannerText: { flex: 1, fontSize: 13, color: Colors.text, fontFamily: Typography.nunito600 },
+  bannerBlue:       { color: '#4a90d9' },
+  bannerGray:       { color: Colors.muted },
+  acceptBannerText: { flex: 1, fontSize: 13, fontFamily: Typography.nunito600 },
   acceptBtn:    { backgroundColor: Colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   acceptBtnText:{ color: 'white', fontSize: 13, fontFamily: Typography.nunito700 },
   backBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

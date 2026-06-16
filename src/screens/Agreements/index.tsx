@@ -254,6 +254,10 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const { agreements, user, markAgreementAsRead } = useAppStore();
   const readAgreementIds: string[] = useAppStore(s => (s as any).readAgreementIds ?? []);
   const autoOpenUid = route?.params?.musicianUid ?? null;
+  const [activeTab, setActiveTab] = React.useState<'outgoing' | 'incoming'>('outgoing');
+  const outgoing = agreements.filter((a: any) => a.fromUid === user?.uid);
+  const incoming = agreements.filter((a: any) => a.toUid === user?.uid);
+  const filtered = activeTab === 'outgoing' ? outgoing : incoming;
 
   // Mark all as seen when screen opens (clears badge)
   React.useEffect(() => {
@@ -273,6 +277,15 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         <Text style={s.subtitle}>{agreements.length} müqavilə</Text>
       </View>
 
+      <View style={s.tabRow}>
+        <TouchableOpacity style={[s.tab, activeTab === 'outgoing' && s.tabActive]} onPress={() => setActiveTab('outgoing')}>
+          <Text style={[s.tabText, activeTab === 'outgoing' && s.tabTextActive]}>Göndərilən ({outgoing.length})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.tab, activeTab === 'incoming' && s.tabActive]} onPress={() => setActiveTab('incoming')}>
+          <Text style={[s.tabText, activeTab === 'incoming' && s.tabTextActive]}>Gələnlər ({incoming.length})</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
@@ -286,7 +299,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             </Text>
           </View>
         ) : (
-          agreements.map(ag => (
+          filtered.map(ag => (
             <AgreementCard
               key={ag.id}
               ag={ag}
@@ -352,6 +365,11 @@ const s = StyleSheet.create({
   title:       { fontFamily: Typography.playfair700, fontSize: 22, color: Colors.text },
   subtitle:    { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400, marginTop: 2 },
   list:        { padding: 14, gap: 10, paddingBottom: 20 },
+  tabRow:        { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 12, backgroundColor: Colors.bg3, padding: 4 },
+  tab:           { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabActive:     { backgroundColor: Colors.gold },
+  tabText:       { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito600 },
+  tabTextActive: { color: '#1a0e00', fontFamily: Typography.nunito700 },
   empty:       { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyEmoji:  { fontSize: 52 },
   emptyTitle:  { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
