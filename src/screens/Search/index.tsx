@@ -34,20 +34,16 @@ function MusicianListItem({
       </View>
       <View style={s.mliActions}>
         <Text style={s.mliRate}>{'★'.repeat(musician.rating)}</Text>
-        {(agreedCount > 0 || cancelledCount > 0) && (
+        {agreedCount > 0 && (
           <View style={s.mliAgreementBadge}>
-            {agreedCount > 0 && (
-              <>
-                <Text style={{ fontSize: 12 }}>🤝</Text>
-                <Text style={s.mliAgreementText}>{agreedCount}</Text>
-              </>
-            )}
-            {cancelledCount > 0 && (
-              <>
-                <Text style={{ fontSize: 12, color: Colors.red }}>✖</Text>
-                <Text style={[s.mliAgreementText, { color: Colors.red }]}>{cancelledCount}</Text>
-              </>
-            )}
+            <Text style={{ fontSize: 12 }}>🤝</Text>
+            <Text style={s.mliAgreementText}>{agreedCount > 99 ? '99+' : agreedCount}</Text>
+          </View>
+        )}
+        {cancelledCount > 0 && (
+          <View style={s.mliAgreementBadge}>
+            <Text style={{ fontSize: 12, color: Colors.red }}>✖</Text>
+            <Text style={[s.mliAgreementText, { color: Colors.red }]}>{cancelledCount > 99 ? '99+' : cancelledCount}</Text>
           </View>
         )}
         <TouchableOpacity style={s.mliMsgBtn} onPress={onPress}>

@@ -73,20 +73,16 @@ const MusicianCard = React.memo(function MusicianCard({
       <View style={[s.onlineStatusDot, { backgroundColor: musician.online ? Colors.green : Colors.muted }]} />
 
       {/* Agreement badge — top right */}
-      {(agreedCount > 0 || cancelledCount > 0) && (
-        <View style={s.agreementBadge}>
-          {agreedCount > 0 && (
-            <>
-              <Text>🤝</Text>
-              <Text style={s.agreementBadgeText}>{agreedCount}</Text>
-            </>
-          )}
-          {cancelledCount > 0 && (
-            <>
-              <Text style={{ color: Colors.red }}>✖</Text>
-              <Text style={[s.agreementBadgeText, { color: Colors.red }]}>{cancelledCount}</Text>
-            </>
-          )}
+      {agreedCount > 0 && (
+        <View style={s.agreementBadgeLeft}>
+          <Text>🤝</Text>
+          <Text style={s.agreementBadgeText}>{agreedCount > 99 ? '99+' : agreedCount}</Text>
+        </View>
+      )}
+      {cancelledCount > 0 && (
+        <View style={s.agreementBadgeRight}>
+          <Text style={{ color: Colors.red }}>✖</Text>
+          <Text style={[s.agreementBadgeText, { color: Colors.red }]}>{cancelledCount > 99 ? '99+' : cancelledCount}</Text>
         </View>
       )}
 
@@ -288,7 +284,8 @@ const s = StyleSheet.create({
   musCardGold: { borderColor: Colors.gold },
   availableDot:    { position: 'absolute', top: 10, right: 10, width: 10, height: 10, backgroundColor: Colors.green, borderRadius: 5, borderWidth: 2, borderColor: Colors.card },
   onlineStatusDot: { position: 'absolute', bottom: 6, left: 6, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: Colors.card },
-  agreementBadge:  { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  agreementBadgeLeft:  { position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  agreementBadgeRight: { position: 'absolute', top: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 2 },
   agreementBadgeText: { fontSize: 11, color: Colors.gold, fontFamily: Typography.nunito700 },
   musAva: { width: 58, height: 58, borderRadius: 29, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.border },
   musAvaGold: { borderColor: Colors.gold },
