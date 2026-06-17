@@ -40,14 +40,16 @@ const MusicianCard = React.memo(function MusicianCard({
   invited,
   accepted,
   onToggleInvite,
-  agreementCount,
+  agreedCount,
+  cancelledCount,
 }: {
   musician: Musician;
   onPress: () => void;
   invited: boolean;
   accepted: boolean;
   onToggleInvite: () => void;
-  agreementCount: number;
+  agreedCount: number;
+  cancelledCount: number;
 }) {
   const { t }         = useT();
   const { showToast } = useAppStore();
@@ -71,10 +73,20 @@ const MusicianCard = React.memo(function MusicianCard({
       <View style={[s.onlineStatusDot, { backgroundColor: musician.online ? Colors.green : Colors.muted }]} />
 
       {/* Agreement badge — top right */}
-      {agreementCount > 0 && (
+      {(agreedCount > 0 || cancelledCount > 0) && (
         <View style={s.agreementBadge}>
-          <Text>🤝</Text>
-          <Text style={s.agreementBadgeText}>{agreementCount}</Text>
+          {agreedCount > 0 && (
+            <>
+              <Text>🤝</Text>
+              <Text style={s.agreementBadgeText}>{agreedCount}</Text>
+            </>
+          )}
+          {cancelledCount > 0 && (
+            <>
+              <Text style={{ color: Colors.red }}>✖</Text>
+              <Text style={[s.agreementBadgeText, { color: Colors.red }]}>{cancelledCount}</Text>
+            </>
+          )}
         </View>
       )}
 
@@ -184,12 +196,19 @@ export default function HomeScreen() {
 
   // Pre-compute agreement counts per musician
   const agreementCountMap = React.useMemo(() => {
-    const map: Record<string, number> = {};
+    const agreed:    Record<string, number> = {};
+    const cancelled: Record<string, number> = {};
     agreements.forEach(a => {
-      map[a.fromUid] = (map[a.fromUid] ?? 0) + 1;
-      map[a.toUid]   = (map[a.toUid]   ?? 0) + 1;
+      const uids = [a.fromUid, a.toUid];
+      uids.forEach(uid => {
+        if (a.status === 'cancelled') {
+          cancelled[uid] = (cancelled[uid] ?? 0) + 1;
+        } else {
+          agreed[uid] = (agreed[uid] ?? 0) + 1;
+        }
+      });
     });
-    return map;
+    return { agreed, cancelled };
   }, [agreements]);
   const storeSendInvite     = useAppStore(st => st.sendInvite);
   const storeCancelInvite   = useAppStore(st => st.cancelInvite);
@@ -218,7 +237,8 @@ export default function HomeScreen() {
               onPress={() => setSelectedMusician(m)}
               invited={invitedMusicianIds.has(m.uid ?? m.id)}
               accepted={acceptedMusicianIds.has(m.uid ?? m.id)}
-              agreementCount={agreementCountMap[m.uid ?? m.id] ?? 0}
+              agreedCount={agreementCountMap.agreed[m.uid ?? m.id] ?? 0}
+              cancelledCount={agreementCountMap.cancelled[m.uid ?? m.id] ?? 0}
               onToggleInvite={() => { const id = m.uid ?? m.id; invitedMusicianIds.has(id) ? storeCancelInvite(id) : storeSendInvite(m); }}
             />
           ))}

@@ -197,6 +197,11 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
             onClose();
             navigation.navigate('Agreements');
           }}
+          onCancelled={() => {
+            setSelectedChat(null);
+            onClose();
+            navigation.navigate('Agreements', { tab: 'cancelled' });
+          }}
           fromInvite={receivedInvites.find(inv =>
             inv.fromUid === (selectedChat.members?.find(m => m !== user?.uid) ?? '')
           )}

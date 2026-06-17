@@ -9,7 +9,7 @@ import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy } from '../../firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat } from '../../firebase/firestore';
 import type { Musician, Invite } from '../../store/useAppStore';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -66,11 +66,12 @@ function VoicePlayer({ uri, mine }: { uri: string; mine: boolean }) {
 interface Props {
   musician:   Musician;
   onClose:    () => void;
-  onAgreed?:  () => void;  // navigate to Müqavilələr after agreement
+  onAgreed?:    () => void;  // navigate to Müqavilələr after agreement
+  onCancelled?: () => void;  // navigate to Müqavilələr -> Ləğv edilən
   fromInvite?: Invite;
 }
 
-export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fromInviteProp }: Props) {
+export default function DirectChat({ musician, onClose, onAgreed, onCancelled, fromInvite: fromInviteProp }: Props) {
   const {
     user, messages, sendMessage, loadMessages, showToast,
     updateInviteStatus, receivedInvites,
@@ -80,6 +81,8 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
   const [chatId,      setChatId]      = useState<string | null>(null);
   const [recipientRead,  setRecipientRead]  = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
+  const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
+  const [cancelling,    setCancelling]    = useState(false);
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
   const [recording,   setRecording]   = useState(false);
@@ -135,11 +138,19 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     markChatAsReadBy(chatId, user.uid).catch(() => {});
-    const unsub = subscribeChatMeta(chatId, ({ readBy, typing }) => {
+    const unsub = subscribeChatMeta(chatId, ({ readBy, typing, cancelledBy: cb }) => {
       const otherUid = musician.uid;
       setRecipientRead(readBy.includes(otherUid));
       typingTsRef.current = typing[otherUid] ?? null;
       setRecipientTyping(!!typing[otherUid] && Date.now() - typing[otherUid] < 5000);
+      setCancelledBy(cb);
+      // Auto navigate for the other side
+      if (cb && cb !== user?.uid) {
+        setTimeout(() => {
+          onClose();
+          setTimeout(() => onCancelled?.(), 300);
+        }, 1000);
+      }
     });
     // Check typing every second
     const interval = setInterval(() => {
@@ -364,8 +375,19 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Teymur sees: "Sevgi fikirləşir..." — no buttons */}
-        {showInitiatorBanner && (
+        {/* Cancelled banner */}
+        {cancelledBy && (
+          <View style={[s.acceptBanner, { borderColor: Colors.red, backgroundColor: 'rgba(192,57,43,0.1)' }]}>
+            <Text style={[s.acceptBannerText, { color: Colors.red }]}>
+              {cancelledBy === user?.uid
+                ? 'Siz imtina etdiniz'
+                : `${musician.name} imtina etdi`}
+            </Text>
+          </View>
+        )}
+
+        {/* Teymur sees: "Sevgi fikirləşir..." + Imtina button */}
+        {showInitiatorBanner && !cancelledBy && (
           <View style={s.acceptBanner}>
             <Text style={[s.acceptBannerText, (recipientTyping || recipientRead) ? s.bannerBlue : s.bannerGray]}>
               {recipientTyping
@@ -374,11 +396,29 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
                   ? `👁 ${musician.name} baxdı`
                   : `⏳ ${musician.name} hələ baxmayıb`}
             </Text>
+            <TouchableOpacity
+              style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
+              disabled={cancelling}
+              onPress={async () => {
+                if (!chatId || !user?.uid) return;
+                setCancelling(true);
+                try {
+                  await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+                  showToast('İmtina edildi');
+                  setTimeout(() => {
+                    onClose();
+                    setTimeout(() => onCancelled?.(), 300);
+                  }, 1000);
+                } finally { setCancelling(false); }
+              }}
+            >
+              <Text style={s.cancelBtnText}>✖ Imtina</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Sevgi sees: "Teymur cavab gözləyir" + Razıyam button */}
-        {showRecipientBanner && (
+        {/* Sevgi sees: "Teymur cavab gözləyir" + Razıyam + Imtina buttons */}
+        {showRecipientBanner && !cancelledBy && (
           <View style={s.acceptBanner}>
             <Text style={[s.acceptBannerText, (recipientTyping || recipientRead) ? s.bannerBlue : s.bannerGray]}>
               {recipientTyping
@@ -415,6 +455,24 @@ export default function DirectChat({ musician, onClose, onAgreed, fromInvite: fr
                 ? <ActivityIndicator size="small" color="white" />
                 : <Text style={s.acceptBtnText}>✅ Razıyam</Text>
               }
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
+              disabled={cancelling}
+              onPress={async () => {
+                if (!chatId || !user?.uid) return;
+                setCancelling(true);
+                try {
+                  await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+                  showToast('İmtina edildi');
+                  setTimeout(() => {
+                    onClose();
+                    setTimeout(() => onCancelled?.(), 300);
+                  }, 1000);
+                } finally { setCancelling(false); }
+              }}
+            >
+              <Text style={s.cancelBtnText}>✖ Imtina</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -529,6 +587,8 @@ const vs = StyleSheet.create({
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   acceptBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(212,160,60,0.08)', borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 10 },
+  cancelBtn:        { marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Colors.red, alignItems: 'center' },
+  cancelBtnText:    { color: Colors.red, fontFamily: Typography.nunito600, fontSize: 13 },
   bannerBlue:       { color: '#4a90d9' },
   bannerGray:       { color: Colors.muted },
   acceptBannerText: { flex: 1, fontSize: 13, fontFamily: Typography.nunito600 },

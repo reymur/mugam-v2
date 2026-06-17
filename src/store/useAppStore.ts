@@ -514,13 +514,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (storedLang === 'az' || storedLang === 'ru') set({ lang: storedLang });
 
     // Restore read agreement ids from Firestore
-    const storedIds = await AsyncStorage.getItem('readAgreementIds');
-    if (storedIds) {
-      try {
-        const ids = JSON.parse(storedIds);
-        if (Array.isArray(ids)) set({ readAgreementIds: ids });
-      } catch { /* ignore */ }
-    }
+    // readAgreementIds stored in Firestore, loaded after login
 
     // Auth state listener
     const unsubAuth = FireAuth.onAuthStateChanged(async (firebaseUser) => {

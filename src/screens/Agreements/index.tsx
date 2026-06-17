@@ -97,8 +97,14 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         <ScrollView contentContainerStyle={d.container}>
           {/* Status badge */}
           <View style={d.statusWrap}>
-            <View style={d.statusBadge}>
-              <Text style={d.statusText}>✅ Razılaşma qəbul edildi</Text>
+            <View style={[(ag => (ag as any).status === 'cancelled')(agreement) ? d.statusBadgeCancelled : d.statusBadge]}>
+              <Text style={[(ag => (ag as any).status === 'cancelled')(agreement) ? d.statusTextCancelled : d.statusText]}>
+                {(agreement as any).status === 'cancelled'
+                  ? (agreement as any).cancelledBy === user?.uid
+                    ? '✖ Siz imtina etdiniz'
+                    : `✖ ${(agreement as any).cancelledByName ?? ''} imtina etdi`
+                  : '✅ Razılaşma qəbul edildi'}
+              </Text>
             </View>
             <Text style={d.dateText}>{date}</Text>
           </View>
@@ -219,30 +225,43 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 // ── Agreement Card with messages ─────────────────────────
 function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () => void; isUnread: boolean }) {
   const { user } = useAppStore();
-  const isSender  = ag.fromUid === user?.uid;
-  const otherName = isSender ? ag.toName : ag.fromName;
+  const isSender    = ag.fromUid === user?.uid;
+  const otherName   = isSender ? ag.toName : ag.fromName;
+  const isCancelled = (ag as any).status === 'cancelled';
+  const cancelledByMe = (ag as any).cancelledBy === user?.uid;
+  const cancelledByName = (ag as any).cancelledByName ?? otherName;
   const date = ag.createdAt?.toDate
     ? ag.createdAt.toDate().toLocaleDateString('az-AZ', {
         day: 'numeric', month: 'long', year: 'numeric',
       })
     : '';
 
+  const roleText = isCancelled
+    ? cancelledByMe
+      ? 'Siz imtina etdiniz'
+      : `${cancelledByName} imtina etdi`
+    : isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi';
+
   return (
-    <TouchableOpacity style={[s.card, isUnread ? s.cardUnread : s.cardRead]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={[s.card, isCancelled ? (isUnread ? s.cardCancelledUnread : s.cardCancelled) : isUnread ? s.cardUnread : s.cardRead]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
       <View style={s.cardLeft}>
         <View style={s.cardAva}>
-          <Text style={{ fontSize: 22 }}>📋</Text>
-          {isUnread && <View style={s.unreadDot} />}
+          <Text style={{ fontSize: 22 }}>{isCancelled ? '✖️' : '📋'}</Text>
+          {isUnread && !isCancelled && <View style={s.unreadDot} />}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[s.cardName, !isUnread && s.cardNameRead]}>{otherName}</Text>
-          <Text style={[s.cardRole, !isUnread && s.cardRoleRead]}>
-            {isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi'}
+          <Text style={[s.cardName, isUnread ? s.cardNameUnread : s.cardNameRead]}>{otherName}</Text>
+          <Text style={[s.cardRole, isUnread ? (isCancelled ? s.cardRoleCancelled : s.cardRoleUnread) : s.cardRoleRead]}>
+            {roleText}
           </Text>
           <Text style={[s.cardDate, !isUnread && s.cardDateRead]}>{date}</Text>
         </View>
         <View style={s.cardRight}>
-          {isUnread && <View style={s.unreadCircle} />}
+          {isUnread && !isCancelled && <View style={s.unreadCircle} />}
         </View>
       </View>
     </TouchableOpacity>
@@ -254,10 +273,22 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const { agreements, user, markAgreementAsRead } = useAppStore();
   const readAgreementIds: string[] = useAppStore(s => (s as any).readAgreementIds ?? []);
   const autoOpenUid = route?.params?.musicianUid ?? null;
-  const [activeTab, setActiveTab] = React.useState<'outgoing' | 'incoming'>('outgoing');
-  const outgoing = agreements.filter((a: any) => a.fromUid === user?.uid);
-  const incoming = agreements.filter((a: any) => a.toUid === user?.uid);
-  const filtered = activeTab === 'outgoing' ? outgoing : incoming;
+  const initialTab = route?.params?.tab ?? 'outgoing';
+  const [activeTab, setActiveTab] = React.useState<'outgoing' | 'incoming' | 'cancelled'>(initialTab);
+
+  const outgoing  = agreements.filter((a: any) => a.fromUid === user?.uid && a.status !== 'cancelled');
+  const incoming  = agreements.filter((a: any) => a.toUid === user?.uid && a.status !== 'cancelled');
+  const cancelled = agreements.filter((a: any) => a.status === 'cancelled' && (a.fromUid === user?.uid || a.toUid === user?.uid));
+  const sortAndGroup = (list: any[]) => {
+    const unread = list.filter((a: any) => !readAgreementIds.includes(a.id))
+      .sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+    const read = list.filter((a: any) => readAgreementIds.includes(a.id))
+      .sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+    return [...unread, ...read];
+  };
+  const filtered = sortAndGroup(
+    activeTab === 'outgoing' ? outgoing : activeTab === 'incoming' ? incoming : cancelled
+  );
 
   // Mark all as seen when screen opens (clears badge)
   React.useEffect(() => {
@@ -283,6 +314,9 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         </TouchableOpacity>
         <TouchableOpacity style={[s.tab, activeTab === 'incoming' && s.tabActive]} onPress={() => setActiveTab('incoming')}>
           <Text style={[s.tabText, activeTab === 'incoming' && s.tabTextActive]}>Gələnlər ({incoming.length})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.tab, activeTab === 'cancelled' && s.tabCancelledActive]} onPress={() => setActiveTab('cancelled')}>
+          <Text style={[s.tabText, activeTab === 'cancelled' && s.tabCancelledText]}>Ləğv edilən ({cancelled.length})</Text>
         </TouchableOpacity>
       </View>
 
@@ -330,8 +364,10 @@ const d = StyleSheet.create({
   headerTitle: { fontFamily: Typography.playfair700, fontSize: 18, color: Colors.text },
   container:   { padding: 18, gap: 16, paddingBottom: 40 },
   statusWrap:  { alignItems: 'center', paddingVertical: 20, gap: 8 },
-  statusBadge: { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: Colors.green, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
-  statusText:  { color: Colors.green, fontSize: 15, fontFamily: Typography.nunito700 },
+  statusBadge:           { backgroundColor: 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: Colors.green, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  statusText:            { color: Colors.green, fontSize: 15, fontFamily: Typography.nunito700 },
+  statusBadgeCancelled:  { backgroundColor: 'rgba(192,57,43,0.15)', borderWidth: 1, borderColor: Colors.red, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  statusTextCancelled:   { color: Colors.red, fontSize: 15, fontFamily: Typography.nunito700 },
   dateText:    { color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito400 },
   card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 16, gap: 12 },
   cardTitle:   { fontFamily: Typography.playfair700, fontSize: 16, color: Colors.text, marginBottom: 4 },
@@ -367,7 +403,9 @@ const s = StyleSheet.create({
   list:        { padding: 14, gap: 10, paddingBottom: 20 },
   tabRow:        { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 12, backgroundColor: Colors.bg3, padding: 4 },
   tab:           { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
-  tabActive:     { backgroundColor: Colors.gold },
+  tabActive:          { backgroundColor: Colors.gold },
+  tabCancelledActive: { backgroundColor: Colors.red },
+  tabCancelledText:   { color: '#fff', fontFamily: Typography.nunito700 },
   tabText:       { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito600 },
   tabTextActive: { color: '#1a0e00', fontFamily: Typography.nunito700 },
   empty:       { alignItems: 'center', paddingTop: 80, gap: 12 },
@@ -375,17 +413,22 @@ const s = StyleSheet.create({
   emptyTitle:  { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
   emptyDesc:   { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20, fontFamily: Typography.nunito400, paddingHorizontal: 20 },
   card:        { borderRadius: 16, padding: 14, marginBottom: 10 },
-  cardUnread:  { backgroundColor: Colors.card },
-  cardRead:    { backgroundColor: 'rgba(255,255,255,0.03)' },
+  cardUnread:  { borderWidth: 1, borderColor: Colors.gold, backgroundColor: 'rgba(212,160,60,0.08)' },
+  cardRead:             { backgroundColor: 'rgba(255,255,255,0.03)' },
+  cardCancelled:        { borderWidth: 1, borderColor: 'rgba(192,57,43,0.3)', backgroundColor: 'rgba(255,255,255,0.01)' },
+  cardCancelledUnread:  { borderWidth: 1, borderColor: Colors.red, backgroundColor: 'rgba(192,57,43,0.08)' },
   cardLeft:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardAva:     { width: 46, height: 46, borderRadius: 14, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border, position: 'relative' },
   unreadDot:   { position: 'absolute', top: -3, right: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.gold, borderWidth: 2, borderColor: Colors.bg },
-  cardName:     { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text, marginBottom: 2 },
+  cardName:     { fontFamily: Typography.playfair700, fontSize: 15, marginBottom: 2 },
+  cardNameUnread: { color: '#ffffff' },
   cardNameRead: { color: Colors.muted },
-  cardRole:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito600, marginBottom: 2 },
+  cardRole:     { fontSize: 12, fontFamily: Typography.nunito600, marginBottom: 2 },
+  cardRoleUnread:     { color: Colors.gold2 },
+  cardRoleCancelled:  { color: Colors.red, fontSize: 12, fontFamily: Typography.nunito600, marginBottom: 2 },
   cardRoleRead: { color: Colors.muted },
   cardDate:     { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
-  cardDateRead: { color: Colors.border },
+  cardDateRead: { color: Colors.muted },
   cardRight:    { alignItems: 'center', gap: 6 },
   unreadCircle: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.green },
   cardArrow:    { fontSize: 20, color: Colors.muted },

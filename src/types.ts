@@ -175,6 +175,7 @@ export interface Agreement {
   fromName:   string;
   toUid:      string;   // who agreed
   toName:     string;
-  status:     'agreed';
+  status:     'agreed' | 'cancelled';
+  cancelledBy?: string;
   createdAt:  any;
 }

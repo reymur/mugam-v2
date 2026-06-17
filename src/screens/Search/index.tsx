@@ -13,11 +13,13 @@ import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
 function MusicianListItem({
   musician,
   onPress,
-  agreementCount,
+  agreedCount,
+  cancelledCount,
 }: {
   musician: Musician;
   onPress: () => void;
-  agreementCount: number;
+  agreedCount: number;
+  cancelledCount: number;
 }) {
   return (
     <TouchableOpacity style={s.mliItem} onPress={onPress} activeOpacity={0.8}>
@@ -32,10 +34,20 @@ function MusicianListItem({
       </View>
       <View style={s.mliActions}>
         <Text style={s.mliRate}>{'★'.repeat(musician.rating)}</Text>
-        {agreementCount > 0 && (
+        {(agreedCount > 0 || cancelledCount > 0) && (
           <View style={s.mliAgreementBadge}>
-            <Text style={{ fontSize: 12 }}>🤝</Text>
-            <Text style={s.mliAgreementText}>{agreementCount}</Text>
+            {agreedCount > 0 && (
+              <>
+                <Text style={{ fontSize: 12 }}>🤝</Text>
+                <Text style={s.mliAgreementText}>{agreedCount}</Text>
+              </>
+            )}
+            {cancelledCount > 0 && (
+              <>
+                <Text style={{ fontSize: 12, color: Colors.red }}>✖</Text>
+                <Text style={[s.mliAgreementText, { color: Colors.red }]}>{cancelledCount}</Text>
+              </>
+            )}
           </View>
         )}
         <TouchableOpacity style={s.mliMsgBtn} onPress={onPress}>
@@ -66,12 +78,19 @@ export default function SearchScreen() {
   const [selectedMusician, setSelectedMusician]  = useState<Musician | null>(null);
 
   const agreementCountMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    agreements.forEach(a => {
-      map[a.fromUid] = (map[a.fromUid] ?? 0) + 1;
-      map[a.toUid]   = (map[a.toUid]   ?? 0) + 1;
+    const agreed:    Record<string, number> = {};
+    const cancelled: Record<string, number> = {};
+    agreements.forEach((a: any) => {
+      const uids = [a.fromUid, a.toUid];
+      uids.forEach((uid: string) => {
+        if (a.status === 'cancelled') {
+          cancelled[uid] = (cancelled[uid] ?? 0) + 1;
+        } else {
+          agreed[uid] = (agreed[uid] ?? 0) + 1;
+        }
+      });
     });
-    return map;
+    return { agreed, cancelled };
   }, [agreements]);
 
   const FILTERS = ['🎻 Kaman','🎤 Müğənni','🪗 Qarmon','🎵 Tar','🎷 Balaban','🥁 Zərb','🎸 Gitara','🎹 Piano','🎺 Zurna'];
@@ -146,7 +165,8 @@ export default function SearchScreen() {
               key={item.id}
               musician={item}
               onPress={() => setSelectedMusician(item)}
-              agreementCount={agreementCountMap[item.uid ?? item.id] ?? 0}
+              agreedCount={agreementCountMap.agreed[item.uid ?? item.id] ?? 0}
+              cancelledCount={agreementCountMap.cancelled[item.uid ?? item.id] ?? 0}
             />
           ))
         )}

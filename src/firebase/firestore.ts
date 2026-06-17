@@ -472,17 +472,44 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number> }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
       cb({
-        readBy: snap.data().readBy ?? [],
-        typing: snap.data().typing ?? {},
+        readBy:      snap.data().readBy      ?? [],
+        typing:      snap.data().typing      ?? {},
+        cancelledBy: snap.data().cancelledBy ?? null,
       });
     }
   });
   return unsub;
+}
+
+export async function cancelChat(
+  chatId: string,
+  cancelledByUid: string,
+  cancelledByName: string,
+  otherUid: string,
+  otherName: string,
+): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      cancelledBy: cancelledByUid,
+      completed:   true,
+    });
+    await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
+      fromUid:     cancelledByUid,
+      fromName:    cancelledByName,
+      toUid:       otherUid,
+      toName:      otherName,
+      chatId:      chatId,
+      status:      'cancelled',
+      cancelledBy: cancelledByUid,
+      cancelledByName: cancelledByName,
+      createdAt:   serverTimestamp(),
+    });
+  } catch { /* ignore */ }
 }
 
 export async function removeReadBy(chatId: string, uid: string): Promise<void> {
