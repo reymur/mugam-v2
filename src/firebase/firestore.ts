@@ -474,7 +474,7 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
@@ -482,6 +482,7 @@ export function subscribeChatMeta(
         readBy:      snap.data().readBy      ?? [],
         typing:      snap.data().typing      ?? {},
         cancelledBy: snap.data().cancelledBy ?? null,
+        closedBy:    snap.data().closedBy    ?? null,
       });
     }
   });
@@ -519,5 +520,25 @@ export async function removeReadBy(chatId: string, uid: string): Promise<void> {
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
       readBy: arrayRemove(uid),
     });
+  } catch { /* ignore */ }
+}
+
+export async function closeChat(chatId: string, closedByUid: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      closedBy: closedByUid,
+    });
+  } catch { /* ignore */ }
+}
+
+export async function deleteChatWithMessages(chatId: string): Promise<void> {
+  try {
+    // Delete all messages
+    const msgsSnap = await getDocs(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
+    const batch = writeBatch(fbFirestore);
+    msgsSnap.docs.forEach(d => batch.delete(d.ref));
+    // Delete chat document
+    batch.delete(doc(fbFirestore, COLLECTIONS.CHATS, chatId));
+    await batch.commit();
   } catch { /* ignore */ }
 }

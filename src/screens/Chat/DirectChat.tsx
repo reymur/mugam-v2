@@ -2,14 +2,14 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
-  Platform, ScrollView, Dimensions, ActivityIndicator, AppState,
+  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat } from '../../firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -85,6 +85,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [recipientRead,  setRecipientRead]  = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
   const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
+  const [chatClosed,    setChatClosed]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
@@ -142,7 +143,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     markChatAsReadBy(chatId, user.uid).catch(() => {});
-    const unsub = subscribeChatMeta(chatId, ({ readBy, typing, cancelledBy: cb }) => {
+    const unsub = subscribeChatMeta(chatId, ({ readBy, typing, cancelledBy: cb, closedBy }) => {
       const otherUid = musician.uid;
       setRecipientRead(readBy.includes(otherUid));
       typingTsRef.current = typing[otherUid] ?? null;
@@ -152,6 +153,10 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         initialCancelledByRef.current = cb;
       }
       setCancelledBy(cb);
+      // Handle closedBy — close chat for both users
+      if (closedBy && closedBy !== user?.uid) {
+        setTimeout(() => { onClose(); }, 500);
+      }
       // Auto navigate only if cancelledBy appeared AFTER opening
       if (cb && cb !== user?.uid && initialCancelledByRef.current === null) {
         setTimeout(() => {
@@ -274,6 +279,34 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       playsInSilentModeIOS: true,
     }).catch(() => {});
   }, []);
+
+  const handleCloseChat = useCallback(() => {
+    Alert.alert(
+      'Çatı bağla',
+      'Bu çatı bağlamaq istədiyinizə əminsiniz? Bağlasanız bütün məlumatlar silinəcək.',
+      [
+        { text: 'Ləğv et', style: 'cancel' },
+        {
+          text: 'Bağla',
+          style: 'destructive',
+          onPress: async () => {
+            if (!chatId) { onClose(); return; }
+            try {
+              await deleteChatWithMessages(chatId);
+              // Clear cache so next chat creates fresh
+              const musicianUid = musician.uid ?? musician.id;
+              useAppStore.setState(s => {
+                const newCache = { ...s.chatIdCache };
+                delete newCache[musicianUid];
+                return { chatIdCache: newCache };
+              });
+            } catch { /* ignore */ }
+            onClose();
+          },
+        },
+      ]
+    );
+  }, [chatId, user?.uid]);
 
   const handleClose = useCallback(() => {
     const musicianUid = musician.uid ?? musician.id;
@@ -404,7 +437,13 @@ const id = await createOrGetDirectChat(
               <Text style={s.headerSub}>{musician.instrument}</Text>
             </View>
           </View>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity
+            style={s.closeChatBtn}
+            onPress={handleCloseChat}
+            hitSlop={{ top:10, bottom:10, left:10, right:10 }}
+          >
+            <Text style={s.closeChatText}>✕</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Cancelled banner */}
@@ -627,6 +666,8 @@ const vs = StyleSheet.create({
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   acceptBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(212,160,60,0.08)', borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 10 },
+  closeChatBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  closeChatText: { color: Colors.muted, fontSize: 18, fontFamily: Typography.nunito600 },
   cancelBtn:        { marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Colors.red, alignItems: 'center' },
   cancelBtnText:    { color: Colors.red, fontFamily: Typography.nunito600, fontSize: 13 },
   bannerBlue:       { color: '#4a90d9' },
