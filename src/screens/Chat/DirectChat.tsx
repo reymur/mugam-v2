@@ -79,6 +79,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   } = useAppStore();
 
   const [chatId,      setChatId]      = useState<string | null>(null);
+  const [msgsLoading, setMsgsLoading] = useState(false);
   const [recipientRead,  setRecipientRead]  = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
   const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
@@ -225,6 +226,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         if (existing) {
           const id = existing.id;
           setChatId(id);
+          setMsgsLoading(true);
           loadMessages(id);
           await markChatAsRead(id, user.uid).catch(() => {});
           const data = existing.data();
@@ -349,6 +351,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   }, [chatId, user, sendMessage]);
 
   const chatMessages = chatId ? (messages[chatId] ?? []) : [];
+  React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
   const resolved = chatMessages.map(m => ({ ...m, mine: m.senderId === user?.uid }));
 
   const formatDur = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -498,12 +501,21 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
           >
-            {loading && <Text style={s.loadingText}>Yüklənir...</Text>}
+            {loading && (
+              <View style={{ alignItems: 'center', padding: 30 }}>
+                <ActivityIndicator size="large" color={Colors.gold} />
+              </View>
+            )}
             {!loading && resolved.length === 0 && (
               <View style={s.emptyChat}>
                 <Text style={{ fontSize: 40 }}>💬</Text>
                 <Text style={s.emptyChatText}>{musician.name} ilə söhbət</Text>
                 <Text style={s.emptyChatSub}>Mesaj və ya səs göndər</Text>
+              </View>
+            )}
+            {msgsLoading && (
+              <View style={{ alignItems: 'center', padding: 20 }}>
+                <ActivityIndicator size="small" color={Colors.gold} />
               </View>
             )}
             {resolved.map((msg, i) => {

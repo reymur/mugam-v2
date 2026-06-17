@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Animated, Dimensions,
+  ScrollView, Animated, Dimensions, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getDocs, query, collection, orderBy as fbOrderBy } from 'firebase/firestore';
@@ -18,6 +18,7 @@ const SCREEN_W = Dimensions.get('window').width;
 function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose: () => void }) {
   const { user, musicians } = useAppStore();
   const [chatMessages,    setChatMessages]    = React.useState<any[]>([]);
+  const [loadingMsgs,    setLoadingMsgs]    = React.useState(false);
   const [selectedMusician, setSelectedMusician] = React.useState<any>(null);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
 
@@ -43,8 +44,11 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 
   // Load chat messages
   React.useEffect(() => {
+    console.log('chatId:', agreement.chatId);
     if (!agreement.chatId) return;
     const load = async () => {
+      setLoadingMsgs(true);
+      console.log('Loading msgs started');
       try {
         const snap = await getDocs(query(
           collection(fbFirestore, COLLECTIONS.CHATS, agreement.chatId!, COLLECTIONS.MESSAGES),
@@ -64,6 +68,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         });
         setChatMessages(msgs);
       } catch { /* ignore */ }
+      finally { setLoadingMsgs(false); console.log('Loading msgs done'); }
     };
     load();
   }, [agreement.chatId]);
@@ -188,7 +193,13 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           )}
 
           {/* If no messages yet — still show number and date */}
-          {chatMessages.length === 0 && (
+          {loadingMsgs && (
+            <View style={{ alignItems: 'center', padding: 20 }}>
+              <ActivityIndicator size="small" color={Colors.gold} />
+              <Text style={{ color: Colors.muted, marginTop: 8, fontSize: 12 }}>Yazışma yüklənir...</Text>
+            </View>
+          )}
+          {!loadingMsgs && chatMessages.length === 0 && (
             <View style={d.card}>
               <Text style={d.cardTitle}>💬 Yazışma tarixi</Text>
               <Text style={[d.msgText, { color: Colors.muted, paddingVertical: 8 }]}>
