@@ -154,9 +154,14 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         initialCancelledByRef.current = cb;
       }
       setCancelledBy(cb);
-      // Handle closedBy — close chat for both users
+      // Handle closedBy — show alert to recipient
       if (closedBy && closedBy !== user?.uid) {
-        setTimeout(() => { onClose(); }, 500);
+        Alert.alert(
+          `${musician.name} çatı bağladı`,
+          '',
+          [{ text: 'Çıx', onPress: () => onClose() }],
+          { cancelable: false }
+        );
       }
       // Auto navigate only if cancelledBy appeared AFTER opening
       if (cb && cb !== user?.uid && initialCancelledByRef.current === null) {
@@ -458,13 +463,17 @@ const id = await createOrGetDirectChat(
               <Text style={s.headerSub}>{musician.instrument}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={s.closeChatBtn}
-            onPress={handleCloseChat}
-            hitSlop={{ top:10, bottom:10, left:10, right:10 }}
-          >
-            <Text style={s.closeChatText}>✕</Text>
-          </TouchableOpacity>
+          {!isRecipient ? (
+            <TouchableOpacity
+              style={s.closeChatBtn}
+              onPress={handleCloseChat}
+              hitSlop={{ top:10, bottom:10, left:10, right:10 }}
+            >
+              <Text style={s.closeChatText}>✕</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
         </View>
 
         {/* Cancelled banner */}
