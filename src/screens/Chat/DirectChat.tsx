@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
-  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert,
+  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
@@ -87,6 +88,14 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
   const [chatClosed,    setChatClosed]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [eventDate,      setEventDate]      = useState<Date | null>(null);
+  const [eventType,      setEventType]      = useState('Toy');
+  const [eventLocation,  setEventLocation]  = useState('');
+  const [showEventTypes, setShowEventTypes] = useState(false);
+
+  const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
   const [recording,   setRecording]   = useState(false);
@@ -487,6 +496,17 @@ const id = await createOrGetDirectChat(
           </View>
         )}
 
+        {/* Event info banner if date selected */}
+        {eventDate && showInitiatorBanner && !cancelledBy && (
+          <View style={[s.acceptBanner, { borderColor: Colors.gold, backgroundColor: 'rgba(212,160,60,0.08)' }]}>
+            <Text style={[s.acceptBannerText, { color: Colors.gold }]}>
+              📅 {eventType} — {eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })} {eventDate.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+              {eventLocation ? `
+📍 ${eventLocation}` : ''}
+            </Text>
+          </View>
+        )}
+
         {/* Teymur sees: "Sevgi fikirləşir..." + Imtina button */}
         {showInitiatorBanner && !cancelledBy && (
           <View style={s.acceptBanner}>
@@ -497,6 +517,12 @@ const id = await createOrGetDirectChat(
                   ? `👁 ${musician.name} baxdı`
                   : `⏳ ${musician.name} hələ baxmayıb`}
             </Text>
+            <TouchableOpacity
+              style={s.dateBtn}
+              onPress={() => setShowEventModal(true)}
+            >
+              <Text style={s.dateBtnText}>📅 {eventDate ? 'Tarix dəyiş' : 'Tarix seç'}</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
               disabled={cancelling}
@@ -520,7 +546,9 @@ await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musicia
 
         {/* Sevgi sees: "Teymur cavab gözləyir" + Razıyam + Imtina buttons */}
         {showRecipientBanner && !cancelledBy && (
-          <View style={s.acceptBanner}>
+          <View style={[s.acceptBanner, { flexDirection: 'column', gap: 8 }]}>
+            {/* Top row: text left + Imtina right */}
+            {/* Top row: text */}
             <Text style={[s.acceptBannerText, (recipientTyping || recipientRead) ? s.bannerBlue : s.bannerGray]}>
               {recipientTyping
                 ? `✍️ ${musician.name} yazır...`
@@ -528,52 +556,47 @@ await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musicia
                   ? `👁 ${musician.name} baxdı`
                   : `🤝 ${musician.name} cavab gözləyir`}
             </Text>
-            <TouchableOpacity
-              style={[s.acceptBtn, accepting && { opacity: 0.6 }]}
-              onPress={async () => {
-                setAccepting(true);
-                try {
-                  await createAgreement(musicianUid, musician.name, chatId ?? undefined);
-                  // Mark chat as completed so next Mesaj creates fresh chat
-                  if (chatId) {
-await completeChat(chatId).catch(() => {});
-                  }
-                  setJustAgreed(true);
-                  setNavigating(true);
-                  showToast(`✅ ${musician.name} ilə razılaşdınız!`);
-                  setTimeout(() => {
-                    onClose();
-                    setTimeout(() => onAgreed?.(), 300);
-                  }, 2000);
-                } finally {
-                  setAccepting(false);
+            {/* Bottom row: 3 buttons */}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity style={s.dateBtn} onPress={() => setShowEventModal(true)}>
+                <Text style={s.dateBtnText}>📅 {eventDate ? 'Tarix dəyiş' : 'Tarix seç'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.acceptBtn, accepting && { opacity: 0.6 }]}
+                onPress={async () => {
+                  setAccepting(true);
+                  try {
+                    await createAgreement(musicianUid, musician.name, chatId ?? undefined);
+                    if (chatId) { await completeChat(chatId).catch(() => {}); }
+                    setJustAgreed(true);
+                    setNavigating(true);
+                    showToast(`✅ ${musician.name} ilə razılaşdınız!`);
+                    setTimeout(() => { onClose(); setTimeout(() => onAgreed?.(), 300); }, 2000);
+                  } finally { setAccepting(false); }
+                }}
+                disabled={accepting}
+              >
+                {accepting
+                  ? <ActivityIndicator size="small" color="white" />
+                  : <Text style={s.acceptBtnText}>✅ Razıyam</Text>
                 }
-              }}
-              disabled={accepting}
-            >
-              {accepting
-                ? <ActivityIndicator size="small" color="white" />
-                : <Text style={s.acceptBtnText}>✅ Razıyam</Text>
-              }
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
-              disabled={cancelling}
-              onPress={async () => {
-if (!chatId || !user?.uid) return;
-                setCancelling(true);
-                try {
-await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
-                  showToast('İmtina edildi');
-                  setTimeout(() => {
-                    onClose();
-                    setTimeout(() => onCancelled?.(), 300);
-                  }, 1000);
-                } finally { setCancelling(false); }
-              }}
-            >
-              <Text style={s.cancelBtnText}>✖ Imtina</Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
+                disabled={cancelling}
+                onPress={async () => {
+                  if (!chatId || !user?.uid) return;
+                  setCancelling(true);
+                  try {
+                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+                    showToast('İmtina edildi');
+                    setTimeout(() => { onClose(); setTimeout(() => onCancelled?.(), 300); }, 1000);
+                  } finally { setCancelling(false); }
+                }}
+              >
+                <Text style={s.cancelBtnText}>✖ Imtina</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -678,6 +701,82 @@ await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musicia
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        {/* Event Selection Modal */}
+        <Modal visible={showEventModal} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <View style={s.modalBox}>
+              <Text style={s.modalTitle}>📅 Tədbir məlumatı</Text>
+
+              {/* Date picker trigger */}
+              <TouchableOpacity style={s.modalField} onPress={() => setShowDatePicker(true)}>
+                <Text style={s.modalFieldLabel}>Tarix və vaxt</Text>
+                <Text style={s.modalFieldValue}>
+                  {eventDate
+                    ? eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }) +
+                      ' ' + eventDate.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })
+                    : 'Seç...'}
+                </Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={eventDate ?? new Date()}
+                  mode="datetime"
+                  display="spinner"
+                  minimumDate={new Date()}
+                  onChange={(_, date) => {
+                    setShowDatePicker(false);
+                    if (date) setEventDate(date);
+                  }}
+                />
+              )}
+
+              {/* Event type */}
+              <Text style={s.modalFieldLabel}>Tədbir növü</Text>
+              <TouchableOpacity style={s.modalField} onPress={() => setShowEventTypes(!showEventTypes)}>
+                <Text style={s.modalFieldValue}>{eventType} ▾</Text>
+              </TouchableOpacity>
+              {showEventTypes && (
+                <View style={s.eventTypeList}>
+                  {EVENT_TYPES.map(t => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[s.eventTypeItem, eventType === t && s.eventTypeItemActive]}
+                      onPress={() => { setEventType(t); setShowEventTypes(false); }}
+                    >
+                      <Text style={[s.eventTypeText, eventType === t && s.eventTypeTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Location */}
+              <Text style={s.modalFieldLabel}>Yer (istəyə görə)</Text>
+              <RNTextInput
+                style={s.modalInput}
+                placeholder="Məsələn: Bakı, Hyatt"
+                placeholderTextColor={Colors.muted}
+                value={eventLocation}
+                onChangeText={setEventLocation}
+              />
+
+              {/* Buttons */}
+              <View style={s.modalButtons}>
+                <TouchableOpacity style={s.modalCancelBtn} onPress={() => setShowEventModal(false)}>
+                  <Text style={s.modalCancelText}>Ləğv et</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.modalSaveBtn, !eventDate && { opacity: 0.5 }]}
+                  disabled={!eventDate}
+                  onPress={() => setShowEventModal(false)}
+                >
+                  <Text style={s.modalSaveText}>Saxla</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
       </SafeAreaView>
     </Animated.View>
   );
@@ -696,15 +795,34 @@ const vs = StyleSheet.create({
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   acceptBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(212,160,60,0.08)', borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 10 },
+  dateBtn:           { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Colors.gold, alignItems: 'center', backgroundColor: 'rgba(212,160,60,0.08)' },
+  dateBtnText:       { color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 12 },
+  modalOverlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalBox:          { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 12 },
+  modalTitle:        { fontFamily: Typography.playfair700, fontSize: 18, color: Colors.text, textAlign: 'center', marginBottom: 8 },
+  modalField:        { backgroundColor: Colors.bg3, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.border },
+  modalFieldLabel:   { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito600, marginBottom: 4 },
+  modalFieldValue:   { fontSize: 14, color: Colors.text, fontFamily: Typography.nunito500 },
+  modalInput:        { backgroundColor: Colors.bg3, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.border, color: Colors.text, fontFamily: Typography.nunito400, fontSize: 14 },
+  eventTypeList:     { backgroundColor: Colors.bg3, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden' },
+  eventTypeItem:     { padding: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  eventTypeItemActive: { backgroundColor: 'rgba(212,160,60,0.1)' },
+  eventTypeText:     { color: Colors.text, fontFamily: Typography.nunito500, fontSize: 14 },
+  eventTypeTextActive: { color: Colors.gold, fontFamily: Typography.nunito700 },
+  modalButtons:      { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalCancelBtn:    { flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  modalCancelText:   { color: Colors.muted, fontFamily: Typography.nunito600 },
+  modalSaveBtn:      { flex: 1, padding: 14, borderRadius: 12, backgroundColor: Colors.gold, alignItems: 'center' },
+  modalSaveText:     { color: '#1a0e00', fontFamily: Typography.nunito700 },
   closeChatBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   closeChatText: { color: Colors.muted, fontSize: 18, fontFamily: Typography.nunito600 },
-  cancelBtn:        { marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Colors.red, alignItems: 'center' },
+  cancelBtn:        { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Colors.red, alignItems: 'center' },
   cancelBtnText:    { color: Colors.red, fontFamily: Typography.nunito600, fontSize: 13 },
   bannerBlue:       { color: '#4a90d9' },
   bannerGray:       { color: Colors.muted },
-  acceptBannerText: { flex: 1, fontSize: 13, fontFamily: Typography.nunito600 },
-  acceptBtn:    { backgroundColor: Colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  acceptBtnText:{ color: 'white', fontSize: 13, fontFamily: Typography.nunito700 },
+  acceptBannerText: { fontSize: 13, fontFamily: Typography.nunito600 },
+  acceptBtn:    { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Colors.green, alignItems: 'center', backgroundColor: 'rgba(39,174,96,0.15)' },
+  acceptBtnText: { color: Colors.green, fontSize: 13, fontFamily: Typography.nunito600 },
   backBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backText:    { fontSize: 24, color: Colors.text },
   headerInfo:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
