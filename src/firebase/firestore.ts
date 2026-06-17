@@ -531,14 +531,23 @@ export async function closeChat(chatId: string, closedByUid: string): Promise<vo
   } catch { /* ignore */ }
 }
 
-export async function deleteChatWithMessages(chatId: string): Promise<void> {
+export async function deleteChatWithMessages(chatId: string, fromUid?: string, musicianId?: string): Promise<void> {
   try {
+    const batch = writeBatch(fbFirestore);
     // Delete all messages
     const msgsSnap = await getDocs(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
-    const batch = writeBatch(fbFirestore);
     msgsSnap.docs.forEach(d => batch.delete(d.ref));
     // Delete chat document
     batch.delete(doc(fbFirestore, COLLECTIONS.CHATS, chatId));
+    // Delete related invite
+    if (fromUid && musicianId) {
+      const invitesSnap = await getDocs(query(
+        collection(fbFirestore, COLLECTIONS.INVITES),
+        where('fromUid', '==', fromUid),
+        where('musicianId', '==', musicianId),
+      ));
+      invitesSnap.docs.forEach(d => batch.delete(d.ref));
+    }
     await batch.commit();
   } catch { /* ignore */ }
 }

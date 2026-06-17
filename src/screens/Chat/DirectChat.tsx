@@ -308,7 +308,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
               // Wait for other user to receive the update
               await new Promise(r => setTimeout(r, 1500));
               // Then delete
-              await deleteChatWithMessages(chatId);
+              await deleteChatWithMessages(chatId, user?.uid ?? '', musician.uid ?? musician.id);
               const musicianUid = musician.uid ?? musician.id;
               useAppStore.setState(s => {
                 const newCache = { ...s.chatIdCache };
