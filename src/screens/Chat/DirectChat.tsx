@@ -9,7 +9,9 @@ import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat } from '../../firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat } from '../../firebase/firestore';
+import { getDocs, query, collection, where, getDoc, doc } from 'firebase/firestore';
+import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -135,6 +137,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
 
   // Subscribe to readBy and typing
   const typingTsRef = useRef<number | null>(null);
+  const initialCancelledByRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!chatId || !user?.uid) return;
@@ -144,9 +147,13 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       setRecipientRead(readBy.includes(otherUid));
       typingTsRef.current = typing[otherUid] ?? null;
       setRecipientTyping(!!typing[otherUid] && Date.now() - typing[otherUid] < 5000);
+      // First snapshot — save initial cancelledBy value
+      if (initialCancelledByRef.current === undefined) {
+        initialCancelledByRef.current = cb;
+      }
       setCancelledBy(cb);
-      // Auto navigate for the other side
-      if (cb && cb !== user?.uid) {
+      // Auto navigate only if cancelledBy appeared AFTER opening
+      if (cb && cb !== user?.uid && initialCancelledByRef.current === null) {
         setTimeout(() => {
           onClose();
           setTimeout(() => onCancelled?.(), 300);
@@ -205,11 +212,25 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
     if (!user) return;
     const init = async () => {
       try {
-        const { getDocs, query, collection, where, getDoc, doc } = await import('firebase/firestore');
-        const { fbFirestore, COLLECTIONS } = await import('../../firebase/config');
-        const { markChatAsRead } = await import('../../firebase/firestore');
-
         const musicianUid = musician.uid ?? musician.id;
+
+        // Check cache first
+        const { chatIdCache } = useAppStore.getState();
+        const cachedId = chatIdCache[musicianUid];
+        if (cachedId) {
+          setChatId(cachedId);
+          setMsgsLoading(true);
+          loadMessages(cachedId);
+          // Load initiatorUid from Firestore
+          try {
+            const chatSnap = await getDoc(doc(fbFirestore, COLLECTIONS.CHATS, cachedId));
+            if (chatSnap.exists()) {
+              setInitiatorUid(chatSnap.data().initiatorUid ?? user.uid);
+            }
+          } catch { setInitiatorUid(user.uid); }
+          setLoading(false);
+          return;
+        }
 
         // Look for existing uncompleted chat
         const q = query(
@@ -225,6 +246,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
 
         if (existing) {
           const id = existing.id;
+          // Save to cache
+          useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
           setChatId(id);
           setMsgsLoading(true);
           loadMessages(id);
@@ -253,10 +276,18 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   }, []);
 
   const handleClose = useCallback(() => {
+    const musicianUid = musician.uid ?? musician.id;
+    if (justAgreed || navigating || cancelledBy) {
+      useAppStore.setState(s => {
+        const newCache = { ...s.chatIdCache };
+        delete newCache[musicianUid];
+        return { chatIdCache: newCache };
+      });
+    }
     Animated.timing(slideAnim, {
       toValue: SCREEN_W, duration: 250, useNativeDriver: true,
     }).start(onClose);
-  }, [onClose]);
+  }, [onClose, justAgreed, navigating, cancelledBy]);
 
   // Send text message
   const handleSend = useCallback(async () => {
@@ -269,8 +300,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
 
       // Create chat on first message if not exists yet
       if (!activeChatId) {
-        const { createOrGetDirectChat } = await import('../../firebase/firestore');
-        const id = await createOrGetDirectChat(
+const id = await createOrGetDirectChat(
           user.uid,
           musician.uid ?? musician.id,
           musician.name,
@@ -331,8 +361,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
 
       let activeChatId = chatId;
       if (!activeChatId) {
-        const { createOrGetDirectChat } = await import('../../firebase/firestore');
-        const id = await createOrGetDirectChat(
+const id = await createOrGetDirectChat(
           user.uid, musician.uid ?? musician.id,
           musician.name, musician.emoji,
           user.displayName, user.city,
@@ -403,10 +432,10 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
               style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
               disabled={cancelling}
               onPress={async () => {
-                if (!chatId || !user?.uid) return;
+if (!chatId || !user?.uid) return;
                 setCancelling(true);
                 try {
-                  await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
                   showToast('İmtina edildi');
                   setTimeout(() => {
                     onClose();
@@ -438,8 +467,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
                   await createAgreement(musicianUid, musician.name, chatId ?? undefined);
                   // Mark chat as completed so next Mesaj creates fresh chat
                   if (chatId) {
-                    const { completeChat } = await import('../../firebase/firestore');
-                    await completeChat(chatId).catch(() => {});
+await completeChat(chatId).catch(() => {});
                   }
                   setJustAgreed(true);
                   setNavigating(true);
@@ -463,10 +491,10 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
               style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
               disabled={cancelling}
               onPress={async () => {
-                if (!chatId || !user?.uid) return;
+if (!chatId || !user?.uid) return;
                 setCancelling(true);
                 try {
-                  await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
                   showToast('İmtina edildi');
                   setTimeout(() => {
                     onClose();

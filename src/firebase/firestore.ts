@@ -317,12 +317,14 @@ export async function createOrGetDirectChat(
     collection(fbFirestore, COLLECTIONS.CHATS),
     where('members', 'array-contains', myId),
     where('isGroup', '==', false),
+    where('completed', '==', false),
+    limit(20),
   );
   const snap = await getDocs(q);
   const existing = snap.docs.find(d => {
     const data = d.data();
     const m: string[] = data.members ?? [];
-    return m.includes(otherId) && !data.completed;
+    return m.includes(otherId);
   });
   if (existing) return existing.id;
 

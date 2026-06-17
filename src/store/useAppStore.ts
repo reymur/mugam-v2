@@ -45,6 +45,7 @@ interface AppStore {
   stories:     FunCard[];
   videos:      VideoItem[];
   chats:       ChatItem[];
+  chatIdCache: Record<string, string>;
   messages:    Record<string, Message[]>;
 
   // Realtime unsub refs
@@ -251,6 +252,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   stories:     SEED_STORIES,
   videos:      SEED_VIDEOS,
   chats:       [],
+  chatIdCache: {},
   messages:    {},
 
   myInvites:          [],
