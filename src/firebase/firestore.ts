@@ -324,7 +324,7 @@ export async function createOrGetDirectChat(
   const existing = snap.docs.find(d => {
     const data = d.data();
     const m: string[] = data.members ?? [];
-    return m.includes(otherId);
+    return m.includes(otherId) && !data.closedBy;
   });
   if (existing) return existing.id;
 

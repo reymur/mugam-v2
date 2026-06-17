@@ -142,6 +142,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
 
   useEffect(() => {
     if (!chatId || !user?.uid) return;
+    console.log('subscribeChatMeta for chatId:', chatId);
     markChatAsReadBy(chatId, user.uid).catch(() => {});
     const unsub = subscribeChatMeta(chatId, ({ readBy, typing, cancelledBy: cb, closedBy }) => {
       const otherUid = musician.uid;
@@ -223,18 +224,26 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         const { chatIdCache } = useAppStore.getState();
         const cachedId = chatIdCache[musicianUid];
         if (cachedId) {
-          setChatId(cachedId);
-          setMsgsLoading(true);
-          loadMessages(cachedId);
-          // Load initiatorUid from Firestore
+          // Verify chat still exists in Firestore
           try {
             const chatSnap = await getDoc(doc(fbFirestore, COLLECTIONS.CHATS, cachedId));
-            if (chatSnap.exists()) {
+            if (chatSnap.exists() && !chatSnap.data().closedBy && !chatSnap.data().completed) {
+              setChatId(cachedId);
+              setMsgsLoading(true);
+              loadMessages(cachedId);
               setInitiatorUid(chatSnap.data().initiatorUid ?? user.uid);
+              setLoading(false);
+              return;
+            } else {
+              // Chat doesn't exist or is closed — clear cache
+              const musicianUid = musician.uid ?? musician.id;
+              useAppStore.setState(s => {
+                const newCache = { ...s.chatIdCache };
+                delete newCache[musicianUid];
+                return { chatIdCache: newCache };
+              });
             }
-          } catch { setInitiatorUid(user.uid); }
-          setLoading(false);
-          return;
+          } catch { /* ignore */ }
         }
 
         // Look for existing uncompleted chat
@@ -246,7 +255,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         const snap = await getDocs(q);
         const existing = snap.docs.find(d => {
           const data = d.data();
-          return data.members?.includes(musicianUid) && !data.completed;
+          return data.members?.includes(musicianUid) && !data.completed && !data.closedBy;
         });
 
         if (existing) {
@@ -281,6 +290,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   }, []);
 
   const handleCloseChat = useCallback(() => {
+    // If no messages — just close without Alert
+    if (!chatId || resolved.length === 0) { onClose(); return; }
     Alert.alert(
       'Çatı bağla',
       'Bu çatı bağlamaq istədiyinizə əminsiniz? Bağlasanız bütün məlumatlar silinəcək.',
@@ -292,8 +303,12 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
           onPress: async () => {
             if (!chatId) { onClose(); return; }
             try {
+              // First mark as closed so other user gets notified
+              await closeChat(chatId, user?.uid ?? '');
+              // Wait for other user to receive the update
+              await new Promise(r => setTimeout(r, 1500));
+              // Then delete
               await deleteChatWithMessages(chatId);
-              // Clear cache so next chat creates fresh
               const musicianUid = musician.uid ?? musician.id;
               useAppStore.setState(s => {
                 const newCache = { ...s.chatIdCache };
@@ -345,6 +360,9 @@ const id = await createOrGetDirectChat(
         setChatId(id);
         loadMessages(id);
         setInitiatorUid(user.uid);
+        // Save new chatId to cache
+        const musicianUid = musician.uid ?? musician.id;
+        useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
 
       await sendMessage(activeChatId, text);
@@ -403,6 +421,9 @@ const id = await createOrGetDirectChat(
         setChatId(id);
         loadMessages(id);
         setInitiatorUid(user.uid);
+        // Save new chatId to cache
+        const musicianUid = musician.uid ?? musician.id;
+        useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
 
       await sendMessage(activeChatId, `🎤 VOICE:${uri}`);
