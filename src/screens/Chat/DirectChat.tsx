@@ -507,9 +507,9 @@ const id = await createOrGetDirectChat(
           </View>
         )}
 
-        {/* Teymur sees: "Sevgi fikirləşir..." + Imtina button */}
+        {/* Teymur sees: "Sevgi fikirləşir..." + Date + Imtina buttons */}
         {showInitiatorBanner && !cancelledBy && (
-          <View style={s.acceptBanner}>
+          <View style={[s.acceptBanner, { flexDirection: 'column', gap: 8 }]}>
             <Text style={[s.acceptBannerText, (recipientTyping || recipientRead) ? s.bannerBlue : s.bannerGray]}>
               {recipientTyping
                 ? `✍️ ${musician.name} yazır...`
@@ -517,30 +517,26 @@ const id = await createOrGetDirectChat(
                   ? `👁 ${musician.name} baxdı`
                   : `⏳ ${musician.name} hələ baxmayıb`}
             </Text>
-            <TouchableOpacity
-              style={s.dateBtn}
-              onPress={() => setShowEventModal(true)}
-            >
-              <Text style={s.dateBtnText}>📅 {eventDate ? 'Tarix dəyiş' : 'Tarix seç'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
-              disabled={cancelling}
-              onPress={async () => {
-if (!chatId || !user?.uid) return;
-                setCancelling(true);
-                try {
-await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
-                  showToast('İmtina edildi');
-                  setTimeout(() => {
-                    onClose();
-                    setTimeout(() => onCancelled?.(), 300);
-                  }, 1000);
-                } finally { setCancelling(false); }
-              }}
-            >
-              <Text style={s.cancelBtnText}>✖ Imtina</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity style={s.dateBtn} onPress={() => setShowEventModal(true)}>
+                <Text style={s.dateBtnText}>📅 {eventDate ? 'Tarix dəyiş' : 'Tarix seç'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
+                disabled={cancelling}
+                onPress={async () => {
+                  if (!chatId || !user?.uid) return;
+                  setCancelling(true);
+                  try {
+                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+                    showToast('İmtina edildi');
+                    setTimeout(() => { onClose(); setTimeout(() => onCancelled?.(), 300); }, 1000);
+                  } finally { setCancelling(false); }
+                }}
+              >
+                <Text style={s.cancelBtnText}>✖ Imtina</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
