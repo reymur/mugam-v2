@@ -74,10 +74,10 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
     }).start(onClose);
   };
 
-  const date = agreement.createdAt?.toDate
-    ? agreement.createdAt.toDate().toLocaleDateString('az-AZ', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      })
+  const dateObj2 = agreement.createdAt?.toDate ? agreement.createdAt.toDate() : null;
+  const date = dateObj2
+    ? dateObj2.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }) +
+      ' ' + dateObj2.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })
     : 'Bilinmir';
 
   return (
@@ -230,10 +230,10 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
   const isCancelled = (ag as any).status === 'cancelled';
   const cancelledByMe = (ag as any).cancelledBy === user?.uid;
   const cancelledByName = (ag as any).cancelledByName ?? otherName;
-  const date = ag.createdAt?.toDate
-    ? ag.createdAt.toDate().toLocaleDateString('az-AZ', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      })
+  const dateObj = ag.createdAt?.toDate ? ag.createdAt.toDate() : null;
+  const date = dateObj
+    ? dateObj.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }) +
+      ' ' + dateObj.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })
     : '';
 
   const roleText = isCancelled
@@ -252,6 +252,7 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
         <View style={s.cardAva}>
           <Text style={{ fontSize: 22 }}>{isCancelled ? '✖️' : '📋'}</Text>
           {isUnread && !isCancelled && <View style={s.unreadDot} />}
+          {isUnread && isCancelled && <View style={s.unreadDotCancelled} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[s.cardName, isUnread ? s.cardNameUnread : s.cardNameRead]}>{otherName}</Text>
@@ -262,6 +263,7 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
         </View>
         <View style={s.cardRight}>
           {isUnread && !isCancelled && <View style={s.unreadCircle} />}
+          {isUnread && isCancelled && <View style={s.unreadCircleCancelled} />}
         </View>
       </View>
     </TouchableOpacity>
@@ -430,7 +432,9 @@ const s = StyleSheet.create({
   cardDate:     { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
   cardDateRead: { color: Colors.muted },
   cardRight:    { alignItems: 'center', gap: 6 },
-  unreadCircle: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.green },
+  unreadCircle:           { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.green },
+  unreadCircleCancelled:  { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red },
+  unreadDotCancelled:     { position: 'absolute', top: -3, right: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red, borderWidth: 2, borderColor: Colors.bg },
   cardArrow:    { fontSize: 20, color: Colors.muted },
   msgsWrap:    { marginTop: 10, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, gap: 6 },
   msgLine:     { flexDirection: 'row', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' },
