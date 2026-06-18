@@ -10,7 +10,7 @@ import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages } from '../../firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -87,6 +87,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [recipientTyping, setRecipientTyping] = useState(false);
   const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
   const [chatClosed,    setChatClosed]    = useState(false);
+  const [waitingForDate, setWaitingForDate2] = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -148,12 +149,14 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   // Subscribe to readBy and typing
   const typingTsRef = useRef<number | null>(null);
   const initialCancelledByRef = useRef<string | null | undefined>(undefined);
+  const prevWaitingForDateRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     console.log('subscribeChatMeta for chatId:', chatId);
     markChatAsReadBy(chatId, user.uid).catch(() => {});
-    const unsub = subscribeChatMeta(chatId, ({ readBy, typing, cancelledBy: cb, closedBy }) => {
+    const unsub = subscribeChatMeta(chatId, (data) => {
+      const { readBy, typing, cancelledBy: cb, closedBy, eventDate: ed, eventType: et, eventLocation: el } = data;
       const otherUid = musician.uid;
       setRecipientRead(readBy.includes(otherUid));
       typingTsRef.current = typing[otherUid] ?? null;
@@ -163,6 +166,20 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         initialCancelledByRef.current = cb;
       }
       setCancelledBy(cb);
+      // Sync event data from Firestore
+      if (ed) { setEventDate(new Date(ed)); setEventType(et); setEventLocation(el); }
+      const prevWaiting = prevWaitingForDateRef.current;
+      const currWaiting = data.waitingForDate ?? false;
+      setWaitingForDate2(currWaiting);
+      // Only update ref and show alert when initiatorUid is loaded
+      if (initiatorUid !== null) {
+        if (currWaiting && !prevWaiting && initiatorUid === user?.uid) {
+          Alert.alert('', 'Sevgi sizdən tarix gözləyir 📅');
+          // Reset so next press triggers again
+          if (chatId) setWaitingForDate(chatId, false).catch(() => {});
+        }
+        prevWaitingForDateRef.current = currWaiting;
+      }
       // Handle closedBy — show alert to recipient
       if (closedBy && closedBy !== user?.uid) {
         Alert.alert(
@@ -346,10 +363,16 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         return { chatIdCache: newCache };
       });
     }
+    // Reset waitingForDate on exit
+    if (chatId) {
+      setWaitingForDate(chatId, false).catch(() => {});
+    }
+    // Reset ref for next session
+    prevWaitingForDateRef.current = false;
     Animated.timing(slideAnim, {
       toValue: SCREEN_W, duration: 250, useNativeDriver: true,
     }).start(onClose);
-  }, [onClose, justAgreed, navigating, cancelledBy]);
+  }, [onClose, justAgreed, navigating, cancelledBy, chatId]);
 
   // Send text message
   const handleSend = useCallback(async () => {
@@ -497,7 +520,7 @@ const id = await createOrGetDirectChat(
         )}
 
         {/* Event info banner if date selected */}
-        {eventDate && showInitiatorBanner && !cancelledBy && (
+        {eventDate && (showInitiatorBanner || showRecipientBanner) && !cancelledBy && (
           <View style={[s.acceptBanner, { borderColor: Colors.gold, backgroundColor: 'rgba(212,160,60,0.08)' }]}>
             <Text style={[s.acceptBannerText, { color: Colors.gold }]}>
               📅 {eventType} — {eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })} {eventDate.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
@@ -552,17 +575,19 @@ const id = await createOrGetDirectChat(
                   ? `👁 ${musician.name} baxdı`
                   : `🤝 ${musician.name} cavab gözləyir`}
             </Text>
-            {/* Bottom row: 3 buttons */}
+            {/* Bottom row: 2 buttons */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity style={s.dateBtn} onPress={() => setShowEventModal(true)}>
-                <Text style={s.dateBtnText}>📅 {eventDate ? 'Tarix dəyiş' : 'Tarix seç'}</Text>
-              </TouchableOpacity>
               <TouchableOpacity
-                style={[s.acceptBtn, accepting && { opacity: 0.6 }]}
+                style={[s.acceptBtn, (!eventDate || accepting) && { opacity: 0.6 }]}
                 onPress={async () => {
+                  if (!eventDate) {
+                    Alert.alert('', 'Teymur hələ tədbir tarixini seçməyib ⏳');
+                    if (chatId) setWaitingForDate(chatId, true).catch(() => {});
+                    return;
+                  }
                   setAccepting(true);
                   try {
-                    await createAgreement(musicianUid, musician.name, chatId ?? undefined);
+                    await createAgreement(musicianUid, musician.name, chatId ?? undefined, eventDate?.toISOString(), eventType, eventLocation || undefined);
                     if (chatId) { await completeChat(chatId).catch(() => {}); }
                     setJustAgreed(true);
                     setNavigating(true);
@@ -764,7 +789,14 @@ const id = await createOrGetDirectChat(
                 <TouchableOpacity
                   style={[s.modalSaveBtn, !eventDate && { opacity: 0.5 }]}
                   disabled={!eventDate}
-                  onPress={() => setShowEventModal(false)}
+                  onPress={async () => {
+                    if (chatId && eventDate) {
+                      await saveChatEventDate(chatId, eventDate, eventType, eventLocation).catch(() => {});
+                      await setWaitingForDate(chatId, false).catch(() => {});
+                      waitingAlertShownRef.current = false;
+                    }
+                    setShowEventModal(false);
+                  }}
                 >
                   <Text style={s.modalSaveText}>Saxla</Text>
                 </TouchableOpacity>

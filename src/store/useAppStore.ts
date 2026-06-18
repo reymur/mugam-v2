@@ -82,7 +82,7 @@ interface AppStore {
   readAgreementIds:    string[];
   markAgreementAsRead: (id: string) => void;
   unreadAgreementsCount: () => number;
-  createAgreement:    (toUid: string, toName: string, chatId?: string) => Promise<void>;
+  createAgreement:    (toUid: string, toName: string, chatId?: string, eventDate?: string, eventType?: string, eventLocation?: string) => Promise<void>;
   hasAgreementWith:   (uid: string) => boolean;
 
   initApp: () => Promise<void>;
@@ -495,10 +495,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return agreements.filter(a => !safeIds.includes(a.id)).length;
   },
 
-  createAgreement: async (toUid, toName, chatId?) => {
+  createAgreement: async (toUid, toName, chatId?, eventDate?, eventType?, eventLocation?) => {
     const user = get().user;
     if (!user) return;
-    await FireStore.createAgreement(toUid, toName, user.uid, user.displayName, chatId);
+    await FireStore.createAgreement(toUid, toName, user.uid, user.displayName, chatId, eventDate, eventType, eventLocation);
   },
 
   hasAgreementWith: (uid) => {

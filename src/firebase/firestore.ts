@@ -366,17 +366,23 @@ import type { Agreement } from '../types';
 
 // Create agreement when Sevgi clicks "Razıyam"
 export async function createAgreement(
-  fromUid:  string,
-  fromName: string,
-  toUid:    string,
-  toName:   string,
-  chatId?:  string,
+  fromUid:       string,
+  fromName:      string,
+  toUid:         string,
+  toName:        string,
+  chatId?:       string,
+  eventDate?:    string,
+  eventType?:    string,
+  eventLocation?: string,
 ): Promise<string> {
   const ref = await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
     fromUid, fromName, toUid, toName,
-    chatId:    chatId ?? null,
-    status:    'agreed',
-    createdAt: serverTimestamp(),
+    chatId:        chatId        ?? null,
+    status:        'agreed',
+    eventDate:     eventDate     ?? null,
+    eventType:     eventType     ?? null,
+    eventLocation: eventLocation ?? null,
+    createdAt:     serverTimestamp(),
   });
   return ref.id;
 }
@@ -474,15 +480,19 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; waitingForDate: boolean }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
       cb({
-        readBy:      snap.data().readBy      ?? [],
-        typing:      snap.data().typing      ?? {},
-        cancelledBy: snap.data().cancelledBy ?? null,
-        closedBy:    snap.data().closedBy    ?? null,
+        readBy:        snap.data().readBy        ?? [],
+        typing:        snap.data().typing        ?? {},
+        cancelledBy:   snap.data().cancelledBy   ?? null,
+        closedBy:      snap.data().closedBy      ?? null,
+        eventDate:      snap.data().eventDate      ?? null,
+        eventType:      snap.data().eventType      ?? 'Toy',
+        eventLocation:  snap.data().eventLocation  ?? '',
+        waitingForDate: snap.data().waitingForDate ?? false,
       });
     }
   });
@@ -549,5 +559,28 @@ export async function deleteChatWithMessages(chatId: string, fromUid?: string, m
       invitesSnap.docs.forEach(d => batch.delete(d.ref));
     }
     await batch.commit();
+  } catch { /* ignore */ }
+}
+
+export async function saveChatEventDate(
+  chatId: string,
+  eventDate: Date,
+  eventType: string,
+  eventLocation: string,
+): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      eventDate:     eventDate.toISOString(),
+      eventType,
+      eventLocation,
+    });
+  } catch { /* ignore */ }
+}
+
+export async function setWaitingForDate(chatId: string, waiting: boolean): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      waitingForDate: waiting,
+    });
   } catch { /* ignore */ }
 }
