@@ -900,6 +900,7 @@ const id = await createOrGetDirectChat(
                   style={[s.modalSaveBtn, !eventDate && { opacity: 0.5 }]}
                   disabled={!eventDate}
                   onPress={async () => {
+                    console.log('Saxla: chatId=', chatId, 'eventDate=', eventDate);
                     setShowEventModal(false);
                     if (chatId && eventDate) {
                       await saveChatEventDate(chatId, eventDate, eventType, eventLocation).catch(() => {});
