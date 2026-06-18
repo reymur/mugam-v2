@@ -241,6 +241,13 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
   const isCancelled = (ag as any).status === 'cancelled';
   const cancelledByMe = (ag as any).cancelledBy === user?.uid;
   const cancelledByName = (ag as any).cancelledByName ?? otherName;
+  const eventDate = (ag as any).eventDate ? new Date((ag as any).eventDate) : null;
+  const eventType = (ag as any).eventType ?? null;
+  const eventLocation = (ag as any).eventLocation ?? null;
+  const eventDateStr = eventDate
+    ? eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+
   const dateObj = ag.createdAt?.toDate ? ag.createdAt.toDate() : null;
   const date = dateObj
     ? dateObj.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }) +
@@ -271,6 +278,12 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
             {roleText}
           </Text>
           <Text style={[s.cardDate, !isUnread && s.cardDateRead]}>{date}</Text>
+          {eventDateStr && !isCancelled && (
+            <Text style={[s.cardDate, { color: Colors.gold, marginTop: 2 }]}>
+              📅 {eventType} — {eventDateStr}
+              {eventLocation ? ` · ${eventLocation}` : ''}
+            </Text>
+          )}
         </View>
         <View style={s.cardRight}>
           {isUnread && !isCancelled && <View style={s.unreadCircle} />}
