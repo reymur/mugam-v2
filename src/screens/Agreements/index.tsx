@@ -233,6 +233,117 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
   );
 }
 
+// ── Calendar View ────────────────────────────────────────
+function CalendarView({ agreements }: { agreements: any[] }) {
+  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+  const dayNames = ['B.e','Ç.a','Ç','C.a','C','Ş','B'];
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+  // Group agreements by day
+  const eventDays: Record<number, any[]> = {};
+  agreements.forEach(a => {
+    const d = new Date(a.eventDate);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      if (!eventDays[day]) eventDays[day] = [];
+      eventDays[day].push(a);
+    }
+  });
+
+  const selectedEvents = selectedDay ? (eventDays[selectedDay] ?? []) : [];
+
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+      {/* Month navigation */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <TouchableOpacity onPress={() => setCurrentDate(new Date(year, month - 1, 1))}>
+          <Text style={{ color: Colors.gold, fontSize: 20 }}>‹</Text>
+        </TouchableOpacity>
+        <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18 }}>
+          {monthNames[month]} {year}
+        </Text>
+        <TouchableOpacity onPress={() => setCurrentDate(new Date(year, month + 1, 1))}>
+          <Text style={{ color: Colors.gold, fontSize: 20 }}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Day names */}
+      <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+        {dayNames.map(d => (
+          <Text key={d} style={{ flex: 1, textAlign: 'center', color: Colors.muted, fontSize: 11, fontFamily: Typography.nunito600 }}>{d}</Text>
+        ))}
+      </View>
+
+      {/* Calendar grid */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {Array.from({ length: startOffset }).map((_, i) => (
+          <View key={`empty-${i}`} style={{ width: '14.28%', aspectRatio: 1 }} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1;
+          const hasEvent = !!eventDays[day];
+          const isSelected = selectedDay === day;
+          const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+          return (
+            <TouchableOpacity
+              key={day}
+              style={{ width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => setSelectedDay(isSelected ? null : day)}
+            >
+              <View style={{
+                width: 34, height: 34, borderRadius: 17,
+                alignItems: 'center', justifyContent: 'center',
+                backgroundColor: isSelected ? Colors.gold : hasEvent ? 'rgba(212,160,60,0.15)' : 'transparent',
+                borderWidth: isToday ? 1 : 0,
+                borderColor: Colors.gold,
+              }}>
+                <Text style={{ color: isSelected ? '#1a0e00' : hasEvent ? Colors.gold : Colors.text, fontSize: 14, fontFamily: Typography.nunito600 }}>{day}</Text>
+              </View>
+              {hasEvent && !isSelected && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.gold, marginTop: 2 }} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Selected day events */}
+      {selectedDay && selectedEvents.length > 0 && (
+        <View style={{ marginTop: 20 }}>
+          <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 16, marginBottom: 12 }}>
+            {selectedDay} {monthNames[month]}
+          </Text>
+          {selectedEvents.map((a: any, i: number) => (
+            <View key={i} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}>
+              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 13 }}>
+                📅 {a.eventType}
+              </Text>
+              <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 14, marginTop: 4 }}>
+                {a.fromUid === a.toUid ? a.toName : `${a.fromName} → ${a.toName}`}
+              </Text>
+              {a.eventLocation && (
+                <Text style={{ color: Colors.muted, fontSize: 12, marginTop: 4 }}>📍 {a.eventLocation}</Text>
+              )}
+              <Text style={{ color: Colors.muted, fontSize: 12, marginTop: 4 }}>
+                🕐 {new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {selectedDay && selectedEvents.length === 0 && (
+        <Text style={{ color: Colors.muted, textAlign: 'center', marginTop: 20 }}>Bu gün üçün tədbir yoxdur</Text>
+      )}
+    </ScrollView>
+  );
+}
+
 // ── Agreement Card with messages ─────────────────────────
 function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () => void; isUnread: boolean }) {
   const { user } = useAppStore();
@@ -326,15 +437,29 @@ export default function AgreementsScreen({ route }: { route?: any }) {
     : null;
 
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
+  const [mainView, setMainView] = useState<'agreements' | 'calendar'>('agreements');
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.title}>📋 Müqavilələr</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+          <TouchableOpacity
+            style={[s.mainViewBtn, mainView === 'agreements' && s.mainViewBtnActive]}
+            onPress={() => setMainView('agreements')}
+          >
+            <Text style={[s.mainViewText, mainView === 'agreements' && s.mainViewTextActive]}>📋 Müqavilələr</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.mainViewBtn, mainView === 'calendar' && s.mainViewBtnActive]}
+            onPress={() => setMainView('calendar')}
+          >
+            <Text style={[s.mainViewText, mainView === 'calendar' && s.mainViewTextActive]}>📅 Təqvim</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={s.subtitle}>{agreements.length} müqavilə</Text>
       </View>
 
-      <View style={s.tabRow}>
+      {mainView === 'agreements' && <View style={s.tabRow}>
         <TouchableOpacity style={[s.tab, activeTab === 'outgoing' && s.tabActive]} onPress={() => setActiveTab('outgoing')}>
           <Text style={[s.tabText, activeTab === 'outgoing' && s.tabTextActive]}>Göndərilən ({outgoing.length})</Text>
         </TouchableOpacity>
@@ -344,9 +469,13 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         <TouchableOpacity style={[s.tab, activeTab === 'cancelled' && s.tabCancelledActive]} onPress={() => setActiveTab('cancelled')}>
           <Text style={[s.tabText, activeTab === 'cancelled' && s.tabCancelledText]}>Ləğv edilən ({cancelled.length})</Text>
         </TouchableOpacity>
-      </View>
+      </View>}
 
-      <ScrollView
+      {mainView === 'calendar' && (
+        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} />
+      )}
+
+      {mainView === 'agreements' && <ScrollView
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
       >
@@ -371,7 +500,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             />
           ))
         )}
-      </ScrollView>
+      </ScrollView>}
 
       {selected && (
         <AgreementDetail
@@ -427,6 +556,15 @@ const s = StyleSheet.create({
   title:       { fontFamily: Typography.playfair700, fontSize: 22, color: Colors.text },
   subtitle:    { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400, marginTop: 2 },
   list:        { padding: 14, gap: 10, paddingBottom: 20 },
+  mainViewBtn:        { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  mainViewBtnActive:  { borderBottomColor: Colors.gold },
+  mainViewText:       { color: Colors.muted, fontFamily: Typography.playfair700, fontSize: 20 },
+  mainViewTextActive: { color: Colors.text },
+  mainSwitcher:       { flexDirection: 'row', backgroundColor: Colors.bg3, borderRadius: 10, padding: 3 },
+  mainSwitchBtn:      { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8 },
+  mainSwitchActive:   { backgroundColor: Colors.gold },
+  mainSwitchText:     { color: Colors.muted, fontFamily: Typography.nunito600, fontSize: 13 },
+  mainSwitchTextActive: { color: '#1a0e00', fontFamily: Typography.nunito700, fontSize: 13 },
   tabRow:        { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 12, backgroundColor: Colors.bg3, padding: 4 },
   tab:           { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
   tabActive:          { backgroundColor: Colors.gold },
