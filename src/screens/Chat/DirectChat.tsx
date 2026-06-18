@@ -5,7 +5,7 @@ import {
   Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+
 import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
@@ -62,6 +62,138 @@ function VoicePlayer({ uri, mine }: { uri: string; mine: boolean }) {
       </View>
       <Text style={[vs.label, { color: mine ? '#1a0e00' : Colors.muted }]}>🎤</Text>
     </TouchableOpacity>
+  );
+}
+
+
+// ── Custom Date Picker ────────────────────────────────────
+const ITEM_H = 44;
+const VISIBLE = 7;
+const PICKER_H = ITEM_H * VISIBLE;
+
+function WheelCol({ items, selectedIndex, onSelect, flex = 1 }: {
+  items: string[];
+  selectedIndex: number;
+  onSelect: (i: number) => void;
+  flex?: number;
+}) {
+  const scrollRef = React.useRef<ScrollView>(null);
+
+  React.useEffect(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
+    }, 80);
+  }, []);
+
+  return (
+    <View style={{ flex, height: PICKER_H }}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        onMomentumScrollEnd={e => {
+          const i = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+          onSelect(Math.max(0, Math.min(i, items.length - 1)));
+        }}
+        contentContainerStyle={{ paddingVertical: ITEM_H * 3 }}
+      >
+        {items.map((item, i) => {
+          const isSelected = i === selectedIndex;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => {
+                onSelect(i);
+                scrollRef.current?.scrollTo({ y: i * ITEM_H, animated: true });
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={{
+                color: isSelected ? '#ffffff' : Colors.muted,
+                fontSize: isSelected ? 20 : 15,
+                fontFamily: isSelected ? Typography.nunito700 : Typography.nunito400,
+                opacity: isSelected ? 1 : Math.max(0.15, 1 - Math.abs(i - selectedIndex) * 0.3),
+              }}>
+                {item}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
+  const months = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
+  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+  const now = new Date();
+  const minYear = now.getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => (minYear + i).toString());
+
+  const getDaysInMonth = (m: number, y: number) => new Date(y, m + 1, 0).getDate();
+  const days = Array.from(
+    { length: getDaysInMonth(value.getMonth(), value.getFullYear()) },
+    (_, i) => (i + 1).toString().padStart(2, '0')
+  );
+
+  return (
+    <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: '#161210', marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+      {/* Selection highlight */}
+      <View pointerEvents="none" style={{
+        position: 'absolute',
+        top: ITEM_H * 3,
+        left: 8, right: 8,
+        height: ITEM_H,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(212,160,60,0.5)',
+        backgroundColor: 'rgba(255,255,255,0.07)',
+        zIndex: 1,
+      }} />
+      <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
+        <WheelCol
+          flex={1}
+          items={days}
+          selectedIndex={value.getDate() - 1}
+          onSelect={i => { const d = new Date(value); d.setDate(i + 1); onChange(d); }}
+        />
+        <WheelCol
+          flex={2}
+          items={months}
+          selectedIndex={value.getMonth()}
+          onSelect={i => {
+            const d = new Date(value);
+            d.setMonth(i);
+            const maxDay = getDaysInMonth(i, d.getFullYear());
+            if (d.getDate() > maxDay) d.setDate(maxDay);
+            onChange(d);
+          }}
+        />
+        <WheelCol
+          flex={2}
+          items={years}
+          selectedIndex={Math.max(0, value.getFullYear() - minYear)}
+          onSelect={i => { const d = new Date(value); d.setFullYear(minYear + i); onChange(d); }}
+        />
+        <WheelCol
+          flex={1}
+          items={hours}
+          selectedIndex={value.getHours()}
+          onSelect={i => { const d = new Date(value); d.setHours(i); onChange(d); }}
+        />
+        <WheelCol
+          flex={1}
+          items={minutes}
+          selectedIndex={value.getMinutes()}
+          onSelect={i => { const d = new Date(value); d.setMinutes(i); onChange(d); }}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -722,44 +854,13 @@ const id = await createOrGetDirectChat(
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-        {/* Event Selection Modal */}
         <Modal visible={showEventModal} transparent animationType="slide">
           <View style={s.modalOverlay}>
             <View style={s.modalBox}>
               <Text style={s.modalTitle}>📅 Tədbir məlumatı</Text>
 
-              {/* Date picker trigger */}
-              <TouchableOpacity style={s.modalField} onPress={() => setShowDatePicker(!showDatePicker)}>
-                <Text style={s.modalFieldLabel}>Tarix və vaxt</Text>
-                <Text style={s.modalFieldValue}>
-                  {eventDate
-                    ? eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }) +
-                      ' ' + eventDate.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })
-                    : 'Seç...'}
-                </Text>
-              </TouchableOpacity>
-
-              {showDatePicker && (
-                <View style={{ backgroundColor: Colors.bg3, borderRadius: 12, overflow: 'hidden', marginTop: 8 }}>
-                  <DateTimePicker
-                    value={eventDate ?? new Date()}
-                    mode="datetime"
-                    display="spinner"
-                    minimumDate={new Date()}
-                    textColor={Colors.text}
-                    themeVariant="dark"
-                    onChange={(_, date) => {
-                      if (date) setEventDate(date);
-                    }}
-                  />
-                  <TouchableOpacity
-                    style={{ backgroundColor: Colors.gold, padding: 12, alignItems: 'center' }}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={{ color: '#1a0e00', fontFamily: Typography.nunito700 }}>Təsdiq et</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              <Text style={s.modalFieldLabel}>Tarix və vaxt</Text>
+              <CustomDatePicker value={eventDate ?? new Date()} onChange={setEventDate} />
 
               {/* Event type */}
               <Text style={s.modalFieldLabel}>Tədbir növü</Text>
@@ -799,15 +900,13 @@ const id = await createOrGetDirectChat(
                   style={[s.modalSaveBtn, !eventDate && { opacity: 0.5 }]}
                   disabled={!eventDate}
                   onPress={async () => {
-                    console.log('Saxla pressed, chatId:', chatId, 'eventDate:', eventDate);
-                    setShowDatePicker(false);
+                    setShowEventModal(false);
                     if (chatId && eventDate) {
                       await saveChatEventDate(chatId, eventDate, eventType, eventLocation).catch(() => {});
                       await setWaitingForDate(chatId, false).catch(() => {});
                       waitingAlertShownRef.current = false;
+                      showToast('✅ Tarix saxlanıldı');
                     }
-                    setShowEventModal(false);
-                    setTimeout(() => showToast('✅ Tarix saxlanıldı'), 300);
                   }}
                 >
                   <Text style={s.modalSaveText}>Saxla</Text>
