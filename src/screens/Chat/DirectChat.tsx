@@ -729,7 +729,7 @@ const id = await createOrGetDirectChat(
               <Text style={s.modalTitle}>📅 Tədbir məlumatı</Text>
 
               {/* Date picker trigger */}
-              <TouchableOpacity style={s.modalField} onPress={() => setShowDatePicker(true)}>
+              <TouchableOpacity style={s.modalField} onPress={() => setShowDatePicker(!showDatePicker)}>
                 <Text style={s.modalFieldLabel}>Tarix və vaxt</Text>
                 <Text style={s.modalFieldValue}>
                   {eventDate
@@ -740,16 +740,25 @@ const id = await createOrGetDirectChat(
               </TouchableOpacity>
 
               {showDatePicker && (
-                <DateTimePicker
-                  value={eventDate ?? new Date()}
-                  mode="datetime"
-                  display="spinner"
-                  minimumDate={new Date()}
-                  onChange={(_, date) => {
-                    setShowDatePicker(false);
-                    if (date) setEventDate(date);
-                  }}
-                />
+                <View style={{ backgroundColor: Colors.bg3, borderRadius: 12, overflow: 'hidden', marginTop: 8 }}>
+                  <DateTimePicker
+                    value={eventDate ?? new Date()}
+                    mode="datetime"
+                    display="spinner"
+                    minimumDate={new Date()}
+                    textColor={Colors.text}
+                    themeVariant="dark"
+                    onChange={(_, date) => {
+                      if (date) setEventDate(date);
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={{ backgroundColor: Colors.gold, padding: 12, alignItems: 'center' }}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={{ color: '#1a0e00', fontFamily: Typography.nunito700 }}>Təsdiq et</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Event type */}
@@ -790,12 +799,15 @@ const id = await createOrGetDirectChat(
                   style={[s.modalSaveBtn, !eventDate && { opacity: 0.5 }]}
                   disabled={!eventDate}
                   onPress={async () => {
+                    console.log('Saxla pressed, chatId:', chatId, 'eventDate:', eventDate);
+                    setShowDatePicker(false);
                     if (chatId && eventDate) {
                       await saveChatEventDate(chatId, eventDate, eventType, eventLocation).catch(() => {});
                       await setWaitingForDate(chatId, false).catch(() => {});
                       waitingAlertShownRef.current = false;
                     }
                     setShowEventModal(false);
+                    setTimeout(() => showToast('✅ Tarix saxlanıldı'), 300);
                   }}
                 >
                   <Text style={s.modalSaveText}>Saxla</Text>

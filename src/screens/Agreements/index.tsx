@@ -234,7 +234,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 }
 
 // ── Calendar View ────────────────────────────────────────
-function CalendarView({ agreements }: { agreements: any[] }) {
+function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; onSelectAgreement: (ag: any) => void }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
 
@@ -333,6 +333,12 @@ function CalendarView({ agreements }: { agreements: any[] }) {
               <Text style={{ color: Colors.muted, fontSize: 12, marginTop: 4 }}>
                 🕐 {new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
               </Text>
+              <TouchableOpacity
+                style={{ marginTop: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(212,160,60,0.15)', borderWidth: 1, borderColor: Colors.gold, alignItems: 'center' }}
+                onPress={() => onSelectAgreement(a)}
+              >
+                <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 13 }}>📋 Müqaviləyə bax</Text>
+              </TouchableOpacity>
             </View>
           ))}
         </View>
@@ -472,7 +478,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </View>}
 
       {mainView === 'calendar' && (
-        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} />
+        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} />
       )}
 
       {mainView === 'agreements' && <ScrollView
