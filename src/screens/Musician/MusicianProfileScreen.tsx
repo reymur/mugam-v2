@@ -117,6 +117,17 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
   const agreementCount = agreements.filter(a =>
     (a.fromUid === musicianId || a.toUid === musicianId)
   ).length;
+
+  // Busy dates — agreements where musician is involved, status agreed, has eventDate
+  const busyDates = agreements.filter((a: any) =>
+    (a.fromUid === musicianId || a.toUid === musicianId) &&
+    a.status === 'agreed' &&
+    a.eventDate
+  ).map((a: any) => ({
+    date: new Date(a.eventDate),
+    eventType: a.eventType ?? 'Tədbir',
+    eventLocation: a.eventLocation ?? '',
+  })).sort((x: any, y: any) => x.date - y.date);
   const isMyProfile = user?.uid && (user.uid === musician.uid);
 
   const [senderMusician, setSenderMusician] = useState<Musician | null>(null);
@@ -318,6 +329,23 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
             </View>
           )}
 
+          {/* Busy dates */}
+          {busyDates.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>📅 Məşğul tarixlər ({busyDates.length})</Text>
+              {busyDates.map((b: any, i: number) => (
+                <View key={i} style={s.busyDateCard}>
+                  <Text style={s.busyDateType}>{b.eventType}</Text>
+                  <Text style={s.busyDateDate}>
+                    {b.date.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </Text>
+                  {b.eventLocation ? <Text style={s.busyDateLocation}>📍 {b.eventLocation}</Text> : null}
+                </View>
+              ))}
+            </View>
+          )}
+
+
           {/* Reviews */}
           <View style={s.section}>
             <Text style={s.sectionTitle}>Rəylər ({musician.reviews})</Text>
@@ -409,6 +437,10 @@ const s = StyleSheet.create({
   onlineBadge: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   onlineBadgeText: { fontSize: 11, fontFamily: Typography.nunito700 },
   availText:   { color: Colors.green, fontSize: 11, fontFamily: Typography.nunito700 },
+  busyDateCard:     { backgroundColor: 'rgba(212,160,60,0.08)', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(212,160,60,0.2)' },
+  busyDateType:     { color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 13 },
+  busyDateDate:     { color: Colors.text, fontFamily: Typography.nunito600, fontSize: 14, marginTop: 2 },
+  busyDateLocation: { color: Colors.muted, fontFamily: Typography.nunito400, fontSize: 12, marginTop: 2 },
   ratingRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   stars:       { fontSize: 16, color: Colors.gold },
   reviewCount: { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
