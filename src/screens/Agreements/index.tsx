@@ -169,8 +169,10 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                 <View style={[d.onlineDot, { backgroundColor: fromOnline ? Colors.green : Colors.muted }]} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={d.partyName}>{agreement.fromName}</Text>
-                <Text style={d.partyRole}>Göndərən (Təklif edən)</Text>
+                <Text style={[d.partyName, (agreement as any).cancelledBy === agreement.fromUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.fromName}</Text>
+                <Text style={[d.partyRole, (agreement as any).cancelledBy === agreement.fromUid && { color: Colors.red }]}>
+                  {(agreement as any).cancelledBy === agreement.fromUid ? 'İmtina etdi' : 'Göndərən (Təklif edən)'}
+                </Text>
               </View>
               <Text style={[d.onlineLabel, { color: fromOnline ? Colors.green : Colors.muted }]}>
                 {fromOnline ? '● Onlayn' : '○ Oflayn'}
@@ -188,8 +190,10 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                 <View style={[d.onlineDot, { backgroundColor: toOnline ? Colors.green : Colors.muted }]} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={d.partyName}>{agreement.toName}</Text>
-                <Text style={d.partyRole}>Qəbul edən</Text>
+                <Text style={[d.partyName, (agreement as any).cancelledBy === agreement.toUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.toName}</Text>
+                <Text style={[d.partyRole, (agreement as any).cancelledBy === agreement.toUid && { color: Colors.red }]}>
+                  {(agreement as any).cancelledBy === agreement.toUid ? 'İmtina etdi' : 'Qəbul edən'}
+                </Text>
               </View>
               <Text style={[d.onlineLabel, { color: toOnline ? Colors.green : Colors.muted }]}>
                 {toOnline ? '● Onlayn' : '○ Oflayn'}

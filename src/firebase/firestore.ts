@@ -508,22 +508,28 @@ export async function cancelChat(
   cancelledByName: string,
   otherUid: string,
   otherName: string,
+  initiatorUid?: string,
+  initiatorName?: string,
 ): Promise<void> {
   try {
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
       cancelledBy: cancelledByUid,
       completed:   true,
     });
+    const fUid  = initiatorUid  ?? cancelledByUid;
+    const fName = initiatorName ?? cancelledByName;
+    const tUid  = initiatorUid  ? (initiatorUid === cancelledByUid ? otherUid   : cancelledByUid)   : otherUid;
+    const tName = initiatorName ? (initiatorUid === cancelledByUid ? otherName  : cancelledByName)  : otherName;
     await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
-      fromUid:     cancelledByUid,
-      fromName:    cancelledByName,
-      toUid:       otherUid,
-      toName:      otherName,
-      chatId:      chatId,
-      status:      'cancelled',
-      cancelledBy: cancelledByUid,
+      fromUid:         fUid,
+      fromName:        fName,
+      toUid:           tUid,
+      toName:          tName,
+      chatId:          chatId,
+      status:          'cancelled',
+      cancelledBy:     cancelledByUid,
       cancelledByName: cancelledByName,
-      createdAt:   serverTimestamp(),
+      createdAt:       serverTimestamp(),
     });
   } catch { /* ignore */ }
 }

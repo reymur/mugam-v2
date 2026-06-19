@@ -695,7 +695,7 @@ const id = await createOrGetDirectChat(
                   if (!chatId || !user?.uid) return;
                   setCancelling(true);
                   try {
-                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name, initiatorUid ?? user.uid, initiatorUid === user.uid ? (user.displayName ?? '') : musician.name);
                     showToast('İmtina edildi');
                     setTimeout(() => { onClose(); setTimeout(() => onCancelled?.(), 300); }, 1000);
                   } finally { setCancelling(false); }
@@ -754,7 +754,7 @@ const id = await createOrGetDirectChat(
                   if (!chatId || !user?.uid) return;
                   setCancelling(true);
                   try {
-                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name);
+                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name, initiatorUid ?? user.uid, initiatorUid === user.uid ? (user.displayName ?? '') : musician.name);
                     showToast('İmtina edildi');
                     setTimeout(() => { onClose(); setTimeout(() => onCancelled?.(), 300); }, 1000);
                   } finally { setCancelling(false); }
