@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Animated, Dimensions, ActivityIndicator,
@@ -459,6 +460,14 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const autoOpenUid = route?.params?.musicianUid ?? null;
   const initialTab = route?.params?.tab ?? 'outgoing';
   const [activeTab, setActiveTab] = React.useState<'outgoing' | 'incoming' | 'cancelled'>(initialTab);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route?.params?.tab) {
+        setActiveTab(route.params.tab);
+      }
+    }, [route?.params?.tab])
+  );
 
   const outgoing  = agreements.filter((a: any) => a.fromUid === user?.uid && a.status !== 'cancelled');
   const incoming  = agreements.filter((a: any) => a.toUid === user?.uid && a.status !== 'cancelled');

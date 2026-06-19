@@ -385,10 +385,10 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
         <DirectChat
           musician={musician}
           onClose={() => setShowChat(false)}
-          onAgreed={() => {
+          onAgreed={(tab) => {
             setShowChat(false);
             onClose();
-            navigation.navigate('Agreements');
+            navigation.navigate('Agreements', { tab: tab ?? 'outgoing' });
           }}
           onCancelled={() => {
             setShowChat(false);

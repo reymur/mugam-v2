@@ -192,10 +192,10 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
         <DirectChat
           musician={getMusicianFromChat(selectedChat)}
           onClose={() => setSelectedChat(null)}
-          onAgreed={() => {
+          onAgreed={(tab) => {
             setSelectedChat(null);
             onClose();
-            navigation.navigate('Agreements');
+            navigation.navigate('Agreements', { tab: tab ?? 'outgoing' });
           }}
           onCancelled={() => {
             setSelectedChat(null);

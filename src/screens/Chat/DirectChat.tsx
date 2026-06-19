@@ -201,7 +201,7 @@ function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date
 interface Props {
   musician:   Musician;
   onClose:    () => void;
-  onAgreed?:    () => void;  // navigate to Müqavilələr after agreement
+  onAgreed?:    (tab?: 'outgoing' | 'incoming') => void;  // navigate to Müqavilələr after agreement
   onCancelled?: () => void;  // navigate to Müqavilələr -> Ləğv edilən
   fromInvite?: Invite;
 }
@@ -276,7 +276,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       showToast('✅ Razılaşma qəbul edildi!');
       setTimeout(() => {
         onClose();
-        setTimeout(() => onAgreed?.(), 300);
+        setTimeout(() => onAgreed?.(isRecipient ? 'incoming' : 'outgoing'), 300);
       }, 2000);
     }
   }, [agreementCount]);
@@ -735,7 +735,7 @@ const id = await createOrGetDirectChat(
                     setJustAgreed(true);
                     setNavigating(true);
                     showToast(`✅ ${musician.name} ilə razılaşdınız!`);
-                    setTimeout(() => { onClose(); setTimeout(() => onAgreed?.(), 300); }, 2000);
+                    setTimeout(() => { onClose(); setTimeout(() => onAgreed?.(isRecipient ? 'incoming' : 'outgoing'), 300); }, 2000);
                   } finally { setAccepting(false); }
                 }}
                 disabled={accepting}
