@@ -303,24 +303,31 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
   const selectedEvents = selectedDay ? (eventDays[selectedDay] ?? []) : [];
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+    <View style={{ flex: 1 }}>
+      <View style={{ padding: 16 }}>
       {/* Month navigation */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <TouchableOpacity onPress={() => setCurrentDate(new Date(year, month - 1, 1))}>
-          <Text style={{ color: Colors.gold, fontSize: 20 }}>‹</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <TouchableOpacity
+          onPress={() => setCurrentDate(new Date(year, month - 1, 1))}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg3, borderRadius: 12 }}
+        >
+          <Text style={{ color: Colors.gold, fontSize: 24, fontWeight: '300' }}>‹</Text>
         </TouchableOpacity>
-        <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18 }}>
+        <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 22 }}>
           {monthNames[month]} {year}
         </Text>
-        <TouchableOpacity onPress={() => setCurrentDate(new Date(year, month + 1, 1))}>
-          <Text style={{ color: Colors.gold, fontSize: 20 }}>›</Text>
+        <TouchableOpacity
+          onPress={() => setCurrentDate(new Date(year, month + 1, 1))}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg3, borderRadius: 12 }}
+        >
+          <Text style={{ color: Colors.gold, fontSize: 24, fontWeight: '300' }}>›</Text>
         </TouchableOpacity>
       </View>
 
       {/* Day names */}
       <View style={{ flexDirection: 'row', marginBottom: 8 }}>
         {dayNames.map(d => (
-          <Text key={d} style={{ flex: 1, textAlign: 'center', color: Colors.muted, fontSize: 11, fontFamily: Typography.nunito600 }}>{d}</Text>
+          <Text key={d} style={{ flex: 1, textAlign: 'center', color: Colors.muted, fontSize: 13, fontFamily: Typography.nunito700 }}>{d}</Text>
         ))}
       </View>
 
@@ -341,13 +348,13 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
               onPress={() => setSelectedDay(isSelected ? null : day)}
             >
               <View style={{
-                width: 34, height: 34, borderRadius: 17,
+                width: 40, height: 40, borderRadius: 20,
                 alignItems: 'center', justifyContent: 'center',
                 backgroundColor: isSelected ? Colors.gold : hasEvent ? 'rgba(212,160,60,0.15)' : 'transparent',
                 borderWidth: isToday ? 1 : 0,
                 borderColor: Colors.gold,
               }}>
-                <Text style={{ color: isSelected ? '#1a0e00' : hasEvent ? Colors.gold : Colors.text, fontSize: 14, fontFamily: Typography.nunito600 }}>{day}</Text>
+                <Text style={{ color: isSelected ? '#1a0e00' : hasEvent ? Colors.gold : Colors.text, fontSize: 15, fontFamily: Typography.nunito600 }}>{day}</Text>
               </View>
               {hasEvent && !isSelected && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.gold, marginTop: 2 }} />}
             </TouchableOpacity>
@@ -355,6 +362,8 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
         })}
       </View>
 
+      </View>
+      <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
       {/* Selected day events */}
       {selectedDay && selectedEvents.length > 0 && (
         <View style={{ marginTop: 20 }}>
@@ -418,7 +427,8 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
       {selectedDay && selectedEvents.length === 0 && (
         <Text style={{ color: Colors.muted, textAlign: 'center', marginTop: 20 }}>Bu gün üçün tədbir yoxdur</Text>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
