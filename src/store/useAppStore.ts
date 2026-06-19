@@ -555,7 +555,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         get().unsubscribeAll();
       }
     });
-    get()._addUnsub(unsubAuth);
+    // unsubAuth intentionally NOT in _unsubs — must survive user switches
 
     // Push handlers
     const unsubPush = FireMsg.setupForegroundHandler();
