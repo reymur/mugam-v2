@@ -316,7 +316,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       // Only update ref and show alert when initiatorUid is loaded
       if (initiatorUid !== null) {
         if (currWaiting && !prevWaiting && initiatorUid === user?.uid) {
-          Alert.alert('', 'Sevgi sizdən tarix gözləyir 📅');
+          Alert.alert('', `${musician.name} sizdən tarix gözləyir 📅`);
           // Reset so next press triggers again
           if (chatId) setWaitingForDate(chatId, false).catch(() => {});
         }
@@ -723,7 +723,7 @@ const id = await createOrGetDirectChat(
                 style={[s.acceptBtn, (!eventDate || accepting) && { opacity: 0.6 }]}
                 onPress={async () => {
                   if (!eventDate) {
-                    Alert.alert('', 'Teymur hələ tədbir tarixini seçməyib ⏳');
+                    Alert.alert('', `${musician.name} hələ tədbir tarixini seçməyib ⏳`);
                     if (chatId) setWaitingForDate(chatId, true).catch(() => {});
                     return;
                   }
