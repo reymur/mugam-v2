@@ -114,6 +114,47 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <Text style={d.dateText}>{date}</Text>
           </View>
 
+          {/* Event details */}
+          {((agreement as any).eventDate || (agreement as any).eventType) && (agreement as any).status !== 'cancelled' && (
+            <View style={d.card}>
+              <Text style={d.cardTitle}>📅 Tədbir məlumatı</Text>
+              {(agreement as any).eventType && (
+                <View style={d.detailRow}>
+                  <Text style={d.detailLabel}>Növ</Text>
+                  <Text style={d.detailValue}>{(agreement as any).eventType}</Text>
+                </View>
+              )}
+              {(agreement as any).eventDate && (
+                <View style={d.detailRow}>
+                  <Text style={d.detailLabel}>Tarix</Text>
+                  <Text style={d.detailValue}>
+                    {new Date((agreement as any).eventDate).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </Text>
+                </View>
+              )}
+              {(agreement as any).eventDate && (
+                <View style={d.detailRow}>
+                  <Text style={d.detailLabel}>Vaxt</Text>
+                  <Text style={d.detailValue}>
+                    {new Date((agreement as any).eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              )}
+              {(agreement as any).eventLocation && (
+                <View style={d.detailRow}>
+                  <Text style={d.detailLabel}>📍 Yer</Text>
+                  <Text style={d.detailValue}>{(agreement as any).eventLocation}</Text>
+                </View>
+              )}
+              {(agreement as any).eventNotes && (
+                <View style={[d.detailRow, { borderBottomWidth: 0 }]}>
+                  <Text style={d.detailLabel}>📝 Əlavələr</Text>
+                  <Text style={d.detailValue}>{(agreement as any).eventNotes}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Parties — clickable to open profile */}
           <View style={d.card}>
             <Text style={d.cardTitle}>Tərəflər</Text>
@@ -529,6 +570,9 @@ const d = StyleSheet.create({
   statusText:            { color: Colors.green, fontSize: 15, fontFamily: Typography.nunito700 },
   statusBadgeCancelled:  { backgroundColor: 'rgba(192,57,43,0.15)', borderWidth: 1, borderColor: Colors.red, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
   statusTextCancelled:   { color: Colors.red, fontSize: 15, fontFamily: Typography.nunito700 },
+  detailRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  detailLabel: { color: Colors.muted, fontSize: 13, fontFamily: Typography.nunito500 },
+  detailValue: { color: Colors.text, fontSize: 13, fontFamily: Typography.nunito600, textAlign: 'right', flex: 1, marginLeft: 16 },
   dateText:    { color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito400 },
   card:        { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 16, gap: 12 },
   cardTitle:   { fontFamily: Typography.playfair700, fontSize: 16, color: Colors.text, marginBottom: 4 },

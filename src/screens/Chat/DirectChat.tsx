@@ -226,9 +226,17 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [eventDate,      setEventDate]      = useState<Date | null>(null);
   const [eventType,      setEventType]      = useState('Toy');
   const [eventLocation,  setEventLocation]  = useState('');
+  const [eventNotes,     setEventNotes]     = useState('');
   const [showEventTypes, setShowEventTypes] = useState(false);
 
   const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
+  const NOTES_OPTIONS = [
+    'Qara kostyum və ağ köynək',
+    'Qara köynək sərbəst',
+    'Qalstuk',
+    'Baboçka',
+    'Yumru boğaz köynək sərbəst',
+  ];
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
   const [recording,   setRecording]   = useState(false);
@@ -288,7 +296,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
     console.log('subscribeChatMeta for chatId:', chatId);
     markChatAsReadBy(chatId, user.uid).catch(() => {});
     const unsub = subscribeChatMeta(chatId, (data) => {
-      const { readBy, typing, cancelledBy: cb, closedBy, eventDate: ed, eventType: et, eventLocation: el } = data;
+      const { readBy, typing, cancelledBy: cb, closedBy, eventDate: ed, eventType: et, eventLocation: el, eventNotes: en } = data;
       const otherUid = musician.uid;
       setRecipientRead(readBy.includes(otherUid));
       typingTsRef.current = typing[otherUid] ?? null;
@@ -299,7 +307,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       }
       setCancelledBy(cb);
       // Sync event data from Firestore
-      if (ed) { setEventDate(new Date(ed)); setEventType(et); setEventLocation(el); }
+      if (ed) { setEventDate(new Date(ed)); setEventType(et); setEventLocation(el); setEventNotes(en ?? ''); }
       const prevWaiting = prevWaitingForDateRef.current;
       const currWaiting = data.waitingForDate ?? false;
       setWaitingForDate2(currWaiting);
@@ -719,7 +727,8 @@ const id = await createOrGetDirectChat(
                   }
                   setAccepting(true);
                   try {
-                    await createAgreement(musicianUid, musician.name, chatId ?? undefined, eventDate?.toISOString(), eventType, eventLocation || undefined);
+                    console.log('createAgreement eventNotes:', eventNotes);
+                    await createAgreement(musicianUid, musician.name, chatId ?? undefined, eventDate?.toISOString(), eventType, eventLocation || undefined, eventNotes || undefined);
                     if (chatId) { await completeChat(chatId).catch(() => {}); }
                     setJustAgreed(true);
                     setNavigating(true);
@@ -855,7 +864,9 @@ const id = await createOrGetDirectChat(
           </View>
         </KeyboardAvoidingView>
         <Modal visible={showEventModal} transparent animationType="slide">
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={s.modalOverlay}>
+            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ justifyContent: 'flex-end', flexGrow: 1 }} keyboardShouldPersistTaps="handled">
             <View style={s.modalBox}>
               <Text style={s.modalTitle}>📅 Tədbir məlumatı</Text>
 
@@ -891,6 +902,42 @@ const id = await createOrGetDirectChat(
                 onChangeText={setEventLocation}
               />
 
+              {/* Notes */}
+              <Text style={s.modalFieldLabel}>Əlavələr (istəyə görə)</Text>
+              <View style={{ gap: 6 }}>
+                {NOTES_OPTIONS.map((opt, i) => {
+                  const isSelected = eventNotes.split(', ').includes(opt);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: isSelected ? Colors.gold : Colors.border,
+                        backgroundColor: isSelected ? 'rgba(212,160,60,0.1)' : Colors.bg3,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                      onPress={() => {
+                        const current = eventNotes ? eventNotes.split(', ') : [];
+                        const updated = isSelected
+                          ? current.filter(x => x !== opt)
+                          : [...current, opt];
+                        setEventNotes(updated.join(', '));
+                      }}
+                    >
+                      <Text style={{ color: isSelected ? Colors.gold : Colors.text, fontFamily: Typography.nunito500, fontSize: 13 }}>
+                        {opt}
+                      </Text>
+                      {isSelected && <Text style={{ color: Colors.gold }}>✓</Text>}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               {/* Buttons */}
               <View style={s.modalButtons}>
                 <TouchableOpacity style={s.modalCancelBtn} onPress={() => setShowEventModal(false)}>
@@ -903,7 +950,7 @@ const id = await createOrGetDirectChat(
                     console.log('Saxla: chatId=', chatId, 'eventDate=', eventDate);
                     setShowEventModal(false);
                     if (chatId && eventDate) {
-                      await saveChatEventDate(chatId, eventDate, eventType, eventLocation).catch(() => {});
+                      await saveChatEventDate(chatId, eventDate, eventType, eventLocation, eventNotes).catch(() => {});
                       await setWaitingForDate(chatId, false).catch(() => {});
                       waitingAlertShownRef.current = false;
                       showToast('✅ Tarix saxlanıldı');
@@ -914,7 +961,9 @@ const id = await createOrGetDirectChat(
                 </TouchableOpacity>
               </View>
             </View>
+            </ScrollView>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
       </SafeAreaView>

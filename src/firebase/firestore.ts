@@ -374,6 +374,7 @@ export async function createAgreement(
   eventDate?:    string,
   eventType?:    string,
   eventLocation?: string,
+  eventNotes?:   string,
 ): Promise<string> {
   const ref = await addDoc(collection(fbFirestore, COLLECTIONS.AGREEMENTS), {
     fromUid, fromName, toUid, toName,
@@ -382,6 +383,7 @@ export async function createAgreement(
     eventDate:     eventDate     ?? null,
     eventType:     eventType     ?? null,
     eventLocation: eventLocation ?? null,
+    eventNotes:    eventNotes    ?? null,
     createdAt:     serverTimestamp(),
   });
   return ref.id;
@@ -480,7 +482,7 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; waitingForDate: boolean }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
@@ -492,6 +494,7 @@ export function subscribeChatMeta(
         eventDate:      snap.data().eventDate      ?? null,
         eventType:      snap.data().eventType      ?? 'Toy',
         eventLocation:  snap.data().eventLocation  ?? '',
+        eventNotes:     snap.data().eventNotes     ?? '',
         waitingForDate: snap.data().waitingForDate ?? false,
       });
     }
@@ -567,12 +570,14 @@ export async function saveChatEventDate(
   eventDate: Date,
   eventType: string,
   eventLocation: string,
+  eventNotes?: string,
 ): Promise<void> {
   try {
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
       eventDate:     eventDate.toISOString(),
       eventType,
       eventLocation,
+      eventNotes:    eventNotes ?? '',
     });
   } catch { /* ignore */ }
 }
