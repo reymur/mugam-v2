@@ -227,6 +227,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [eventType,      setEventType]      = useState('Toy');
   const [eventLocation,  setEventLocation]  = useState('');
   const [eventNotes,     setEventNotes]     = useState('');
+  const [showCustomNote, setShowCustomNote] = useState(false);
+  const [customNote,     setCustomNote]     = useState('');
   const [showEventTypes, setShowEventTypes] = useState(false);
 
   const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
@@ -936,6 +938,39 @@ const id = await createOrGetDirectChat(
                     </TouchableOpacity>
                   );
                 })}
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: showCustomNote ? Colors.gold : Colors.border,
+                    backgroundColor: showCustomNote ? 'rgba(212,160,60,0.1)' : Colors.bg3,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                  onPress={() => setShowCustomNote(!showCustomNote)}
+                >
+                  <Text style={{ color: showCustomNote ? Colors.gold : Colors.text, fontFamily: Typography.nunito500, fontSize: 13 }}>
+                    Digər...
+                  </Text>
+                  {showCustomNote && <Text style={{ color: Colors.gold }}>✓</Text>}
+                </TouchableOpacity>
+                {showCustomNote && (
+                  <RNTextInput
+                    style={[s.modalInput, { marginTop: 6 }]}
+                    placeholder="Əlavə tələblər yazın..."
+                    placeholderTextColor={Colors.muted}
+                    value={customNote}
+                    onChangeText={text => {
+                      setCustomNote(text);
+                      const selected = eventNotes.split(', ').filter((x: string) => NOTES_OPTIONS.includes(x));
+                      if (text.trim()) selected.push(text);
+                      setEventNotes(selected.join(', '));
+                    }}
+                  />
+                )}
               </View>
 
               {/* Buttons */}
