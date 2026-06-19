@@ -362,26 +362,56 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
             {selectedDay} {monthNames[month]}
           </Text>
           {selectedEvents.map((a: any, i: number) => (
-            <View key={i} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}>
-              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 13 }}>
-                📅 {a.eventType}
+            <TouchableOpacity
+              key={i}
+              style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}
+              onPress={() => onSelectAgreement(a)}
+              activeOpacity={0.85}
+            >
+              {/* Type · Location · Time */}
+              <Text style={{ fontSize: 15, fontFamily: Typography.nunito500, marginBottom: 10 }}>
+                <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{a.eventType}</Text>
+                {a.eventLocation ? <Text style={{ color: Colors.text, fontSize: 14 }}>{` · 📍 ${a.eventLocation}`}</Text> : null}
+                <Text style={{ color: Colors.text, fontSize: 14 }}>{` · 🕐 ${new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}`}</Text>
               </Text>
-              <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 14, marginTop: 4 }}>
-                {a.fromUid === a.toUid ? a.toName : `${a.fromName} → ${a.toName}`}
-              </Text>
-              {a.eventLocation && (
-                <Text style={{ color: Colors.muted, fontSize: 12, marginTop: 4 }}>📍 {a.eventLocation}</Text>
+
+              {/* Notes */}
+              {a.eventNotes && (
+                <Text style={{ color: Colors.muted, fontSize: 13, marginBottom: 10 }}>📝 {a.eventNotes}</Text>
               )}
-              <Text style={{ color: Colors.muted, fontSize: 12, marginTop: 4 }}>
-                🕐 {new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-              <TouchableOpacity
-                style={{ marginTop: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(212,160,60,0.15)', borderWidth: 1, borderColor: Colors.gold, alignItems: 'center' }}
-                onPress={() => onSelectAgreement(a)}
-              >
-                <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 13 }}>📋 Müqaviləyə bax</Text>
-              </TouchableOpacity>
-            </View>
+
+              {/* Divider */}
+              <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: 8 }} />
+
+              {/* Musicians section */}
+              <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8, letterSpacing: 1 }}>MUSİQİÇİLƏR</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 16 }}>👤</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 15 }}>
+                    {a.fromName}
+                  </Text>
+                  <Text style={{ color: Colors.muted, fontSize: 12 }}>Təklif edən</Text>
+                </View>
+                <Text style={{ color: Colors.gold, fontSize: 12 }}>›</Text>
+              </View>
+              {a.fromUid !== a.toUid && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 16 }}>🎵</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>
+                      {a.toName}
+                    </Text>
+                    <Text style={{ color: Colors.muted, fontSize: 11 }}>Musiqiçi</Text>
+                  </View>
+                  <Text style={{ color: Colors.gold, fontSize: 12 }}>›</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           ))}
         </View>
       )}
