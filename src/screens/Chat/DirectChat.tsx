@@ -218,6 +218,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [recipientRead,  setRecipientRead]  = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
   const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
+  const cancelledByRef = React.useRef<string | null>(null);
   const [chatClosed,    setChatClosed]    = useState(false);
   const [waitingForDate, setWaitingForDate2] = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
@@ -270,7 +271,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       return;
     }
     // New agreement appeared AND this user didn't click Razıyam (justAgreed)
-    if (agreementCount > agreedCountRef.current && !justAgreed && !navigating) {
+    if (agreementCount > agreedCountRef.current && !justAgreed && !navigating && !cancelledByRef.current) {
       agreedCountRef.current = agreementCount;
       setNavigating(true);
       showToast('✅ Razılaşma qəbul edildi!');
@@ -308,6 +309,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         initialCancelledByRef.current = cb;
       }
       setCancelledBy(cb);
+      cancelledByRef.current = cb ?? null;
       // Sync event data from Firestore
       if (ed) { setEventDate(new Date(ed)); setEventType(et); setEventLocation(el); setEventNotes(en ?? ''); }
       const prevWaiting = prevWaitingForDateRef.current;

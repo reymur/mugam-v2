@@ -393,7 +393,7 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
           onCancelled={() => {
             setShowChat(false);
             onClose();
-            navigation.navigate('Agreements', { tab: 'cancelled' });
+            navigation.navigate('Agreements', { tab: 'cancelled', _t: Date.now() });
           }}
           fromInvite={receivedInvites.find(i => i.fromUid === musicianId)}
         />

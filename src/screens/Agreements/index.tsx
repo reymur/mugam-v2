@@ -501,13 +501,11 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const initialTab = route?.params?.tab ?? 'outgoing';
   const [activeTab, setActiveTab] = React.useState<'outgoing' | 'incoming' | 'cancelled'>(initialTab);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (route?.params?.tab) {
-        setActiveTab(route.params.tab);
-      }
-    }, [route?.params?.tab])
-  );
+  React.useEffect(() => {
+    if (route?.params?.tab) {
+      setActiveTab(route.params.tab);
+    }
+  }, [route?.params?.tab, route?.params?._t]);
 
   const outgoing  = agreements.filter((a: any) => a.fromUid === user?.uid && a.status !== 'cancelled');
   const incoming  = agreements.filter((a: any) => a.toUid === user?.uid && a.status !== 'cancelled');
