@@ -220,7 +220,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await FireStore.setUserOnlineStatus(uid, false).catch(() => {});
     }
     get().unsubscribeAll();
-    set({ user: null, isAuthenticated: false, chats: [], messages: {} });
+    set({ user: null, isAuthenticated: false, chats: [], messages: {}, receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [] });
     await FireAuth.logout();
   },
 
@@ -522,6 +522,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const unsubAuth = FireAuth.onAuthStateChanged(async (firebaseUser) => {
       console.log('Auth state changed:', firebaseUser?.uid ?? 'null');
       if (firebaseUser) {
+        get().unsubscribeAll();
+        set({ receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [], chats: [], messages: {} });
         const profile = await loadUserDoc(firebaseUser.uid);
         set({
           user: profile ?? {
@@ -546,11 +548,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         });
         get()._addUnsub(unsubAgreements);
 
-        const unsubSync = onSnapshotsInSync(fbFirestore, () => {
-          unsubSync(); // one-time sync signal
-          get().subscribeInvites(firebaseUser.uid);
-        });
-        get()._addUnsub(unsubSync);
+        get().subscribeInvites(firebaseUser.uid);
         FireMsg.registerFCMToken(firebaseUser.uid).then(unsub => get()._addUnsub(unsub)).catch(() => {});
       } else {
         set({ user: null, isAuthenticated: false, authLoading: false });

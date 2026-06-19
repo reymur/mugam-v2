@@ -224,7 +224,7 @@ export default function Topbar({ title, showLogo = true }: TopbarProps) {
 
   const pendingInvites = receivedInvites.filter(i => i.status === 'pending').length;
   const unreadMessages = chats.reduce((sum, c) => sum + (c.unread || 0), 0);
-  const totalBadge = unreadMessages; // only messages, not invites
+  const totalBadge = unreadMessages + pendingInvites;
 
   return (
     <>
