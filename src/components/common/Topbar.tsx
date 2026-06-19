@@ -161,7 +161,7 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
-            {/* Unread messages section only */}
+            {/* Unread messages */}
             {unreadChats.length > 0 && (
               <>
                 <Text style={p.sectionLabel}>💬 Oxunmamış mesajlar</Text>
@@ -222,9 +222,8 @@ export default function Topbar({ title, showLogo = true }: TopbarProps) {
   const { t } = useT();
   const [showNotifs, setShowNotifs] = React.useState(false);
 
-  const pendingInvites = receivedInvites.filter(i => i.status === 'pending').length;
   const unreadMessages = chats.reduce((sum, c) => sum + (c.unread || 0), 0);
-  const totalBadge = unreadMessages + pendingInvites;
+  const totalBadge = unreadMessages;
 
   return (
     <>
