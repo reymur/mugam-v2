@@ -608,21 +608,44 @@ export async function addPersonalEvent(
   }
 ): Promise<string> {
   const ref = await addDoc(
-    collection(fbFirestore, 'personalEvents', uid, 'events'),
+    collection(fbFirestore, 'personalEvents'),
     {
       ...event,
+      ownerUid: uid,
       createdAt: serverTimestamp(),
     }
   );
   return ref.id;
 }
 
+// Subscribe to events owned by user
 export function subscribePersonalEvents(
   uid: string,
   cb: (events: any[]) => void
 ): () => void {
-  return onSnapshot(
-    collection(fbFirestore, 'personalEvents', uid, 'events'),
+  const q = query(
+    collection(fbFirestore, 'personalEvents'),
+    where('ownerUid', '==', uid)
+  );
+  return onSnapshot(q,
+    (snap) => {
+      const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cb(events);
+    },
+    () => cb([])
+  );
+}
+
+// Subscribe to events where user is a musician
+export function subscribeEventsAsMusician(
+  uid: string,
+  cb: (events: any[]) => void
+): () => void {
+  const q = query(
+    collection(fbFirestore, 'personalEvents'),
+    where('musicians', 'array-contains', uid)
+  );
+  return onSnapshot(q,
     (snap) => {
       const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       cb(events);
@@ -636,6 +659,6 @@ export async function deletePersonalEvent(
   eventId: string
 ): Promise<void> {
   await deleteDoc(
-    doc(fbFirestore, 'personalEvents', uid, 'events', eventId)
+    doc(fbFirestore, 'personalEvents', eventId)
   );
 }

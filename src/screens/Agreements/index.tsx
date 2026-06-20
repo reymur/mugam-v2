@@ -383,7 +383,7 @@ function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date
 }
 
 // ── Calendar View ────────────────────────────────────────
-function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenProfile, showModalFromParent, onModalShown }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[]; onOpenProfile: (m: any) => void; showModalFromParent?: boolean; onModalShown?: () => void }) {
+function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsMusician, onOpenProfile, showModalFromParent, onModalShown }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[]; eventsAsMusician: any[]; onOpenProfile: (m: any) => void; showModalFromParent?: boolean; onModalShown?: () => void }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
@@ -437,7 +437,8 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
   });
 
   // Add personal events to calendar
-  personalEvents.forEach(e => {
+  const allPersonal = [...personalEvents, ...eventsAsMusician.map(e => ({ ...e, _isInvited: true }))];
+  allPersonal.forEach(e => {
     if (!e.date) return;
     const d = new Date(e.date);
     if (d.getFullYear() === year && d.getMonth() === month) {
@@ -572,16 +573,35 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
             });
 
             // Render personal events
-            const personalCards = personalEventsList.map((e: any, pi: number) => (
-              <View key={'p' + pi} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.gold + '66' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{e.type}</Text>
-                  <Text style={{ color: Colors.muted, fontSize: 12 }}>· Şəxsi məşğuliyyət</Text>
+            const personalCards = personalEventsList.map((e: any, pi: number) => {
+              const isInvited = !!e._isInvited;
+              const owner = isInvited ? musicians.find(m => (m.uid ?? m.id) === e.ownerUid) : null;
+              const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+              return (
+                <View key={'p' + pi} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.gold + '66' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{e.type}</Text>
+                      {time ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'🕐 ' + time}</Text> : null}
+                    </View>
+                    <View style={{ borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: isInvited ? 'rgba(212,160,60,0.15)' : 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.green }}>
+                      <Text style={{ color: isInvited ? Colors.gold : Colors.green, fontSize: 10, fontFamily: Typography.nunito700 }}>
+                        {isInvited ? 'Dəvət olunmusan' : 'Şəxsi'}
+                      </Text>
+                    </View>
+                  </View>
+                  {isInvited && owner && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <Text style={{ fontSize: 14 }}>{owner.emoji ?? '👤'}</Text>
+                      <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{owner.name}</Text>
+                      <Text style={{ color: Colors.muted, fontSize: 11 }}>təşkil edir</Text>
+                    </View>
+                  )}
+                  {e.location ? <Text style={{ color: Colors.text, fontSize: 13, marginBottom: 4 }}>{'📍 ' + e.location}</Text> : null}
+                  {e.notes ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📝 ' + e.notes}</Text> : null}
                 </View>
-                {e.location ? <Text style={{ color: Colors.text, fontSize: 13, marginBottom: 4 }}>{'📍 ' + e.location}</Text> : null}
-                {e.notes ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📝 ' + e.notes}</Text> : null}
-              </View>
-            ));
+              );
+            });
 
             return [...Object.entries(groups).map(([key, items], gi) => {
               const first = items[0];
@@ -961,6 +981,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
   const [mainView, setMainView] = useState<'agreements' | 'calendar'>('agreements');
   const personalEvents = useAppStore(s => s.personalEvents);
+  const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
   const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
   const [calendarShowModal, setCalendarShowModal] = useState(false);
 
@@ -997,7 +1018,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </View>}
 
       {mainView === 'calendar' && (
-        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
+        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
       )}
 
       {mainView === 'agreements' && <ScrollView
