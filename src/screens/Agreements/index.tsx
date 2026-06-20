@@ -13,6 +13,7 @@ import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import type { Agreement } from '../../store/useAppStore';
 import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
+import EventCard from '../../components/common/EventCard';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -659,44 +660,25 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               const first = items[0];
               const time = new Date(first.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
               const locations = [...new Set(items.map((a: any) => a.eventLocation).filter(Boolean))];
-              const musicians = items.filter((a: any) => a.toUid !== first.fromUid);
+              const allMusicians = items.map((a: any) => {
+                const m = musicians.find(x => (x.uid ?? x.id) === a.toUid);
+                return m ?? { name: a.toName, emoji: '🎵', instrument: '', uid: a.toUid };
+              });
+              const initiator = musicians.find(x => (x.uid ?? x.id) === first.fromUid) ?? { name: first.fromName, emoji: '👑', instrument: '', uid: first.fromUid };
               return (
-                <View
+                <EventCard
                   key={gi}
-                  style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}
-                >
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10, alignItems: 'center' }}>
-                    <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{first.eventType}</Text>
-                    {locations.length > 0 && <Text style={{ color: Colors.text, fontSize: 13 }}>{'· 📍 ' + locations.join(', ')}</Text>}
-                    <Text style={{ color: Colors.text, fontSize: 13 }}>{'· 🕐 ' + time}</Text>
-                  </View>
-                  {first.eventNotes && (
-                    <Text style={{ color: Colors.muted, fontSize: 13, marginBottom: 10 }}>{'📝 ' + first.eventNotes}</Text>
-                  )}
-                  <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: 8 }} />
-                  <Text style={{ color: Colors.muted, fontSize: 11, fontFamily: Typography.nunito700, marginBottom: 8, letterSpacing: 1 }}>MUSİQİÇİLƏR</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold }}>
-                      <Text style={{ fontSize: 18 }}>👑</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{first.fromName}</Text>
-                      <Text style={{ color: Colors.muted, fontSize: 11 }}>Təklif edən</Text>
-                    </View>
-                  </View>
-                  {musicians.map((a: any, mi: number) => (
-                    <TouchableOpacity key={mi} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }} onPress={() => onSelectAgreement(a)} activeOpacity={0.75}>
-                      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 15 }}>🎵</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{a.toName}</Text>
-                        <Text style={{ color: Colors.muted, fontSize: 11 }}>Musiqiçi</Text>
-                      </View>
-                      <Text style={{ color: Colors.gold, fontSize: 14 }}>›</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                  type={first.eventType}
+                  time={time}
+                  location={locations.join(', ')}
+                  notes={first.eventNotes}
+                  badge={{ label: 'Müqavilə', color: Colors.green, bg: 'rgba(39,174,96,0.15)' }}
+                  initiator={initiator}
+                  musicians={allMusicians}
+                  onPress={() => onSelectAgreement(first)}
+                  onInitiatorPress={() => onSelectAgreement(first)}
+                  onMusicianPress={(m) => onSelectAgreement(items[allMusicians.indexOf(m)])}
+                />
               );
             });
 
@@ -706,44 +688,23 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               const owner = isInvited ? musicians.find(m => (m.uid ?? m.id) === e.ownerUid) : null;
               const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
               return (
-                <TouchableOpacity key={'p' + pi} onPress={() => setSelectedPersonalEvent(e)} activeOpacity={0.85} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.gold + '66' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{e.type}</Text>
-                      {time ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'🕐 ' + time}</Text> : null}
-                      {e.location ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📍 ' + e.location}</Text> : null}
-                    </View>
-                    <View style={{ borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: isInvited ? 'rgba(212,160,60,0.15)' : 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.green }}>
-                      <Text style={{ color: isInvited ? Colors.gold : Colors.green, fontSize: 10, fontFamily: Typography.nunito700 }}>
-                        {isInvited ? 'Dəvət olunmusan' : 'Şəxsi'}
-                      </Text>
-                    </View>
-                  </View>
-                  {isInvited && owner && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <Text style={{ fontSize: 14 }}>{owner.emoji ?? '👤'}</Text>
-                      <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{owner.name}</Text>
-                      <Text style={{ color: Colors.muted, fontSize: 11 }}>təşkil edir</Text>
-                    </View>
-                  )}
-                  {e.notes ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📝 ' + e.notes}</Text> : null}
-                  {(e.musicians ?? []).length > 0 && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 8 }}>
-                      {(e.musicians ?? []).map((uid: string, mi: number) => {
-                        const m = musicians.find(x => (x.uid ?? x.id) === uid);
-                        return m ? (
-                          <TouchableOpacity key={mi} onPress={() => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.bg3, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.border }}>
-                            <Text style={{ fontSize: 14 }}>{m.emoji ?? '👤'}</Text>
-                            <View>
-                              <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 12 }}>{m.name}</Text>
-                              <Text style={{ color: Colors.muted, fontSize: 10 }}>{m.instrument}</Text>
-                            </View>
-                          </TouchableOpacity>
-                        ) : null;
-                      })}
-                    </View>
-                  )}
-                </TouchableOpacity>
+                <EventCard
+                  key={'p' + pi}
+                  type={e.type}
+                  time={time}
+                  location={e.location}
+                  notes={e.notes}
+                  badge={{
+                    label: isInvited ? 'Dəvət olunmusan' : 'Şəxsi',
+                    color: isInvited ? Colors.gold : Colors.green,
+                    bg: isInvited ? 'rgba(212,160,60,0.15)' : 'rgba(39,174,96,0.15)',
+                  }}
+                  initiator={owner ?? undefined}
+                  musicians={(e.musicians ?? []).map((uid: string) => musicians.find(x => (x.uid ?? x.id) === uid)).filter(Boolean)}
+                  onPress={() => setSelectedPersonalEvent(e)}
+                  onMusicianPress={(m) => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }}
+                  borderColor={isInvited ? Colors.gold : Colors.gold + '66'}
+                />
               );
             });
 
