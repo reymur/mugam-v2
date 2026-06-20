@@ -348,10 +348,7 @@ function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date
 
   return (
     <View style={{ marginBottom: 8 }}>
-      {/* Static date display */}
-      <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15, textAlign: 'center', marginBottom: 8 }}>
-        {value.getDate()} {monthNames[value.getMonth()]} {value.getFullYear()}
-      </Text>
+
       <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: '#161210', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
         {/* Selection highlight */}
         <View pointerEvents="none" style={{
@@ -398,8 +395,17 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
   const [selectedMusicians, setSelectedMusicians] = React.useState<string[]>([]);
   const [musicianSearch, setMusicianSearch] = React.useState('');
   const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
+  const [digerText, setDigerText] = React.useState('');
   const { user, musicians } = useAppStore();
   const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
+  const NOTES_OPTIONS = [
+    'Qara kostyum və ağ köynək',
+    'Qara köynək sərbəst',
+    'Qalstuk',
+    'Baboçka',
+    'Yumru boğaz köynək sərbəst',
+    'Digər...',
+  ];
 
   React.useEffect(() => {
     if (showModalFromParent) {
@@ -691,26 +697,29 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
       <Modal visible={showAddModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '90%' }}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Tədbir əlavə et</Text>
-
-            {/* Event Type */}
-            
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-              {EVENT_TYPES.map(t => (
-                <TouchableOpacity
-                  key={t}
-                  style={{ flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center', backgroundColor: newEventType === t ? Colors.gold : Colors.bg3, borderWidth: 1, borderColor: newEventType === t ? Colors.gold : Colors.border }}
-                  onPress={() => setNewEventType(t)}
-                >
-                  <Text style={{ color: newEventType === t ? '#1a0e00' : Colors.muted, fontFamily: Typography.nunito700, fontSize: 12 }}>{t}</Text>
-                </TouchableOpacity>
-              ))}
+          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%', flex: 1 }}>
+            {/* Fixed Header */}
+            <View style={{ padding: 20, paddingBottom: 12 }}>
+              <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Tədbir əlavə et</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {EVENT_TYPES.map(t => (
+                  <TouchableOpacity
+                    key={t}
+                    style={{ flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center', backgroundColor: newEventType === t ? Colors.gold : Colors.bg3, borderWidth: 1, borderColor: newEventType === t ? Colors.gold : Colors.border }}
+                    onPress={() => setNewEventType(t)}
+                  >
+                    <Text style={{ color: newEventType === t ? '#1a0e00' : Colors.muted, fontFamily: Typography.nunito700, fontSize: 12 }}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15, textAlign: 'center', marginTop: 12 }}>
+                {newEventDate.getDate()} {['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'][newEventDate.getMonth()]} {newEventDate.getFullYear()}
+              </Text>
             </View>
 
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 20 }}>
+
             {/* Date & Time Picker */}
-            
             <CustomDatePicker value={newEventDate} onChange={setNewEventDate} />
 
             {/* Musicians */}
@@ -752,6 +761,55 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
               onChangeText={setNewEventLocation}
             />
 
+            {/* Əlavələr */}
+            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>ƏLAVƏLƏR (istəyə görə)</Text>
+            <View style={{ gap: 6, marginBottom: 16 }}>
+              {NOTES_OPTIONS.map((opt, i) => {
+                const isDiger = opt === 'Digər...';
+                const isSelected = isDiger
+                  ? newEventNotes.split(', ').some(x => !NOTES_OPTIONS.slice(0,-1).includes(x) && x.length > 0)
+                  : newEventNotes.split(', ').includes(opt);
+                return (
+                  <View key={i}>
+                    <TouchableOpacity
+                      style={{ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: isSelected ? Colors.gold : Colors.border, backgroundColor: isSelected ? 'rgba(212,160,60,0.1)' : Colors.bg3, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                      onPress={() => {
+                        if (isDiger) {
+                          setDigerText(prev => prev ? '' : ' ');
+                          if (digerText) {
+                            const current = newEventNotes.split(', ').filter(x => NOTES_OPTIONS.slice(0,-1).includes(x));
+                            setNewEventNotes(current.join(', '));
+                            setDigerText('');
+                          }
+                        } else {
+                          const current = newEventNotes ? newEventNotes.split(', ').filter(Boolean) : [];
+                          const updated = isSelected ? current.filter(x => x !== opt) : [...current, opt];
+                          setNewEventNotes(updated.join(', '));
+                        }
+                      }}
+                    >
+                      <Text style={{ color: isSelected ? Colors.gold : Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{opt}</Text>
+                      {isSelected && <Text style={{ color: Colors.gold }}>✓</Text>}
+                    </TouchableOpacity>
+                    {isDiger && digerText !== '' && (
+                      <TextInput
+                        style={{ backgroundColor: Colors.bg3, borderRadius: 10, padding: 10, color: Colors.text, borderWidth: 1, borderColor: Colors.gold, marginTop: 6, fontSize: 13 }}
+                        placeholder="Öz variantınızı yazın..."
+                        placeholderTextColor={Colors.muted}
+                        value={digerText.trim()}
+                        onChangeText={text => {
+                          setDigerText(text);
+                          const standard = newEventNotes.split(', ').filter(x => NOTES_OPTIONS.slice(0,-1).includes(x));
+                          setNewEventNotes([...standard, text].filter(Boolean).join(', '));
+                        }}
+                        autoFocus
+                      />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
             {/* Notes */}
             <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>QEYD</Text>
             <TextInput
@@ -763,8 +821,9 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
               multiline
             />
 
-            {/* Buttons */}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+          </ScrollView>
+          {/* Fixed Buttons */}
+          <View style={{ flexDirection: 'row', gap: 10, padding: 20, paddingTop: 12 }}>
               <TouchableOpacity
                 style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
                 onPress={() => { setShowAddModal(false); setNewEventLocation(''); setNewEventNotes(''); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
@@ -796,7 +855,6 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
                 {saving ? <ActivityIndicator color="#1a0e00" size="small" /> : <Text style={{ color: '#1a0e00', fontFamily: Typography.nunito700 }}>Saxla</Text>}
               </TouchableOpacity>
             </View>
-          </ScrollView>
           </View>
         </View>
         </KeyboardAvoidingView>
