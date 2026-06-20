@@ -510,6 +510,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
   const [digerText, setDigerText] = React.useState('');
   const [selectedPersonalEvent, setSelectedPersonalEvent] = React.useState<any>(null);
   const [profileMusician, setProfileMusician] = React.useState<any>(null);
+  const lastTapRef = React.useRef<{ day: number; time: number } | null>(null);
   const { user, musicians } = useAppStore();
   const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
   const NOTES_OPTIONS = [
@@ -606,27 +607,17 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               key={day}
               style={{ width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
               onPress={() => {
-                if (isSelected) { setSelectedDay(null); return; }
-                setSelectedDay(day);
-                const dayEvents = eventDays[day] ?? [];
-                if (dayEvents.length > 0) {
-                  Alert.alert(
-                    'Bu gün ' + dayEvents.length + ' tədbiriniz var',
-                    'Yeni tədbir əlavə etmək istəyirsiniz?',
-                    [
-                      { text: 'Ləğv et', style: 'cancel' },
-                      { text: '+ Əlavə et', onPress: () => setShowAddModal(true) },
-                    ]
-                  );
+                const now = Date.now();
+                const last = lastTapRef.current;
+                if (last && last.day === day && now - last.time < 300) {
+                  // Double tap — open modal
+                  lastTapRef.current = null;
+                  setSelectedDay(day);
+                  setShowAddModal(true);
                 } else {
-                  Alert.alert(
-                    'Bu gün üçün tədbir yoxdur',
-                    'Yeni tədbir əlavə etmək istəyirsiniz?',
-                    [
-                      { text: 'Ləğv et', style: 'cancel' },
-                      { text: '+ Əlavə et', onPress: () => setShowAddModal(true) },
-                    ]
-                  );
+                  // Single tap — select day
+                  lastTapRef.current = { day, time: now };
+                  setSelectedDay(isSelected ? null : day);
                 }
               }}
             >
