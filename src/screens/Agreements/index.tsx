@@ -716,8 +716,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
                 {newEventDate.getDate()} {['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'][newEventDate.getMonth()]} {newEventDate.getFullYear()}
               </Text>
             </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 20 }}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 20 }}>
 
             {/* Date & Time Picker */}
             <CustomDatePicker value={newEventDate} onChange={setNewEventDate} />
@@ -752,7 +751,6 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
             </TouchableOpacity>
 
             {/* Location */}
-            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>YER</Text>
             <TextInput
               style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 16 }}
               placeholder="Məkan daxil edin..."
@@ -810,8 +808,6 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
               })}
             </View>
 
-            {/* Notes */}
-            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>QEYD</Text>
             <TextInput
               style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 20, minHeight: 60 }}
               placeholder="Əlavə qeydlər..."
@@ -821,9 +817,9 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
               multiline
             />
 
-          </ScrollView>
-          {/* Fixed Buttons */}
-          <View style={{ flexDirection: 'row', gap: 10, padding: 20, paddingTop: 12 }}>
+            </ScrollView>
+            {/* Fixed Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10, padding: 20, paddingTop: 12 }}>
               <TouchableOpacity
                 style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
                 onPress={() => { setShowAddModal(false); setNewEventLocation(''); setNewEventNotes(''); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
