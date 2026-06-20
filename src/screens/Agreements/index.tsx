@@ -424,6 +424,8 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
               </Text>
             </View>
             <Text style={d.dateText}>{dateStr} · {timeStr}</Text>
+            <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 20, marginTop: 8 }}>{event.type}</Text>
+            {event.location ? <Text style={{ color: Colors.muted, fontSize: 14, marginTop: 4 }}>{"📍 " + event.location}</Text> : null}
           </View>
 
           {/* Details */}
@@ -695,6 +697,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{e.type}</Text>
                       {time ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'🕐 ' + time}</Text> : null}
+                      {e.location ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📍 ' + e.location}</Text> : null}
                     </View>
                     <View style={{ borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: isInvited ? 'rgba(212,160,60,0.15)' : 'rgba(39,174,96,0.15)', borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.green }}>
                       <Text style={{ color: isInvited ? Colors.gold : Colors.green, fontSize: 10, fontFamily: Typography.nunito700 }}>
@@ -709,8 +712,23 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                       <Text style={{ color: Colors.muted, fontSize: 11 }}>təşkil edir</Text>
                     </View>
                   )}
-                  {e.location ? <Text style={{ color: Colors.text, fontSize: 13, marginBottom: 4 }}>{'📍 ' + e.location}</Text> : null}
                   {e.notes ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📝 ' + e.notes}</Text> : null}
+                  {(e.musicians ?? []).length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 8 }}>
+                      {(e.musicians ?? []).map((uid: string, mi: number) => {
+                        const m = musicians.find(x => (x.uid ?? x.id) === uid);
+                        return m ? (
+                          <TouchableOpacity key={mi} onPress={() => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.bg3, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.border }}>
+                            <Text style={{ fontSize: 14 }}>{m.emoji ?? '👤'}</Text>
+                            <View>
+                              <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 12 }}>{m.name}</Text>
+                              <Text style={{ color: Colors.muted, fontSize: 10 }}>{m.instrument}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ) : null;
+                      })}
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             });
