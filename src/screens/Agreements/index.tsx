@@ -801,7 +801,6 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
                           const standard = newEventNotes.split(', ').filter(x => NOTES_OPTIONS.slice(0,-1).includes(x));
                           setNewEventNotes([...standard, text].filter(Boolean).join(', '));
                         }}
-                        autoFocus
                       />
                     )}
                   </View>
