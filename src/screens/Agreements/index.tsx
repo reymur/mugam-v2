@@ -678,6 +678,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   onPress={() => onSelectAgreement(first)}
                   onInitiatorPress={() => onSelectAgreement(first)}
                   onMusicianPress={(m) => onSelectAgreement(items[allMusicians.indexOf(m)])}
+                  currentUserUid={user?.uid ?? undefined}
                 />
               );
             });
@@ -703,7 +704,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   musicians={(e.musicians ?? []).map((uid: string) => musicians.find(x => (x.uid ?? x.id) === uid)).filter(Boolean)}
                   onPress={() => setSelectedPersonalEvent(e)}
                   onMusicianPress={(m) => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }}
-                  borderColor={isInvited ? Colors.gold : Colors.gold + '66'}
+                  currentUserUid={user?.uid ?? undefined}
                 />
               );
             });

@@ -22,12 +22,13 @@ interface EventCardProps {
   onPress: () => void;
   onInitiatorPress?: () => void;
   onMusicianPress?: (m: Musician) => void;
+  currentUserUid?: string;
 }
 
 export default function EventCard({
   type, time, location, notes, badge,
   initiator, musicians = [],
-  onPress, onInitiatorPress, onMusicianPress,
+  onPress, onInitiatorPress, onMusicianPress, currentUserUid,
 }: EventCardProps) {
   return (
     <TouchableOpacity
@@ -66,24 +67,36 @@ export default function EventCard({
       {notes ? <Text style={{ color: Colors.muted, fontSize: 12, marginBottom: 6 }}>{'📝 ' + notes}</Text> : null}
 
       {/* Musicians */}
-      {musicians.length > 0 && (
+      {musicians.length > 0 && (() => {
+        const sorted = currentUserUid
+          ? [...musicians].sort((a, b) => {
+              const aIsMe = (a.uid ?? a.id) === currentUserUid;
+              const bIsMe = (b.uid ?? b.id) === currentUserUid;
+              return aIsMe ? -1 : bIsMe ? 1 : 0;
+            })
+          : musicians;
+        return (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 8 }}>
-          {musicians.map((m, mi) => (
+          {sorted.map((m, mi) => {
+            const isMe = currentUserUid && (m.uid ?? m.id) === currentUserUid;
+            return (
             <TouchableOpacity
               key={mi}
               onPress={() => onMusicianPress?.(m)}
               activeOpacity={0.7}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.bg3, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.border }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isMe ? Colors.gold + '22' : Colors.bg3, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: isMe ? Colors.gold : Colors.border }}
             >
               <Text style={{ fontSize: 14 }}>{m.emoji ?? '🎵'}</Text>
               <View>
-                <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 12 }}>{m.name}</Text>
-                <Text style={{ color: Colors.muted, fontSize: 10 }}>{m.instrument}</Text>
+                <Text style={{ color: isMe ? Colors.gold : Colors.text, fontFamily: Typography.nunito700, fontSize: 12 }}>{m.name}</Text>
+                <Text style={{ color: isMe ? Colors.gold : Colors.muted, fontSize: 10, opacity: isMe ? 0.8 : 1 }}>{m.instrument}</Text>
               </View>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
-      )}
+        );
+      })()}
     </TouchableOpacity>
   );
 }
