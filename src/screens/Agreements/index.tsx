@@ -390,6 +390,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
   const [newEventType, setNewEventType] = React.useState('Toy');
   const [newEventLocation, setNewEventLocation] = React.useState('');
   const [newEventNotes, setNewEventNotes] = React.useState('');
+  const [newEventQeyd, setNewEventQeyd] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [newEventDate, setNewEventDate] = React.useState(new Date());
   const [selectedMusicians, setSelectedMusicians] = React.useState<string[]>([]);
@@ -812,8 +813,8 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
               style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 20, minHeight: 60 }}
               placeholder="Əlavə qeydlər..."
               placeholderTextColor={Colors.muted}
-              value={newEventNotes}
-              onChangeText={setNewEventNotes}
+              value={newEventQeyd}
+              onChangeText={setNewEventQeyd}
               multiline
             />
 
@@ -822,7 +823,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
             <View style={{ flexDirection: 'row', gap: 10, padding: 20, paddingTop: 12 }}>
               <TouchableOpacity
                 style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
-                onPress={() => { setShowAddModal(false); setNewEventLocation(''); setNewEventNotes(''); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
+                onPress={() => { setShowAddModal(false); setNewEventLocation(''); setNewEventNotes(''); setNewEventQeyd(''); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
               >
                 <Text style={{ color: Colors.muted, fontFamily: Typography.nunito700 }}>Ləğv et</Text>
               </TouchableOpacity>
@@ -838,12 +839,13 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenPro
                       date: date.toISOString(),
                       type: newEventType,
                       location: newEventLocation,
-                      notes: newEventNotes,
+                      notes: [newEventNotes, newEventQeyd].filter(Boolean).join(' | '),
                       musicians: selectedMusicians,
                     });
                     setShowAddModal(false);
                     setNewEventLocation('');
                     setNewEventNotes('');
+                    setNewEventQeyd('');
                   } catch { Alert.alert('Xəta', 'Saxlamaq mümkün olmadı'); }
                   finally { setSaving(false); }
                 }}
