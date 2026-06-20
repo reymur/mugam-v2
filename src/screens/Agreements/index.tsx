@@ -374,58 +374,59 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
           <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 16, marginBottom: 12 }}>
             {selectedDay} {monthNames[month]}
           </Text>
-          {selectedEvents.map((a: any, i: number) => (
-            <TouchableOpacity
-              key={i}
-              style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}
-              onPress={() => onSelectAgreement(a)}
-              activeOpacity={0.85}
-            >
-              {/* Type · Location · Time */}
-              <Text style={{ fontSize: 15, fontFamily: Typography.nunito500, marginBottom: 10 }}>
-                <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{a.eventType}</Text>
-                {a.eventLocation ? <Text style={{ color: Colors.text, fontSize: 14 }}>{` · 📍 ${a.eventLocation}`}</Text> : null}
-                <Text style={{ color: Colors.text, fontSize: 14 }}>{` · 🕐 ${new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}`}</Text>
-              </Text>
-
-              {/* Notes */}
-              {a.eventNotes && (
-                <Text style={{ color: Colors.muted, fontSize: 13, marginBottom: 10 }}>📝 {a.eventNotes}</Text>
-              )}
-
-              {/* Divider */}
-              <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: 8 }} />
-
-              {/* Musicians section */}
-              <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8, letterSpacing: 1 }}>MUSİQİÇİLƏR</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 16 }}>👤</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 15 }}>
-                    {a.fromName}
-                  </Text>
-                  <Text style={{ color: Colors.muted, fontSize: 12 }}>Təklif edən</Text>
-                </View>
-                <Text style={{ color: Colors.gold, fontSize: 12 }}>›</Text>
-              </View>
-              {a.fromUid !== a.toUid && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                  <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 16 }}>🎵</Text>
+          {(() => {
+            const groups: Record<string, any[]> = {};
+            selectedEvents.forEach((a: any) => {
+              const time = new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
+              const key = `${a.fromUid}|${a.eventType}|${a.eventLocation ?? ''}|${time}`;
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(a);
+            });
+            return Object.entries(groups).map(([key, items], gi) => {
+              const first = items[0];
+              const time = new Date(first.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
+              const locations = [...new Set(items.map((a: any) => a.eventLocation).filter(Boolean))];
+              const musicians = items.filter((a: any) => a.toUid !== first.fromUid);
+              return (
+                <View
+                  key={gi}
+                  style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}
+                >
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+                    <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{first.eventType}</Text>
+                    {locations.length > 0 && <Text style={{ color: Colors.text, fontSize: 13 }}>{'· 📍 ' + locations.join(', ')}</Text>}
+                    <Text style={{ color: Colors.text, fontSize: 13 }}>{'· 🕐 ' + time}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>
-                      {a.toName}
-                    </Text>
-                    <Text style={{ color: Colors.muted, fontSize: 11 }}>Musiqiçi</Text>
+                  {first.eventNotes && (
+                    <Text style={{ color: Colors.muted, fontSize: 13, marginBottom: 10 }}>{'📝 ' + first.eventNotes}</Text>
+                  )}
+                  <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: 8 }} />
+                  <Text style={{ color: Colors.muted, fontSize: 11, fontFamily: Typography.nunito700, marginBottom: 8, letterSpacing: 1 }}>MUSİQİÇİLƏR</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold }}>
+                      <Text style={{ fontSize: 18 }}>👑</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{first.fromName}</Text>
+                      <Text style={{ color: Colors.muted, fontSize: 11 }}>Təklif edən</Text>
+                    </View>
                   </View>
-                  <Text style={{ color: Colors.gold, fontSize: 12 }}>›</Text>
+                  {musicians.map((a: any, mi: number) => (
+                    <TouchableOpacity key={mi} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }} onPress={() => onSelectAgreement(a)} activeOpacity={0.75}>
+                      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 15 }}>🎵</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{a.toName}</Text>
+                        <Text style={{ color: Colors.muted, fontSize: 11 }}>Musiqiçi</Text>
+                      </View>
+                      <Text style={{ color: Colors.gold, fontSize: 14 }}>›</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              )}
-            </TouchableOpacity>
-          ))}
+              );
+            });
+          })()}
         </View>
       )}
       {selectedDay && selectedEvents.length === 0 && (
