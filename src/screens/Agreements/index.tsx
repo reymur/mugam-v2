@@ -695,11 +695,11 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   location={e.location}
                   notes={e.notes}
                   badge={{
-                    label: isInvited ? 'Dəvət olunmusan' : 'Şəxsi',
-                    color: isInvited ? Colors.gold : Colors.green,
-                    bg: isInvited ? 'rgba(212,160,60,0.15)' : 'rgba(39,174,96,0.15)',
+                    label: '',
+                    color: Colors.green,
+                    bg: 'transparent',
                   }}
-                  initiator={owner ?? undefined}
+                  initiator={isInvited ? (owner ?? undefined) : (user ? { name: user.displayName ?? '', emoji: user.emoji ?? '👤', instrument: user.instrument ?? '' } : undefined)}
                   musicians={(e.musicians ?? []).map((uid: string) => musicians.find(x => (x.uid ?? x.id) === uid)).filter(Boolean)}
                   onPress={() => setSelectedPersonalEvent(e)}
                   onMusicianPress={(m) => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }}

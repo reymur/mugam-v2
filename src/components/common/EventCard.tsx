@@ -33,15 +33,23 @@ export default function EventCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{
-        backgroundColor: Colors.card,
-        borderRadius: 14,
-        padding: 14,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: Colors.border,
-      }}
+      style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}
     >
+      {/* Initiator — top */}
+      {initiator && (
+        <TouchableOpacity
+          onPress={onInitiatorPress ?? onPress}
+          activeOpacity={0.85}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.gold + '22', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 10 }}
+        >
+          <Text style={{ fontSize: 20 }}>{initiator.emoji ?? '👤'}</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{initiator.name}</Text>
+            <Text style={{ color: Colors.gold, fontSize: 11, opacity: 0.8 }}>{initiator.instrument || 'Təklif edən'}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -57,58 +65,23 @@ export default function EventCard({
       {/* Notes */}
       {notes ? <Text style={{ color: Colors.muted, fontSize: 12, marginBottom: 6 }}>{'📝 ' + notes}</Text> : null}
 
-      {/* Initiator + Musicians */}
-      {initiator && (
-        <View style={{ borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 8, marginTop: 4 }}>
-          <TouchableOpacity
-            onPress={onInitiatorPress ?? onPress}
-            activeOpacity={0.85}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              backgroundColor: Colors.gold + '22',
-              borderRadius: 14,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              marginBottom: 8,
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>{initiator.emoji ?? '👤'}</Text>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{initiator.name}</Text>
-              <Text style={{ color: Colors.gold, fontSize: 11, opacity: 0.8 }}>{initiator.instrument || 'Təklif edən'}</Text>
-            </View>
-          </TouchableOpacity>
-          {musicians.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {musicians.map((m, mi) => (
-                <TouchableOpacity
-                  key={mi}
-                  onPress={() => onMusicianPress?.(m)}
-                  activeOpacity={0.7}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    backgroundColor: Colors.bg3,
-                    borderRadius: 20,
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderWidth: 1,
-                    borderColor: Colors.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 14 }}>{m.emoji ?? '🎵'}</Text>
-                  <View>
-                    <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 12 }}>{m.name}</Text>
-                    <Text style={{ color: Colors.muted, fontSize: 10 }}>{m.instrument}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+      {/* Musicians */}
+      {musicians.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 8 }}>
+          {musicians.map((m, mi) => (
+            <TouchableOpacity
+              key={mi}
+              onPress={() => onMusicianPress?.(m)}
+              activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.bg3, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.border }}
+            >
+              <Text style={{ fontSize: 14 }}>{m.emoji ?? '🎵'}</Text>
+              <View>
+                <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 12 }}>{m.name}</Text>
+                <Text style={{ color: Colors.muted, fontSize: 10 }}>{m.instrument}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
     </TouchableOpacity>
