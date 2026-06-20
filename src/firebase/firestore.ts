@@ -630,6 +630,7 @@ export function subscribePersonalEvents(
   return onSnapshot(q,
     (snap) => {
       const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      console.log('personalEvents loaded:', events.length, 'for uid:', uid);
       cb(events);
     },
     () => cb([])

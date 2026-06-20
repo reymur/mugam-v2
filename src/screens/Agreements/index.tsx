@@ -382,6 +382,115 @@ function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date
   );
 }
 
+
+// ── Personal Event Detail ─────────────────────────────────
+function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; onClose: () => void; onOpenProfile: (m: any) => void }) {
+  const { musicians, user } = useAppStore();
+  const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+
+  React.useEffect(() => {
+    Animated.spring(slideAnim, { toValue: 0, damping: 26, stiffness: 300, useNativeDriver: true }).start();
+  }, []);
+
+  const handleClose = () => {
+    Animated.timing(slideAnim, { toValue: SCREEN_W, duration: 220, useNativeDriver: true }).start(onClose);
+  };
+
+  const date = event.date ? new Date(event.date) : null;
+  const dateStr = date ? `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}` : '';
+  const timeStr = date ? date.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+  const isOwner = event.ownerUid === user?.uid;
+  const owner = musicians.find(m => (m.uid ?? m.id) === event.ownerUid);
+  const eventMusicians = (event.musicians ?? []).map((uid: string) => musicians.find(m => (m.uid ?? m.id) === uid)).filter(Boolean);
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: Colors.bg, zIndex: 200, transform: [{ translateX: slideAnim }] }]}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <View style={d.header}>
+          <TouchableOpacity style={d.backBtn} onPress={handleClose} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
+            <Text style={d.backText}>←</Text>
+          </TouchableOpacity>
+          <Text style={d.headerTitle}>Tədbir</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={d.container}>
+          {/* Status */}
+          <View style={d.statusWrap}>
+            <View style={{ backgroundColor: 'rgba(212,160,60,0.15)', borderWidth: 1, borderColor: Colors.gold, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
+              <Text style={{ color: Colors.gold, fontSize: 15, fontFamily: Typography.nunito700 }}>
+                {isOwner ? '📅 Şəxsi tədbir' : '🎵 Dəvət olunmusan'}
+              </Text>
+            </View>
+            <Text style={d.dateText}>{dateStr} · {timeStr}</Text>
+          </View>
+
+          {/* Details */}
+          <View style={d.card}>
+            <Text style={d.cardTitle}>Məlumat</Text>
+            <View style={d.row}>
+              <Text style={d.rowLabel}>Növ</Text>
+              <Text style={d.rowValue}>{event.type}</Text>
+            </View>
+            {event.location ? (
+              <View style={d.row}>
+                <Text style={d.rowLabel}>Yer</Text>
+                <Text style={d.rowValue}>{event.location}</Text>
+              </View>
+            ) : null}
+            {event.notes ? (
+              <View style={[d.row, { borderBottomWidth: 0 }]}>
+                <Text style={d.rowLabel}>Qeyd</Text>
+                <Text style={[d.rowValue, { flex: 1, textAlign: 'right' }]}>{event.notes}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Organizer */}
+          {!isOwner && owner && (
+            <View style={d.card}>
+              <Text style={d.cardTitle}>Təşkilatçı</Text>
+              <TouchableOpacity style={d.party} onPress={() => onOpenProfile(owner)} activeOpacity={0.7}>
+                <View style={d.partyAva}>
+                  <Text style={{ fontSize: 22 }}>{owner.emoji ?? '👤'}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={d.partyName}>{owner.name}</Text>
+                  <Text style={d.partyRole}>{owner.instrument}</Text>
+                </View>
+                <Text style={d.partyArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Musicians */}
+          {eventMusicians.length > 0 && (
+            <View style={d.card}>
+              <Text style={d.cardTitle}>Musiqiçilər</Text>
+              {eventMusicians.map((m: any, i: number) => (
+                <View key={i}>
+                  {i > 0 && <View style={d.divider} />}
+                  <TouchableOpacity style={d.party} onPress={() => onOpenProfile(m)} activeOpacity={0.7}>
+                    <View style={d.partyAva}>
+                      <Text style={{ fontSize: 22 }}>{m.emoji ?? '👤'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={d.partyName}>{m.name}</Text>
+                      <Text style={d.partyRole}>{m.instrument}</Text>
+                    </View>
+                    <Text style={d.partyArrow}>›</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Animated.View>
+  );
+}
+
 // ── Calendar View ────────────────────────────────────────
 function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsMusician, onOpenProfile, showModalFromParent, onModalShown }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[]; eventsAsMusician: any[]; onOpenProfile: (m: any) => void; showModalFromParent?: boolean; onModalShown?: () => void }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
@@ -397,6 +506,8 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
   const [musicianSearch, setMusicianSearch] = React.useState('');
   const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
   const [digerText, setDigerText] = React.useState('');
+  const [selectedPersonalEvent, setSelectedPersonalEvent] = React.useState<any>(null);
+  const [profileMusician, setProfileMusician] = React.useState<any>(null);
   const { user, musicians } = useAppStore();
   const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
   const NOTES_OPTIONS = [
@@ -522,12 +633,13 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
             const personalEventsList = selectedEvents.filter((a: any) => a._isPersonal);
             const groups: Record<string, any[]> = {};
             agreementEvents.forEach((a: any) => {
+              if (!a.eventDate) return;
               const time = new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
               const key = `${a.fromUid}|${a.eventType}|${a.eventLocation ?? ''}|${time}`;
               if (!groups[key]) groups[key] = [];
               groups[key].push(a);
             });
-            return Object.entries(groups).map(([key, items], gi) => {
+            const groupCards = Object.entries(groups).map(([key, items], gi) => {
               const first = items[0];
               const time = new Date(first.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
               const locations = [...new Set(items.map((a: any) => a.eventLocation).filter(Boolean))];
@@ -578,7 +690,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               const owner = isInvited ? musicians.find(m => (m.uid ?? m.id) === e.ownerUid) : null;
               const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
               return (
-                <View key={'p' + pi} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.gold + '66' }}>
+                <TouchableOpacity key={'p' + pi} onPress={() => setSelectedPersonalEvent(e)} activeOpacity={0.85} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: isInvited ? Colors.gold : Colors.gold + '66' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{e.type}</Text>
@@ -599,49 +711,11 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   )}
                   {e.location ? <Text style={{ color: Colors.text, fontSize: 13, marginBottom: 4 }}>{'📍 ' + e.location}</Text> : null}
                   {e.notes ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📝 ' + e.notes}</Text> : null}
-                </View>
+                </TouchableOpacity>
               );
             });
 
-            return [...Object.entries(groups).map(([key, items], gi) => {
-              const first = items[0];
-              const time = new Date(first.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-              const locations = [...new Set(items.map((a: any) => a.eventLocation).filter(Boolean))];
-              const musicians = items.filter((a: any) => a.toUid !== first.fromUid);
-              return (
-                <View key={gi} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10, alignItems: 'center' }}>
-                    <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{first.eventType}</Text>
-                    {locations.length > 0 && <Text style={{ color: Colors.text, fontSize: 13 }}>{"· 📍 " + locations.join(", ")}</Text>}
-                    <Text style={{ color: Colors.text, fontSize: 13 }}>{"· 🕐 " + time}</Text>
-                  </View>
-                  {first.eventNotes && <Text style={{ color: Colors.muted, fontSize: 13, marginBottom: 10 }}>{"📝 " + first.eventNotes}</Text>}
-                  <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: 8 }} />
-                  <Text style={{ color: Colors.muted, fontSize: 11, fontFamily: Typography.nunito700, marginBottom: 8, letterSpacing: 1 }}>MUSİQİÇİLƏR</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold }}>
-                      <Text style={{ fontSize: 18 }}>👑</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{first.fromName}</Text>
-                      <Text style={{ color: Colors.muted, fontSize: 11 }}>Təklif edən</Text>
-                    </View>
-                  </View>
-                  {musicians.map((a: any, mi: number) => (
-                    <TouchableOpacity key={mi} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }} onPress={() => onSelectAgreement(a)} activeOpacity={0.75}>
-                      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 15 }}>🎵</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{a.toName}</Text>
-                        <Text style={{ color: Colors.muted, fontSize: 11 }}>Musiqiçi</Text>
-                      </View>
-                      <Text style={{ color: Colors.gold, fontSize: 14 }}>›</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              );
-            }), ...personalCards];
+            return [...groupCards, ...personalCards];
           })()}
         </View>
       )}
@@ -714,6 +788,16 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
         </KeyboardAvoidingView>
       </Modal>
 
+      {selectedPersonalEvent && (
+        <PersonalEventDetail
+          event={selectedPersonalEvent}
+          onClose={() => setSelectedPersonalEvent(null)}
+          onOpenProfile={(m) => { setSelectedPersonalEvent(null); onOpenProfile(m); }}
+        />
+      )}
+      {profileMusician && (
+        <MusicianProfileScreen musician={profileMusician} onClose={() => setProfileMusician(null)} />
+      )}
       {/* Add Personal Event Modal */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -1018,7 +1102,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </View>}
 
       {mainView === 'calendar' && (
-        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
+        <CalendarView key="calendar-view" agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
       )}
 
       {mainView === 'agreements' && <ScrollView
