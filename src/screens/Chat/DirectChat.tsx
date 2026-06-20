@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Audio } from 'expo-av';
 import { Colors }     from '../../theme/colors';
+import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate } from '../../firebase/firestore';
@@ -867,141 +868,26 @@ const id = await createOrGetDirectChat(
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-        <Modal visible={showEventModal} transparent animationType="slide">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={s.modalOverlay}>
-            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ justifyContent: 'flex-end', flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-            <View style={s.modalBox}>
-              <Text style={s.modalTitle}>📅 Tədbir məlumatı</Text>
-
-              <Text style={s.modalFieldLabel}>Tarix və vaxt</Text>
-              <CustomDatePicker value={eventDate ?? new Date()} onChange={setEventDate} />
-
-              {/* Event type */}
-              <Text style={s.modalFieldLabel}>Tədbir növü</Text>
-              <TouchableOpacity style={s.modalField} onPress={() => setShowEventTypes(!showEventTypes)}>
-                <Text style={s.modalFieldValue}>{eventType} ▾</Text>
-              </TouchableOpacity>
-              {showEventTypes && (
-                <View style={s.eventTypeList}>
-                  {EVENT_TYPES.map(t => (
-                    <TouchableOpacity
-                      key={t}
-                      style={[s.eventTypeItem, eventType === t && s.eventTypeItemActive]}
-                      onPress={() => { setEventType(t); setShowEventTypes(false); }}
-                    >
-                      <Text style={[s.eventTypeText, eventType === t && s.eventTypeTextActive]}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {/* Location */}
-              <Text style={s.modalFieldLabel}>Yer (istəyə görə)</Text>
-              <RNTextInput
-                style={s.modalInput}
-                placeholder="Məsələn: Bakı, Hyatt"
-                placeholderTextColor={Colors.muted}
-                value={eventLocation}
-                onChangeText={setEventLocation}
-              />
-
-              {/* Notes */}
-              <Text style={s.modalFieldLabel}>Əlavələr (istəyə görə)</Text>
-              <View style={{ gap: 6 }}>
-                {NOTES_OPTIONS.map((opt, i) => {
-                  const isSelected = eventNotes.split(', ').includes(opt);
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 10,
-                        borderWidth: 1,
-                        borderColor: isSelected ? Colors.gold : Colors.border,
-                        backgroundColor: isSelected ? 'rgba(212,160,60,0.1)' : Colors.bg3,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                      onPress={() => {
-                        const current = eventNotes ? eventNotes.split(', ') : [];
-                        const updated = isSelected
-                          ? current.filter(x => x !== opt)
-                          : [...current, opt];
-                        setEventNotes(updated.join(', '));
-                      }}
-                    >
-                      <Text style={{ color: isSelected ? Colors.gold : Colors.text, fontFamily: Typography.nunito500, fontSize: 13 }}>
-                        {opt}
-                      </Text>
-                      {isSelected && <Text style={{ color: Colors.gold }}>✓</Text>}
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity
-                  style={{
-                    paddingVertical: 10,
-                    paddingHorizontal: 14,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: showCustomNote ? Colors.gold : Colors.border,
-                    backgroundColor: showCustomNote ? 'rgba(212,160,60,0.1)' : Colors.bg3,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                  onPress={() => setShowCustomNote(!showCustomNote)}
-                >
-                  <Text style={{ color: showCustomNote ? Colors.gold : Colors.text, fontFamily: Typography.nunito500, fontSize: 13 }}>
-                    Digər...
-                  </Text>
-                  {showCustomNote && <Text style={{ color: Colors.gold }}>✓</Text>}
-                </TouchableOpacity>
-                {showCustomNote && (
-                  <RNTextInput
-                    style={[s.modalInput, { marginTop: 6 }]}
-                    placeholder="Əlavə tələblər yazın..."
-                    placeholderTextColor={Colors.muted}
-                    value={customNote}
-                    onChangeText={text => {
-                      setCustomNote(text);
-                      const selected = eventNotes.split(', ').filter((x: string) => NOTES_OPTIONS.includes(x));
-                      if (text.trim()) selected.push(text);
-                      setEventNotes(selected.join(', '));
-                    }}
-                  />
-                )}
-              </View>
-
-              {/* Buttons */}
-              <View style={s.modalButtons}>
-                <TouchableOpacity style={s.modalCancelBtn} onPress={() => setShowEventModal(false)}>
-                  <Text style={s.modalCancelText}>Ləğv et</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.modalSaveBtn, !eventDate && { opacity: 0.5 }]}
-                  disabled={!eventDate}
-                  onPress={async () => {
-                    console.log('Saxla: chatId=', chatId, 'eventDate=', eventDate);
-                    setShowEventModal(false);
-                    if (chatId && eventDate) {
-                      await saveChatEventDate(chatId, eventDate, eventType, eventLocation, eventNotes).catch(() => {});
-                      await setWaitingForDate(chatId, false).catch(() => {});
-                      waitingAlertShownRef.current = false;
-                      showToast('✅ Tarix saxlanıldı');
-                    }
-                  }}
-                >
-                  <Text style={s.modalSaveText}>Saxla</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            </ScrollView>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        <EventModal
+          visible={showEventModal}
+          mode="full"
+          title="📅 Tədbir məlumatı"
+          initialDate={eventDate ?? new Date()}
+          onClose={() => setShowEventModal(false)}
+          onSave={async ({ date, type, location, notes }) => {
+            setEventDate(date);
+            setEventType(type);
+            setEventLocation(location);
+            setEventNotes(notes);
+            setShowEventModal(false);
+            if (chatId) {
+              await saveChatEventDate(chatId, date, type, location, notes).catch(() => {});
+              await setWaitingForDate(chatId, false).catch(() => {});
+              waitingAlertShownRef.current = false;
+              showToast('✅ Tarix saxlanıldı');
+            }
+          }}
+        />
 
       </SafeAreaView>
     </Animated.View>

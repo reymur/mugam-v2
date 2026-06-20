@@ -99,7 +99,7 @@ function CustomDatePicker({ value, onChange, mode }: { value: Date; onChange: (d
           <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 }}>
             <WheelCol flex={1} items={days} selectedIndex={value.getDate() - 1} onSelect={i => { const d = new Date(value); d.setDate(i + 1); onChange(d); }} />
             <WheelCol flex={2} items={MONTH_NAMES} selectedIndex={value.getMonth()} onSelect={i => { const d = new Date(value); d.setMonth(i); onChange(d); }} />
-            <WheelCol flex={1} items={years} selectedIndex={Math.max(0, value.getFullYear() - new Date().getFullYear())} onSelect={i => { const d = new Date(value); d.setFullYear(new Date().getFullYear() + i); onChange(d); }} />
+            <WheelCol flex={2} items={years} selectedIndex={Math.max(0, value.getFullYear() - new Date().getFullYear())} onSelect={i => { const d = new Date(value); d.setFullYear(new Date().getFullYear() + i); onChange(d); }} />
             <Text style={{ color: Colors.gold, fontSize: 28, fontFamily: Typography.nunito700, paddingBottom: 4, paddingHorizontal: 8 }}>·</Text>
             <WheelCol flex={1} items={hours} selectedIndex={value.getHours()} onSelect={i => { const d = new Date(value); d.setHours(i); onChange(d); }} />
             <Text style={{ color: Colors.gold, fontSize: 28, fontFamily: Typography.nunito700, paddingBottom: 4, paddingHorizontal: 4 }}>:</Text>
