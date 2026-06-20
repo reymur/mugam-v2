@@ -605,7 +605,30 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
             <TouchableOpacity
               key={day}
               style={{ width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
-              onPress={() => setSelectedDay(isSelected ? null : day)}
+              onPress={() => {
+                if (isSelected) { setSelectedDay(null); return; }
+                setSelectedDay(day);
+                const dayEvents = eventDays[day] ?? [];
+                if (dayEvents.length > 0) {
+                  Alert.alert(
+                    'Bu gün ' + dayEvents.length + ' tədbiriniz var',
+                    'Yeni tədbir əlavə etmək istəyirsiniz?',
+                    [
+                      { text: 'Ləğv et', style: 'cancel' },
+                      { text: '+ Əlavə et', onPress: () => setShowAddModal(true) },
+                    ]
+                  );
+                } else {
+                  Alert.alert(
+                    'Bu gün üçün tədbir yoxdur',
+                    'Yeni tədbir əlavə etmək istəyirsiniz?',
+                    [
+                      { text: 'Ləğv et', style: 'cancel' },
+                      { text: '+ Əlavə et', onPress: () => setShowAddModal(true) },
+                    ]
+                  );
+                }
+              }}
             >
               <View style={{
                 width: 40, height: 40, borderRadius: 20,
@@ -739,13 +762,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
       )}
       {selectedDay && selectedEvents.length === 0 && (
         <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <Text style={{ color: Colors.muted, marginBottom: 16 }}>Bu gün üçün tədbir yoxdur</Text>
-          <TouchableOpacity
-            style={{ padding: 14, borderRadius: 12, backgroundColor: 'rgba(212,160,60,0.1)', borderWidth: 1, borderColor: Colors.gold, alignItems: 'center', width: '100%' }}
-            onPress={() => setShowAddModal(true)}
-          >
-            <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 14 }}>+ Tədbir əlavə et</Text>
-          </TouchableOpacity>
+          <Text style={{ color: Colors.muted }}>Bu gün üçün tədbir yoxdur</Text>
         </View>
       )}
 
