@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Animated, Dimensions, ActivityIndicator,
+  ScrollView, Animated, Dimensions, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getDocs, query, collection, orderBy as fbOrderBy } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
+import * as FireStore from '../../firebase/firestore';
 import { Colors }     from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
@@ -280,9 +281,125 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 }
 
 // ── Calendar View ────────────────────────────────────────
-function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; onSelectAgreement: (ag: any) => void }) {
+// ── Custom Date Picker ────────────────────────────────────
+const ITEM_H = 44;
+const VISIBLE = 3;
+const PICKER_H = ITEM_H * VISIBLE;
+
+function WheelCol({ items, selectedIndex, onSelect, flex = 1 }: {
+  items: string[];
+  selectedIndex: number;
+  onSelect: (i: number) => void;
+  flex?: number;
+}) {
+  const scrollRef = React.useRef<ScrollView>(null);
+
+  React.useEffect(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
+    }, 80);
+  }, []);
+
+  return (
+    <View style={{ flex, height: PICKER_H }}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        onMomentumScrollEnd={e => {
+          const i = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+          onSelect(Math.max(0, Math.min(i, items.length - 1)));
+        }}
+        contentContainerStyle={{ paddingVertical: ITEM_H * 1 }}
+      >
+        {items.map((item, i) => {
+          const isSelected = i === selectedIndex;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => {
+                onSelect(i);
+                scrollRef.current?.scrollTo({ y: i * ITEM_H, animated: true });
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={{
+                color: isSelected ? '#ffffff' : Colors.muted,
+                fontSize: isSelected ? 22 : 15,
+                fontFamily: isSelected ? Typography.nunito700 : Typography.nunito400,
+                opacity: isSelected ? 1 : Math.max(0.15, 1 - Math.abs(i - selectedIndex) * 0.3),
+              }}>
+                {item}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
+  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+
+  return (
+    <View style={{ marginBottom: 8 }}>
+      {/* Static date display */}
+      <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15, textAlign: 'center', marginBottom: 8 }}>
+        {value.getDate()} {monthNames[value.getMonth()]} {value.getFullYear()}
+      </Text>
+      <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: '#161210', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+        {/* Selection highlight */}
+        <View pointerEvents="none" style={{
+          position: 'absolute',
+          top: ITEM_H * 1,
+          left: 8, right: 8,
+          height: ITEM_H,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: 'rgba(212,160,60,0.5)',
+          backgroundColor: 'rgba(255,255,255,0.07)',
+          zIndex: 1,
+        }} />
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 100 }}>
+          <WheelCol
+            flex={1}
+            items={hours}
+            selectedIndex={value.getHours()}
+            onSelect={i => { const d = new Date(value); d.setHours(i); onChange(d); }}
+          />
+          <Text style={{ color: Colors.gold, fontSize: 28, fontFamily: Typography.nunito700, paddingBottom: 4, paddingHorizontal: 8 }}>:</Text>
+          <WheelCol
+            flex={1}
+            items={minutes}
+            selectedIndex={value.getMinutes()}
+            onSelect={i => { const d = new Date(value); d.setMinutes(i); onChange(d); }}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ── Calendar View ────────────────────────────────────────
+function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[] }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [newEventType, setNewEventType] = React.useState('Toy');
+  const [newEventLocation, setNewEventLocation] = React.useState('');
+  const [newEventNotes, setNewEventNotes] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [newEventDate, setNewEventDate] = React.useState(new Date());
+  const [selectedMusicians, setSelectedMusicians] = React.useState<string[]>([]);
+  const [musicianSearch, setMusicianSearch] = React.useState('');
+  const { user, musicians } = useAppStore();
+  const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
+
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -304,6 +421,16 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
     }
   });
 
+  // Add personal events to calendar
+  personalEvents.forEach(e => {
+    if (!e.date) return;
+    const d = new Date(e.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      if (!eventDays[day]) eventDays[day] = [];
+      eventDays[day].push({ ...e, _isPersonal: true });
+    }
+  });
   const selectedEvents = selectedDay ? (eventDays[selectedDay] ?? []) : [];
 
   return (
@@ -375,8 +502,10 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
             {selectedDay} {monthNames[month]}
           </Text>
           {(() => {
+            const agreementEvents = selectedEvents.filter((a: any) => !a._isPersonal);
+            const personalEventsList = selectedEvents.filter((a: any) => a._isPersonal);
             const groups: Record<string, any[]> = {};
-            selectedEvents.forEach((a: any) => {
+            agreementEvents.forEach((a: any) => {
               const time = new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
               const key = `${a.fromUid}|${a.eventType}|${a.eventLocation ?? ''}|${time}`;
               if (!groups[key]) groups[key] = [];
@@ -426,13 +555,197 @@ function CalendarView({ agreements, onSelectAgreement }: { agreements: any[]; on
                 </View>
               );
             });
+
+            // Render personal events
+            const personalCards = personalEventsList.map((e: any, pi: number) => (
+              <View key={'p' + pi} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.gold + '66' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{e.type}</Text>
+                  <Text style={{ color: Colors.muted, fontSize: 12 }}>· Şəxsi məşğuliyyət</Text>
+                </View>
+                {e.location ? <Text style={{ color: Colors.text, fontSize: 13, marginBottom: 4 }}>{'📍 ' + e.location}</Text> : null}
+                {e.notes ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📝 ' + e.notes}</Text> : null}
+              </View>
+            ));
+
+            return [...Object.entries(groups).map(([key, items], gi) => {
+              const first = items[0];
+              const time = new Date(first.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
+              const locations = [...new Set(items.map((a: any) => a.eventLocation).filter(Boolean))];
+              const musicians = items.filter((a: any) => a.toUid !== first.fromUid);
+              return (
+                <View key={gi} style={{ backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+                    <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{first.eventType}</Text>
+                    {locations.length > 0 && <Text style={{ color: Colors.text, fontSize: 13 }}>{"· 📍 " + locations.join(", ")}</Text>}
+                    <Text style={{ color: Colors.text, fontSize: 13 }}>{"· 🕐 " + time}</Text>
+                  </View>
+                  {first.eventNotes && <Text style={{ color: Colors.muted, fontSize: 13, marginBottom: 10 }}>{"📝 " + first.eventNotes}</Text>}
+                  <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: 8 }} />
+                  <Text style={{ color: Colors.muted, fontSize: 11, fontFamily: Typography.nunito700, marginBottom: 8, letterSpacing: 1 }}>MUSİQİÇİLƏR</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.gold + '22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold }}>
+                      <Text style={{ fontSize: 18 }}>👑</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{first.fromName}</Text>
+                      <Text style={{ color: Colors.muted, fontSize: 11 }}>Təklif edən</Text>
+                    </View>
+                  </View>
+                  {musicians.map((a: any, mi: number) => (
+                    <TouchableOpacity key={mi} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }} onPress={() => onSelectAgreement(a)} activeOpacity={0.75}>
+                      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 15 }}>🎵</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{a.toName}</Text>
+                        <Text style={{ color: Colors.muted, fontSize: 11 }}>Musiqiçi</Text>
+                      </View>
+                      <Text style={{ color: Colors.gold, fontSize: 14 }}>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              );
+            }), ...personalCards];
           })()}
         </View>
       )}
       {selectedDay && selectedEvents.length === 0 && (
-        <Text style={{ color: Colors.muted, textAlign: 'center', marginTop: 20 }}>Bu gün üçün tədbir yoxdur</Text>
+        <View style={{ alignItems: 'center', marginTop: 20 }}>
+          <Text style={{ color: Colors.muted, marginBottom: 16 }}>Bu gün üçün tədbir yoxdur</Text>
+          <TouchableOpacity
+            style={{ padding: 14, borderRadius: 12, backgroundColor: 'rgba(212,160,60,0.1)', borderWidth: 1, borderColor: Colors.gold, alignItems: 'center', width: '100%' }}
+            onPress={() => setShowAddModal(true)}
+          >
+            <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 14 }}>+ Məşğuliyyət əlavə et</Text>
+          </TouchableOpacity>
+        </View>
       )}
+
       </ScrollView>
+      {/* Add Personal Event Modal */}
+      <Modal visible={showAddModal} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '90%' }}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18, marginBottom: 16 }}>Məşğuliyyət əlavə et</Text>
+
+            {/* Event Type */}
+            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>NÖV</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {EVENT_TYPES.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={{ flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center', backgroundColor: newEventType === t ? Colors.gold : Colors.bg3, borderWidth: 1, borderColor: newEventType === t ? Colors.gold : Colors.border }}
+                  onPress={() => setNewEventType(t)}
+                >
+                  <Text style={{ color: newEventType === t ? '#1a0e00' : Colors.muted, fontFamily: Typography.nunito700, fontSize: 12 }}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Date & Time Picker */}
+            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>TARİX VƏ VAXT</Text>
+            <CustomDatePicker value={newEventDate} onChange={setNewEventDate} />
+
+            {/* Musicians */}
+            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>MUSİQİÇİLƏR</Text>
+            {selectedMusicians.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {selectedMusicians.map(mid => {
+                  const m = musicians.find(x => (x.uid ?? x.id) === mid);
+                  return (
+                    <TouchableOpacity key={mid} onPress={() => setSelectedMusicians(prev => prev.filter(x => x !== mid))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.gold + '22', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: Colors.gold }}>
+                      <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 12 }}>{m?.name ?? mid}</Text>
+                      <Text style={{ color: Colors.gold, fontSize: 12 }}>×</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+            <TextInput
+              style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 10, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 6, fontSize: 13 }}
+              placeholder="Axtar..."
+              placeholderTextColor={Colors.muted}
+              value={musicianSearch}
+              onChangeText={setMusicianSearch}
+            />
+            {musicianSearch.length > 0 && <View style={{ maxHeight: 140, marginBottom: 16 }}>
+              {musicians.filter(m => m.name.toLowerCase().includes(musicianSearch.toLowerCase())).map(m => {
+                const mid = m.uid ?? m.id;
+                const sel = selectedMusicians.includes(mid);
+                return (
+                  <TouchableOpacity key={mid} onPress={() => setSelectedMusicians(prev => sel ? prev.filter(x => x !== mid) : [...prev, mid])} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+                    <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: sel ? Colors.gold : Colors.muted, backgroundColor: sel ? Colors.gold : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                      {sel && <Text style={{ color: '#1a0e00', fontSize: 12, fontFamily: Typography.nunito700 }}>✓</Text>}
+                    </View>
+                    <Text style={{ color: sel ? Colors.gold : Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{m.name}</Text>
+                    <Text style={{ color: Colors.muted, fontSize: 11 }}>{m.instrument}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>}
+
+            {/* Location */}
+            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>YER</Text>
+            <TextInput
+              style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 16 }}
+              placeholder="Məkan daxil edin..."
+              placeholderTextColor={Colors.muted}
+              value={newEventLocation}
+              onChangeText={setNewEventLocation}
+            />
+
+            {/* Notes */}
+            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>QEYD</Text>
+            <TextInput
+              style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 20, minHeight: 60 }}
+              placeholder="Əlavə qeydlər..."
+              placeholderTextColor={Colors.muted}
+              value={newEventNotes}
+              onChangeText={setNewEventNotes}
+              multiline
+            />
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
+                onPress={() => { setShowAddModal(false); setNewEventLocation(''); setNewEventNotes(''); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
+              >
+                <Text style={{ color: Colors.muted, fontFamily: Typography.nunito700 }}>Ləğv et</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.gold, opacity: saving ? 0.6 : 1 }}
+                disabled={saving}
+                onPress={async () => {
+                  if (!user?.uid) return;
+                  setSaving(true);
+                  try {
+                    const date = newEventDate;
+                    await FireStore.addPersonalEvent(user.uid, {
+                      date: date.toISOString(),
+                      type: newEventType,
+                      location: newEventLocation,
+                      notes: newEventNotes,
+                      musicians: selectedMusicians,
+                    });
+                    setShowAddModal(false);
+                    setNewEventLocation('');
+                    setNewEventNotes('');
+                  } catch { Alert.alert('Xəta', 'Saxlamaq mümkün olmadı'); }
+                  finally { setSaving(false); }
+                }}
+              >
+                {saving ? <ActivityIndicator color="#1a0e00" size="small" /> : <Text style={{ color: '#1a0e00', fontFamily: Typography.nunito700 }}>Saxla</Text>}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -537,6 +850,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
 
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
   const [mainView, setMainView] = useState<'agreements' | 'calendar'>('agreements');
+  const personalEvents = useAppStore(s => s.personalEvents);
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
@@ -571,7 +885,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </View>}
 
       {mainView === 'calendar' && (
-        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} />
+        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} />
       )}
 
       {mainView === 'agreements' && <ScrollView

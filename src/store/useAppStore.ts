@@ -80,6 +80,7 @@ interface AppStore {
   // Agreements
   agreements:         Agreement[];
   readAgreementIds:    string[];
+  personalEvents:      any[];
   markAgreementAsRead: (id: string) => void;
   unreadAgreementsCount: () => number;
   createAgreement:    (toUid: string, toName: string, chatId?: string, eventDate?: string, eventType?: string, eventLocation?: string, eventNotes?: string) => Promise<void>;
@@ -261,6 +262,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   acceptedMusicianIds: new Set<string>(),
   agreements:               [],
   readAgreementIds:         [] as string[],
+  personalEvents:           [],
 
   // ── Subscriptions ─────────────────────────────────────
   _unsubs:   [],
@@ -547,6 +549,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
           set({ agreements });
         });
         get()._addUnsub(unsubAgreements);
+
+        const unsubPersonal = FireStore.subscribePersonalEvents(firebaseUser.uid, (events) => {
+          set({ personalEvents: events });
+        });
+        get()._addUnsub(unsubPersonal);
 
         get().subscribeInvites(firebaseUser.uid);
         FireMsg.registerFCMToken(firebaseUser.uid).then(unsub => get()._addUnsub(unsub)).catch(() => {});

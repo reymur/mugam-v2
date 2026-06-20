@@ -595,3 +595,47 @@ export async function setWaitingForDate(chatId: string, waiting: boolean): Promi
     });
   } catch { /* ignore */ }
 }
+
+// ── Personal Events ──────────────────────────────────────
+export async function addPersonalEvent(
+  uid: string,
+  event: {
+    date: string;
+    type: string;
+    location: string;
+    notes: string;
+    musicians: string[];
+  }
+): Promise<string> {
+  const ref = await addDoc(
+    collection(fbFirestore, 'personalEvents', uid, 'events'),
+    {
+      ...event,
+      createdAt: serverTimestamp(),
+    }
+  );
+  return ref.id;
+}
+
+export function subscribePersonalEvents(
+  uid: string,
+  cb: (events: any[]) => void
+): () => void {
+  return onSnapshot(
+    collection(fbFirestore, 'personalEvents', uid, 'events'),
+    (snap) => {
+      const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cb(events);
+    },
+    () => cb([])
+  );
+}
+
+export async function deletePersonalEvent(
+  uid: string,
+  eventId: string
+): Promise<void> {
+  await deleteDoc(
+    doc(fbFirestore, 'personalEvents', uid, 'events', eventId)
+  );
+}
