@@ -49,8 +49,8 @@ export default function EventCard({
           {location ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📍 ' + location}</Text> : null}
           <Text style={{ color: Colors.muted, fontSize: 12 }}>{'🕐 ' + time}</Text>
         </View>
-        <View style={{ borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: badge.bg, borderWidth: 1, borderColor: badge.color }}>
-          <Text style={{ color: badge.color, fontSize: 10, fontFamily: Typography.nunito700 }}>{badge.label}</Text>
+        <View style={{ borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'transparent' }}>
+          <Text style={{ color: badge.color, fontSize: 16 }}>{badge.label}</Text>
         </View>
       </View>
 

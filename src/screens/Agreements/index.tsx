@@ -672,7 +672,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   time={time}
                   location={locations.join(', ')}
                   notes={first.eventNotes}
-                  badge={{ label: 'Müqavilə', color: Colors.green, bg: 'rgba(39,174,96,0.15)' }}
+                  badge={{ label: '🤝', color: Colors.green, bg: 'rgba(39,174,96,0.15)' }}
                   initiator={initiator}
                   musicians={allMusicians}
                   onPress={() => onSelectAgreement(first)}
