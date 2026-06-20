@@ -14,6 +14,7 @@ import { useAppStore } from '../../store/useAppStore';
 import type { Agreement } from '../../store/useAppStore';
 import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
 import EventCard from '../../components/common/EventCard';
+import EventModal from '../../components/common/EventModal';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -499,16 +500,10 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
-  const [newEventType, setNewEventType] = React.useState('Toy');
-  const [newEventLocation, setNewEventLocation] = React.useState('');
-  const [newEventNotes, setNewEventNotes] = React.useState('');
-  const [newEventQeyd, setNewEventQeyd] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
   const [newEventDate, setNewEventDate] = React.useState(new Date());
   const [selectedMusicians, setSelectedMusicians] = React.useState<string[]>([]);
   const [musicianSearch, setMusicianSearch] = React.useState('');
   const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
-  const [digerText, setDigerText] = React.useState('');
   const [selectedPersonalEvent, setSelectedPersonalEvent] = React.useState<any>(null);
   const [profileMusician, setProfileMusician] = React.useState<any>(null);
   const lastTapRef = React.useRef<{ day: number; time: number } | null>(null);
@@ -786,168 +781,32 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
       {profileMusician && (
         <MusicianProfileScreen musician={profileMusician} onClose={() => setProfileMusician(null)} />
       )}
-      {/* Add Personal Event Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%', flex: 1 }}>
-            {/* Fixed Header */}
-            <View style={{ padding: 20, paddingBottom: 12 }}>
-              <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Tədbir əlavə et</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {EVENT_TYPES.map(t => (
-                  <TouchableOpacity
-                    key={t}
-                    style={{ flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center', backgroundColor: newEventType === t ? Colors.gold : Colors.bg3, borderWidth: 1, borderColor: newEventType === t ? Colors.gold : Colors.border }}
-                    onPress={() => setNewEventType(t)}
-                  >
-                    <Text style={{ color: newEventType === t ? '#1a0e00' : Colors.muted, fontFamily: Typography.nunito700, fontSize: 12 }}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15, textAlign: 'center', marginTop: 12 }}>
-                {newEventDate.getDate()} {['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'][newEventDate.getMonth()]} {newEventDate.getFullYear()}
-              </Text>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 20 }}>
-
-            {/* Date & Time Picker */}
-            <CustomDatePicker value={newEventDate} onChange={setNewEventDate} />
-
-            {/* Musicians */}
-            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>MUSİQİÇİLƏR</Text>
-            {selectedMusicians.length > 0 && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                {selectedMusicians.map(mid => {
-                  const m = musicians.find(x => (x.uid ?? x.id) === mid);
-                  return (
-                    <TouchableOpacity key={mid} onPress={() => { if (m) { setShowAddModal(false); onOpenProfile(m); } }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.gold + '22', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.gold }}>
-                      <Text style={{ fontSize: 16 }}>{m?.emoji ?? '👤'}</Text>
-                      <View>
-                        <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 12 }}>{m?.name ?? mid}</Text>
-                        {m?.instrument ? <Text style={{ color: Colors.gold, fontSize: 10, opacity: 0.7 }}>{m.instrument}</Text> : null}
-                      </View>
-                      <TouchableOpacity onPress={() => setSelectedMusicians(prev => prev.filter(x => x !== mid))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 6, padding: 2 }}>
-                        <Text style={{ color: Colors.red, fontSize: 16, fontFamily: Typography.nunito700 }}>×</Text>
-                      </TouchableOpacity>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bg3, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 16, padding: 12 }}
-              onPress={() => { setShowAddModal(false); setShowMusicianPicker(true); }}
-            >
-              <Text style={{ flex: 1, color: Colors.muted, fontSize: 13 }}>Musiqiçi seç...</Text>
-              <Text style={{ color: Colors.gold, fontSize: 16 }}>+</Text>
-            </TouchableOpacity>
-
-            {/* Location */}
-            <TextInput
-              style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 16 }}
-              placeholder="Məkan daxil edin..."
-              placeholderTextColor={Colors.muted}
-              value={newEventLocation}
-              onChangeText={setNewEventLocation}
-            />
-
-            {/* Əlavələr */}
-            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>ƏLAVƏLƏR (istəyə görə)</Text>
-            <View style={{ gap: 6, marginBottom: 16 }}>
-              {NOTES_OPTIONS.map((opt, i) => {
-                const isDiger = opt === 'Digər...';
-                const isSelected = isDiger
-                  ? newEventNotes.split(', ').some(x => !NOTES_OPTIONS.slice(0,-1).includes(x) && x.length > 0)
-                  : newEventNotes.split(', ').includes(opt);
-                return (
-                  <View key={i}>
-                    <TouchableOpacity
-                      style={{ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: isSelected ? Colors.gold : Colors.border, backgroundColor: isSelected ? 'rgba(212,160,60,0.1)' : Colors.bg3, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                      onPress={() => {
-                        if (isDiger) {
-                          setDigerText(prev => prev ? '' : ' ');
-                          if (digerText) {
-                            const current = newEventNotes.split(', ').filter(x => NOTES_OPTIONS.slice(0,-1).includes(x));
-                            setNewEventNotes(current.join(', '));
-                            setDigerText('');
-                          }
-                        } else {
-                          const current = newEventNotes ? newEventNotes.split(', ').filter(Boolean) : [];
-                          const updated = isSelected ? current.filter(x => x !== opt) : [...current, opt];
-                          setNewEventNotes(updated.join(', '));
-                        }
-                      }}
-                    >
-                      <Text style={{ color: isSelected ? Colors.gold : Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{opt}</Text>
-                      {isSelected && <Text style={{ color: Colors.gold }}>✓</Text>}
-                    </TouchableOpacity>
-                    {isDiger && digerText !== '' && (
-                      <TextInput
-                        style={{ backgroundColor: Colors.bg3, borderRadius: 10, padding: 10, color: Colors.text, borderWidth: 1, borderColor: Colors.gold, marginTop: 6, fontSize: 13 }}
-                        placeholder="Öz variantınızı yazın..."
-                        placeholderTextColor={Colors.muted}
-                        value={digerText.trim()}
-                        onChangeText={text => {
-                          setDigerText(text);
-                          const standard = newEventNotes.split(', ').filter(x => NOTES_OPTIONS.slice(0,-1).includes(x));
-                          setNewEventNotes([...standard, text].filter(Boolean).join(', '));
-                        }}
-                      />
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-
-            <TextInput
-              style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 20, minHeight: 60 }}
-              placeholder="Əlavə qeydlər..."
-              placeholderTextColor={Colors.muted}
-              value={newEventQeyd}
-              onChangeText={setNewEventQeyd}
-              multiline
-            />
-
-            </ScrollView>
-            {/* Fixed Buttons */}
-            <View style={{ flexDirection: 'row', gap: 10, padding: 20, paddingTop: 12 }}>
-              <TouchableOpacity
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
-                onPress={() => { setShowAddModal(false); setNewEventLocation(''); setNewEventNotes(''); setNewEventQeyd(''); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
-              >
-                <Text style={{ color: Colors.muted, fontFamily: Typography.nunito700 }}>Ləğv et</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.gold, opacity: saving ? 0.6 : 1 }}
-                disabled={saving}
-                onPress={async () => {
-                  if (!user?.uid) return;
-                  setSaving(true);
-                  try {
-                    const date = newEventDate;
-                    await FireStore.addPersonalEvent(user.uid, {
-                      date: date.toISOString(),
-                      type: newEventType,
-                      location: newEventLocation,
-                      notes: [newEventNotes, newEventQeyd].filter(Boolean).join(' | '),
-                      musicians: selectedMusicians,
-                    });
-                    setShowAddModal(false);
-                    setNewEventLocation('');
-                    setNewEventNotes('');
-                    setNewEventQeyd('');
-                  } catch { Alert.alert('Xəta', 'Saxlamaq mümkün olmadı'); }
-                  finally { setSaving(false); }
-                }}
-              >
-                {saving ? <ActivityIndicator color="#1a0e00" size="small" /> : <Text style={{ color: '#1a0e00', fontFamily: Typography.nunito700 }}>Saxla</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <EventModal
+        visible={showAddModal}
+        mode="time-only"
+        initialDate={newEventDate}
+        allMusicians={musicians}
+        selectedMusicians={selectedMusicians}
+        onOpenMusicianPicker={() => { setShowAddModal(false); setShowMusicianPicker(true); }}
+        onRemoveMusician={(uid) => setSelectedMusicians(prev => prev.filter(x => x !== uid))}
+        onOpenProfile={(m) => { setShowAddModal(false); onOpenProfile(m); }}
+        onClose={() => { setShowAddModal(false); setSelectedMusicians([]); setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0)); }}
+        onSave={async ({ date, type, location, notes, qeyd, musicians: mList }) => {
+          if (!user?.uid) return;
+          try {
+            await FireStore.addPersonalEvent(user.uid, {
+              date: date.toISOString(),
+              type,
+              location,
+              notes: [notes, qeyd].filter(Boolean).join(' | '),
+              musicians: mList,
+            });
+            setShowAddModal(false);
+            setSelectedMusicians([]);
+            setNewEventDate(new Date(year, month, selectedDay ?? 1, 12, 0));
+          } catch { Alert.alert('Xəta', 'Saxlamaq mümkün olmadı'); }
+        }}
+      />
     </View>
   );
 }
