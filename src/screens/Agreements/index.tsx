@@ -386,7 +386,7 @@ function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date
 }
 
 // ── Calendar View ────────────────────────────────────────
-function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[] }) {
+function CalendarView({ agreements, onSelectAgreement, personalEvents, onOpenProfile, showModalFromParent, onModalShown }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[]; onOpenProfile: (m: any) => void; showModalFromParent?: boolean; onModalShown?: () => void }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
@@ -399,6 +399,13 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
   const [musicianSearch, setMusicianSearch] = React.useState('');
   const { user, musicians } = useAppStore();
   const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
+
+  React.useEffect(() => {
+    if (showModalFromParent) {
+      setShowAddModal(true);
+      onModalShown?.();
+    }
+  }, [showModalFromParent]);
 
 
   const year = currentDate.getFullYear();
@@ -656,25 +663,34 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
                 {selectedMusicians.map(mid => {
                   const m = musicians.find(x => (x.uid ?? x.id) === mid);
                   return (
-                    <TouchableOpacity key={mid} onPress={() => setSelectedMusicians(prev => prev.filter(x => x !== mid))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.gold + '22', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.gold }}>
+                    <TouchableOpacity key={mid} onPress={() => { if (m) { setShowAddModal(false); onOpenProfile(m); } }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.gold + '22', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.gold }}>
                       <Text style={{ fontSize: 16 }}>{m?.emoji ?? '👤'}</Text>
                       <View>
                         <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 12 }}>{m?.name ?? mid}</Text>
                         {m?.instrument ? <Text style={{ color: Colors.gold, fontSize: 10, opacity: 0.7 }}>{m.instrument}</Text> : null}
                       </View>
-                      <Text style={{ color: Colors.gold, fontSize: 12, marginLeft: 4 }}>×</Text>
+                      <TouchableOpacity onPress={() => setSelectedMusicians(prev => prev.filter(x => x !== mid))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 6, padding: 2 }}>
+                        <Text style={{ color: Colors.red, fontSize: 16, fontFamily: Typography.nunito700 }}>×</Text>
+                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })}
               </View>
             )}
-            <TextInput
-              style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 10, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 6, fontSize: 13 }}
-              placeholder="Axtar..."
-              placeholderTextColor={Colors.muted}
-              value={musicianSearch}
-              onChangeText={setMusicianSearch}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bg3, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 6, paddingRight: 8 }}>
+              <TextInput
+                style={{ flex: 1, padding: 10, color: Colors.text, fontSize: 13 }}
+                placeholder="Axtar..."
+                placeholderTextColor={Colors.muted}
+                value={musicianSearch}
+                onChangeText={setMusicianSearch}
+              />
+              {musicianSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setMusicianSearch('')}>
+                  <Text style={{ color: Colors.muted, fontSize: 18, paddingHorizontal: 4 }}>×</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {musicianSearch.length > 0 && <View style={{ maxHeight: 140, marginBottom: 16 }}>
               {musicians.filter(m => m.name.toLowerCase().includes(musicianSearch.toLowerCase())).map(m => {
                 const mid = m.uid ?? m.id;
@@ -860,6 +876,8 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
   const [mainView, setMainView] = useState<'agreements' | 'calendar'>('agreements');
   const personalEvents = useAppStore(s => s.personalEvents);
+  const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
+  const [calendarShowModal, setCalendarShowModal] = useState(false);
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
@@ -894,7 +912,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </View>}
 
       {mainView === 'calendar' && (
-        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} />
+        <CalendarView agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
       )}
 
       {mainView === 'agreements' && <ScrollView
@@ -924,6 +942,9 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         )}
       </ScrollView>}
 
+      {calendarProfileMusician && (
+        <MusicianProfileScreen musician={calendarProfileMusician} onClose={() => { setCalendarProfileMusician(null); setCalendarShowModal(true); }} />
+      )}
       {selected && (
         <AgreementDetail
           agreement={selected}
