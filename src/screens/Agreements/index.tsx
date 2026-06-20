@@ -617,7 +617,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
             style={{ padding: 14, borderRadius: 12, backgroundColor: 'rgba(212,160,60,0.1)', borderWidth: 1, borderColor: Colors.gold, alignItems: 'center', width: '100%' }}
             onPress={() => setShowAddModal(true)}
           >
-            <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 14 }}>+ Məşğuliyyət əlavə et</Text>
+            <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 14 }}>+ Tədbir əlavə et</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -629,10 +629,10 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '90%' }}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18, marginBottom: 16 }}>Məşğuliyyət əlavə et</Text>
+            <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Tədbir əlavə et</Text>
 
             {/* Event Type */}
-            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>NÖV</Text>
+            
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
               {EVENT_TYPES.map(t => (
                 <TouchableOpacity
@@ -646,7 +646,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
             </View>
 
             {/* Date & Time Picker */}
-            <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>TARİX VƏ VAXT</Text>
+            
             <CustomDatePicker value={newEventDate} onChange={setNewEventDate} />
 
             {/* Musicians */}
@@ -656,9 +656,13 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
                 {selectedMusicians.map(mid => {
                   const m = musicians.find(x => (x.uid ?? x.id) === mid);
                   return (
-                    <TouchableOpacity key={mid} onPress={() => setSelectedMusicians(prev => prev.filter(x => x !== mid))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.gold + '22', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: Colors.gold }}>
-                      <Text style={{ color: Colors.gold, fontFamily: Typography.nunito600, fontSize: 12 }}>{m?.name ?? mid}</Text>
-                      <Text style={{ color: Colors.gold, fontSize: 12 }}>×</Text>
+                    <TouchableOpacity key={mid} onPress={() => setSelectedMusicians(prev => prev.filter(x => x !== mid))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.gold + '22', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.gold }}>
+                      <Text style={{ fontSize: 16 }}>{m?.emoji ?? '👤'}</Text>
+                      <View>
+                        <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 12 }}>{m?.name ?? mid}</Text>
+                        {m?.instrument ? <Text style={{ color: Colors.gold, fontSize: 10, opacity: 0.7 }}>{m.instrument}</Text> : null}
+                      </View>
+                      <Text style={{ color: Colors.gold, fontSize: 12, marginLeft: 4 }}>×</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -680,8 +684,13 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents }: { agree
                     <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: sel ? Colors.gold : Colors.muted, backgroundColor: sel ? Colors.gold : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                       {sel && <Text style={{ color: '#1a0e00', fontSize: 12, fontFamily: Typography.nunito700 }}>✓</Text>}
                     </View>
-                    <Text style={{ color: sel ? Colors.gold : Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{m.name}</Text>
-                    <Text style={{ color: Colors.muted, fontSize: 11 }}>{m.instrument}</Text>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 18 }}>{m.emoji ?? '👤'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: sel ? Colors.gold : Colors.text, fontFamily: Typography.nunito600, fontSize: 13 }}>{m.name}</Text>
+                      <Text style={{ color: Colors.muted, fontSize: 11 }}>{m.instrument}</Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
