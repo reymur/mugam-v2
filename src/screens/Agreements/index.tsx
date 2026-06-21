@@ -94,7 +94,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
       StyleSheet.absoluteFillObject,
       { backgroundColor: Colors.bg, zIndex: 100, transform: [{ translateX: slideAnim }] },
     ]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <View style={d.header}>
           <TouchableOpacity style={d.backBtn} onPress={handleClose} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
             <Text style={d.backText}>←</Text>
