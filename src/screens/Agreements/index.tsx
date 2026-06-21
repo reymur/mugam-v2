@@ -910,6 +910,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
   const musicians = useAppStore(s => s.musicians);
   const [tedbirDetail, setTedbirDetail] = useState<any>(null);
+  const [tedbirTab, setTedbirTab] = useState<'hamisi' | 'sexsi' | 'dəvətli'>('hamisi');
   const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
   const [calendarShowModal, setCalendarShowModal] = useState(false);
 
@@ -952,11 +953,21 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </View>}
 
       {mainView === 'tedbirler' && (
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
+        <>
+          <View style={{ flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 12, backgroundColor: Colors.bg3, padding: 4 }}>
+            {(['hamisi', 'sexsi', 'dəvətli'] as const).map(tab => (
+              <TouchableOpacity key={tab} onPress={() => setTedbirTab(tab)} style={{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10, backgroundColor: tedbirTab === tab ? Colors.gold : 'transparent' }}>
+                <Text style={{ fontSize: 13, fontFamily: Typography.nunito600, color: tedbirTab === tab ? '#1a0e00' : Colors.muted }}>
+                  {tab === 'hamisi' ? 'Hamısı' : tab === 'sexsi' ? 'Şəxsi' : 'Dəvətli'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
           {[
-              ...personalEvents.map(e => ({ ...e, _type: 'personal' })),
-              ...eventsAsMusician.map(e => ({ ...e, _isInvited: true, _type: 'personal' })),
-              ...agreements.filter((a: any) => a.status === 'agreed' && a.eventDate).map((a: any) => ({ ...a, _type: 'agreement', date: a.eventDate })),
+              ...(tedbirTab === 'dəvətli' ? [] : personalEvents.map(e => ({ ...e, _type: 'personal' }))),
+              ...(tedbirTab === 'sexsi' ? [] : eventsAsMusician.map(e => ({ ...e, _isInvited: true, _type: 'personal' }))),
+              ...(tedbirTab === 'sexsi' ? [] : agreements.filter((a: any) => a.status === 'agreed' && a.eventDate).map((a: any) => ({ ...a, _type: 'agreement', date: a.eventDate }))),
             ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .map((e, i) => {
               const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -1001,6 +1012,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             <Text style={{ color: Colors.muted, textAlign: 'center', marginTop: 40 }}>Heç bir tədbir yoxdur</Text>
           )}
         </ScrollView>
+        </>
       )}
 
       {mainView === 'calendar' && (
@@ -1034,15 +1046,15 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         )}
       </ScrollView>}
 
-      {calendarProfileMusician && (
-        <MusicianProfileScreen musician={calendarProfileMusician} onClose={() => { setCalendarProfileMusician(null); }} />
-      )}
       {tedbirDetail && (
         <PersonalEventDetail
           event={[...personalEvents, ...eventsAsMusician].find(e => e.id === tedbirDetail.id) ?? tedbirDetail}
           onClose={() => setTedbirDetail(null)}
-          onOpenProfile={(m) => { setTedbirDetail(null); setCalendarProfileMusician(m); }}
+          onOpenProfile={(m) => { setCalendarProfileMusician(m); }}
         />
+      )}
+      {calendarProfileMusician && (
+        <MusicianProfileScreen musician={calendarProfileMusician} onClose={() => { setCalendarProfileMusician(null); }} />
       )}
       {selected && (
         <AgreementDetail
