@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../theme/colors';
 import LocationPicker from './LocationPicker';
+import MusicianPicker from './MusicianPicker';
 import { Typography } from '../../theme/typography';
 
 const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
@@ -134,6 +135,7 @@ interface EventModalProps {
   initialDate?: Date;
   allMusicians?: Musician[];
   onOpenMusicianPicker?: () => void;
+  onMusicianChange?: (uids: string[]) => void;
   selectedMusicians?: string[];
   onRemoveMusician?: (uid: string) => void;
   onOpenProfile?: (m: Musician) => void;
@@ -143,7 +145,7 @@ interface EventModalProps {
 export default function EventModal({
   visible, onClose, onSave, mode,
   initialDate, allMusicians = [],
-  onOpenMusicianPicker, selectedMusicians = [],
+  onOpenMusicianPicker, selectedMusicians = [], onMusicianChange,
   onRemoveMusician, onOpenProfile,
   title,
 }: EventModalProps) {
@@ -155,6 +157,7 @@ export default function EventModal({
   const [digerText, setDigerText] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [showLocationPicker, setShowLocationPicker] = React.useState(false);
+  const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -220,12 +223,20 @@ export default function EventModal({
                     </View>
                   )}
                   <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bg3, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 16, padding: 12 }}
-                    onPress={onOpenMusicianPicker}
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bg3, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 8, padding: 12 }}
+                    onPress={() => setShowMusicianPicker(true)}
                   >
                     <Text style={{ flex: 1, color: Colors.muted, fontSize: 13 }}>Musiqiçi seç...</Text>
                     <Text style={{ color: Colors.gold, fontSize: 16 }}>+</Text>
                   </TouchableOpacity>
+                  <MusicianPicker
+                    visible={showMusicianPicker}
+                    onClose={() => setShowMusicianPicker(false)}
+                    musicians={allMusicians ?? []}
+                    selectedMusicians={selectedMusicians}
+                    onMusicianChange={(uids) => { onMusicianChange?.(uids); }}
+                  />
+
                 </>
               )}
 
