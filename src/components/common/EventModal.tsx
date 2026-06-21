@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Modal,
+  View, Text, TextInput, TouchableOpacity, Modal, Alert,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../../theme/colors';
@@ -44,12 +44,15 @@ interface EventModalProps {
   onRemoveMusician?: (uid: string) => void;
   onOpenProfile?: (m: Musician) => void;
   title?: string;
+  existingEvents?: any[];
+  onConflict?: (conflictEvent: any, pendingData: { date: Date; type: string; location: string; notes: string; qeyd: string; musicians: string[] }) => void;
+  onBax?: (conflictEvent: any) => void;
 }
 
 export default function EventModal({
   visible, onClose, onSave, mode,
   initialDate, initialType, initialLocation, initialNotes, allMusicians = [],
-  selectedMusicians = [], onMusicianChange,
+  selectedMusicians = [], onMusicianChange, existingEvents = [], onConflict, onBax,
   onRemoveMusician, onOpenProfile,
   title,
 }: EventModalProps) {
@@ -62,6 +65,9 @@ export default function EventModal({
   const [saving, setSaving] = React.useState(false);
   const [showLocationPicker, setShowLocationPicker] = React.useState(false);
   const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
+  const [showConflictModal, setShowConflictModal] = React.useState(false);
+  const [pendingData, setPendingData] = React.useState<{ date: Date; type: string; location: string; notes: string; qeyd: string; musicians: string[] } | null>(null);
+  const [conflictEvent, setConflictEvent] = React.useState<any>(null);
 
   React.useEffect(() => {
     if (visible) {
@@ -83,6 +89,7 @@ export default function EventModal({
   }, [visible]);
 
   return (
+    <>
     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
@@ -237,9 +244,24 @@ export default function EventModal({
                 style={{ flex: 1, paddingVertical: 14, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.gold, opacity: saving ? 0.6 : 1 }}
                 disabled={saving}
                 onPress={async () => {
+                  const data = { date: eventDate, type: eventType, location: eventLocation, notes: eventNotes, qeyd: eventQeyd, musicians: selectedMusicians };
+                  const conflict = existingEvents.find(e => {
+                    const eDate = new Date(e.date ?? e.eventDate);
+                    const match = eDate.getFullYear() === eventDate.getFullYear() &&
+                           eDate.getMonth() === eventDate.getMonth() &&
+                           eDate.getDate() === eventDate.getDate();
+                    return match;
+                  });
+                  if (conflict) {
+                    console.log('SHOW CONFLICT MODAL');
+                    setPendingData(data);
+                    setConflictEvent(conflict);
+                    setShowConflictModal(true);
+                    return;
+                  }
                   setSaving(true);
                   try {
-                    await onSave({ date: eventDate, type: eventType, location: eventLocation, notes: eventNotes, qeyd: eventQeyd, musicians: selectedMusicians });
+                    await onSave(data);
                   } finally {
                     setSaving(false);
                   }
@@ -252,6 +274,58 @@ export default function EventModal({
           </View>
         </View>
       </KeyboardAvoidingView>
+      {showConflictModal && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 24, zIndex: 999 }}>
+          <View style={{ backgroundColor: '#1c1710', borderRadius: 20, padding: 24, width: '100%', borderWidth: 1, borderColor: Colors.gold }}>
+            <TouchableOpacity
+              onPress={() => setShowConflictModal(false)}
+              style={{ position: 'absolute', top: 12, right: 12 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={{ color: Colors.muted, fontSize: 20 }}>✕</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18 }}>
+                  Bu tarixdə tədbir var
+                </Text>
+                {onConflict && (
+                  <TouchableOpacity
+                    onPress={() => { setShowConflictModal(false); onBax?.(conflictEvent); }}
+                    style={{ backgroundColor: Colors.bg3, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: Colors.gold }}
+                  >
+                    <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>Bax</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            <TouchableOpacity
+              style={{ paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: Colors.gold, marginBottom: 10 }}
+              onPress={async () => {
+                setShowConflictModal(false);
+                if (!pendingData) return;
+                setSaving(true);
+                try { await onSave(pendingData); } finally { setSaving(false); }
+              }}
+            >
+              <Text style={{ color: '#1a0e00', fontFamily: Typography.nunito700 }}>Əvəz et</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
+              onPress={async () => {
+                setShowConflictModal(false);
+                if (!pendingData) return;
+                setSaving(true);
+                try { await onSave(pendingData); } finally { setSaving(false); }
+              }}
+            >
+              <Text style={{ color: Colors.text, fontFamily: Typography.nunito700 }}>Yeni tədbir</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </Modal>
+
+    </>
   );
 }

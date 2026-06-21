@@ -14,7 +14,7 @@ export default function WheelTimePicker({ value, onChange, mode }: WheelTimePick
     <View style={{ height: 102, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
       <DateTimePicker
         value={value}
-        mode={mode === 'full' ? 'datetime' : 'time'}
+        mode="datetime"
         display="spinner"
         onChange={(_, date) => { if (date) onChange(date); }}
         locale="az"

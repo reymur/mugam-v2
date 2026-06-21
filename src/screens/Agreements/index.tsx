@@ -15,12 +15,16 @@ import type { Agreement } from '../../store/useAppStore';
 import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
 import EventCard from '../../components/common/EventCard';
 import EventModal from '../../components/common/EventModal';
+import ConflictModal from '../../components/common/ConflictModal';
 
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Agreement Detail Screen ───────────────────────────────
 function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose: () => void }) {
   const { user, musicians } = useAppStore();
+  const agreements = useAppStore(s => s.agreements);
+  const personalEvents = useAppStore(s => s.personalEvents);
+  const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
   const [chatMessages,    setChatMessages]    = React.useState<any[]>([]);
   const [loadingMsgs,    setLoadingMsgs]    = React.useState(false);
   const [selectedMusician, setSelectedMusician] = React.useState<any>(null);
@@ -283,6 +287,11 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
         mode="full"
+        existingEvents={[
+          ...agreements.filter((a: any) => a.eventDate).map((a: any) => ({ ...a, date: a.eventDate })),
+          ...personalEvents,
+          ...eventsAsMusician,
+        ]}
         title="Müqaviləni redaktə et"
         initialDate={agreement.eventDate ? new Date(agreement.eventDate) : new Date()}
         initialType={(agreement as any).eventType}
@@ -300,6 +309,57 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           setShowEditModal(false);
         }}
       />
+      <ConflictModal
+        visible={conflictVisible}
+        conflictEvent={conflictEvent}
+        pendingData={conflictPending}
+        onClose={() => setConflictVisible(false)}
+        onBax={(ce) => { setConflictVisible(false); }}
+        onEvezEt={async (pd) => {
+          setConflictVisible(false);
+          await FireStore.updatePersonalEvent(event.id, {
+            date: pd.date.toISOString(),
+            type: pd.type,
+            location: pd.location,
+            notes: [pd.notes, pd.qeyd].filter(Boolean).join(' | '),
+            musicians: pd.musicians,
+          });
+          setShowEditModal(false);
+        }}
+        onYeniTedbir={(pd, ce) => {
+          setConflictVisible(false);
+          setShowEditModal(false);
+        }}
+      />
+      <ConflictModal
+        visible={conflictVisible}
+        conflictEvent={conflictEvent}
+        pendingData={conflictPending}
+        onClose={() => setConflictVisible(false)}
+        onBax={(ce) => { setConflictVisible(false); }}
+        onEvezEt={async (pd) => {
+          setConflictVisible(false);
+          await FireStore.updatePersonalEvent(event.id, {
+            date: pd.date.toISOString(),
+            type: pd.type,
+            location: pd.location,
+            notes: [pd.notes, pd.qeyd].filter(Boolean).join(' | '),
+            musicians: pd.musicians,
+          });
+          setShowEditModal(false);
+        }}
+        onYeniTedbir={(_pd, _ce) => {
+          setConflictVisible(false);
+          setShowEditModal(false);
+        }}
+      />
+      {tedbirBaxEvent && (
+        <PersonalEventDetail
+          event={tedbirBaxEvent}
+          onClose={() => setTedbirBaxEvent(null)}
+          onOpenProfile={onOpenProfile}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -408,8 +468,11 @@ function CustomDatePicker({ value, onChange }: { value: Date; onChange: (d: Date
 
 
 // ── Personal Event Detail ─────────────────────────────────
-function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; onClose: () => void; onOpenProfile: (m: any) => void }) {
+function PersonalEventDetail({ event, onClose, onOpenProfile, onConflictTrigger, onBaxTrigger }: { event: any; onClose: () => void; onOpenProfile: (m: any) => void; onConflictTrigger?: (ce: any, pd: any) => void; onBaxTrigger?: (ce: any) => void }) {
   const { musicians, user } = useAppStore();
+  const personalEvents = useAppStore(s => s.personalEvents);
+  const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
+  const agreements = useAppStore(s => s.agreements);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
 
@@ -427,6 +490,7 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
   const isOwner = event.ownerUid === user?.uid;
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [editMusicians, setEditMusicians] = React.useState<string[]>(event.musicians ?? []);
+  const [tedbirBaxEvent, setTedbirBaxEvent] = React.useState<any>(null);
   const owner = musicians.find(m => (m.uid ?? m.id) === event.ownerUid);
   const eventMusicians = (event.musicians ?? []).map((uid: string) => musicians.find(m => (m.uid ?? m.id) === uid)).filter(Boolean);
 
@@ -543,6 +607,9 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
         mode="time-only"
+        existingEvents={[...personalEvents, ...eventsAsMusician]}
+        onConflict={(ce, pd) => { onConflictTrigger?.(ce, pd); }}
+        onBax={(ce) => { setShowEditModal(false); setTimeout(() => onBaxTrigger?.(ce), 300); }}
         title="Tədbiri redaktə et"
         initialDate={event.date ? new Date(event.date) : new Date()}
         initialType={event.type}
@@ -793,6 +860,8 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
           event={[...personalEvents, ...eventsAsMusician].find(e => e.id === selectedPersonalEvent.id) ?? selectedPersonalEvent}
           onClose={() => setSelectedPersonalEvent(null)}
           onOpenProfile={(m) => { onOpenProfile(m); }}
+          onConflictTrigger={(ce, pd) => { setConflictEvent(ce); setConflictPending(pd); setConflictEventId(event?.id ?? null); setTimeout(() => setConflictVisible(true), 300); }}
+          onBaxTrigger={(ce) => { setBaxDetail(ce); }}
         />
       )}
       {profileMusician && (
@@ -802,6 +871,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
         visible={showAddModal}
         mode="time-only"
         initialDate={newEventDate}
+        existingEvents={[...personalEvents, ...eventsAsMusician, ...agreements.filter((a: any) => a.eventDate).map((a: any) => ({ ...a, date: a.eventDate }))]}
         allMusicians={musicians}
         selectedMusicians={selectedMusicians}
         onMusicianChange={(uids) => setSelectedMusicians(uids)}
@@ -932,6 +1002,11 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
   const musicians = useAppStore(s => s.musicians);
   const [tedbirDetail, setTedbirDetail] = useState<any>(null);
+  const [conflictVisible, setConflictVisible] = useState(false);
+  const [conflictEvent, setConflictEvent] = useState<any>(null);
+  const [conflictPending, setConflictPending] = useState<any>(null);
+  const [conflictEventId, setConflictEventId] = useState<string | null>(null);
+  const [baxDetail, setBaxDetail] = useState<any>(null);
   const [tedbirTab, setTedbirTab] = useState<'hamisi' | 'sexsi' | 'dəvətli'>('hamisi');
   const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
   const [calendarShowModal, setCalendarShowModal] = useState(false);
@@ -1073,6 +1148,8 @@ export default function AgreementsScreen({ route }: { route?: any }) {
           event={[...personalEvents, ...eventsAsMusician].find(e => e.id === tedbirDetail.id) ?? tedbirDetail}
           onClose={() => setTedbirDetail(null)}
           onOpenProfile={(m) => { setCalendarProfileMusician(m); }}
+          onConflictTrigger={(ce, pd) => { setConflictEvent(ce); setConflictPending(pd); setConflictEventId(tedbirDetail?.id ?? null); setTimeout(() => setConflictVisible(true), 300); }}
+          onBaxTrigger={(ce) => { setBaxDetail(ce); }}
         />
       )}
       {calendarProfileMusician && (
@@ -1082,6 +1159,35 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         <AgreementDetail
           agreement={agreements.find(a => a.id === selected.id) ?? selected}
           onClose={() => setSelected(null)}
+        />
+      )}
+      <ConflictModal
+        visible={conflictVisible}
+        conflictEvent={conflictEvent}
+        pendingData={conflictPending}
+        onClose={() => setConflictVisible(false)}
+        onBax={(_ce) => { setConflictVisible(false); }}
+        onEvezEt={async (pd) => {
+          if (conflictEventId) {
+            await FireStore.updatePersonalEvent(conflictEventId, {
+              date: pd.date.toISOString(),
+              type: pd.type,
+              location: pd.location,
+              notes: [pd.notes, pd.qeyd].filter(Boolean).join(' | '),
+              musicians: pd.musicians,
+            });
+          }
+          setConflictVisible(false);
+        }}
+        onYeniTedbir={(_pd, _ce) => {
+          setConflictVisible(false);
+        }}
+      />
+      {baxDetail && (
+        <PersonalEventDetail
+          event={baxDetail}
+          onClose={() => setBaxDetail(null)}
+          onOpenProfile={(m) => { setBaxDetail(null); setCalendarProfileMusician(m); }}
         />
       )}
     </SafeAreaView>
