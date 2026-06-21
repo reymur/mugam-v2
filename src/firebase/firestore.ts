@@ -679,3 +679,18 @@ export async function updatePersonalEvent(
     data
   );
 }
+
+export async function updateAgreement(
+  agreementId: string,
+  data: Partial<{
+    eventType: string;
+    eventDate: string;
+    eventLocation: string;
+    eventNotes: string;
+  }>
+): Promise<void> {
+  await updateDoc(
+    doc(fbFirestore, COLLECTIONS.AGREEMENTS, agreementId),
+    data
+  );
+}

@@ -24,6 +24,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
   const [chatMessages,    setChatMessages]    = React.useState<any[]>([]);
   const [loadingMsgs,    setLoadingMsgs]    = React.useState(false);
   const [selectedMusician, setSelectedMusician] = React.useState<any>(null);
+  const [showEditModal, setShowEditModal] = React.useState(false);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
 
   // Check online status from musicians list
@@ -100,7 +101,11 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <Text style={d.backText}>←</Text>
           </TouchableOpacity>
           <Text style={d.headerTitle}>Müqavilə</Text>
-          <View style={{ width: 40 }} />
+          {agreement.fromUid === user?.uid ? (
+            <TouchableOpacity onPress={() => setShowEditModal(true)} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
+              <Text style={{ color: Colors.gold, fontSize: 22, width: 40, textAlign: 'right' }}>✏️</Text>
+            </TouchableOpacity>
+          ) : <View style={{ width: 40 }} />}
         </View>
 
         <ScrollView contentContainerStyle={d.container}>
@@ -278,6 +283,27 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           onClose={() => setSelectedMusician(null)}
         />
       )}
+      <EventModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        mode="full"
+        title="Müqaviləni redaktə et"
+        initialDate={agreement.eventDate ? new Date(agreement.eventDate) : new Date()}
+        initialType={(agreement as any).eventType}
+        initialLocation={(agreement as any).eventLocation}
+        initialNotes={(agreement as any).eventNotes}
+        allMusicians={[]}
+        selectedMusicians={[]}
+        onSave={async (data) => {
+          await FireStore.updateAgreement(agreement.id, {
+            eventType: data.type,
+            eventDate: data.date.toISOString(),
+            eventLocation: data.location,
+            eventNotes: [data.notes, data.qeyd].filter(Boolean).join(' | '),
+          });
+          setShowEditModal(false);
+        }}
+      />
     </Animated.View>
   );
 }
@@ -1058,7 +1084,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       )}
       {selected && (
         <AgreementDetail
-          agreement={selected}
+          agreement={agreements.find(a => a.id === selected.id) ?? selected}
           onClose={() => setSelected(null)}
         />
       )}
