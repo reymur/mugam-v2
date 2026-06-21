@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../theme/colors';
 import LocationPicker from './LocationPicker';
+import WheelTimePicker from './WheelTimePicker';
 import MusicianPicker from './MusicianPicker';
 import { Typography } from '../../theme/typography';
 
@@ -18,106 +19,7 @@ const NOTES_OPTIONS = [
   'Digər...',
 ];
 const MONTH_NAMES = ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
-const ITEM_H = 44;
-const VISIBLE = 3;
-const PICKER_H = ITEM_H * VISIBLE;
 
-function WheelCol({ items, selectedIndex, onSelect, flex = 1 }: {
-  items: string[];
-  selectedIndex: number;
-  onSelect: (i: number) => void;
-  flex?: number;
-}) {
-  const scrollRef = React.useRef<ScrollView>(null);
-
-  React.useEffect(() => {
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
-    }, 80);
-  }, []);
-
-  return (
-    <View style={{ flex, height: PICKER_H }}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_H}
-        decelerationRate="fast"
-        onMomentumScrollEnd={e => {
-          const i = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-          onSelect(Math.max(0, Math.min(i, items.length - 1)));
-        }}
-        contentContainerStyle={{ paddingVertical: ITEM_H * 1 }}
-      >
-        {items.map((item, i) => {
-          const isSelected = i === selectedIndex;
-          return (
-            <TouchableOpacity
-              key={i}
-              style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}
-              onPress={() => {
-                onSelect(i);
-                scrollRef.current?.scrollTo({ y: i * ITEM_H, animated: true });
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={{
-                color: isSelected ? '#ffffff' : Colors.muted,
-                fontSize: isSelected ? 22 : 15,
-                fontFamily: isSelected ? Typography.nunito700 : Typography.nunito400,
-                opacity: isSelected ? 1 : Math.max(0.15, 1 - Math.abs(i - selectedIndex) * 0.3),
-              }}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-function CustomDatePicker({ value, onChange, mode }: { value: Date; onChange: (d: Date) => void; mode: 'full' | 'time-only' }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
-  const years = Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() + i));
-
-  return (
-    <View style={{ marginBottom: 8 }}>
-      <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: '#161210', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
-        <View pointerEvents="none" style={{
-          position: 'absolute',
-          top: ITEM_H * 1,
-          left: 8, right: 8,
-          height: ITEM_H,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: 'rgba(212,160,60,0.5)',
-          backgroundColor: 'rgba(255,255,255,0.07)',
-          zIndex: 1,
-        }} />
-        {mode === 'full' ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 }}>
-            <WheelCol flex={1} items={days} selectedIndex={value.getDate() - 1} onSelect={i => { const d = new Date(value); d.setDate(i + 1); onChange(d); }} />
-            <WheelCol flex={2} items={MONTH_NAMES} selectedIndex={value.getMonth()} onSelect={i => { const d = new Date(value); d.setMonth(i); onChange(d); }} />
-            <WheelCol flex={2} items={years} selectedIndex={Math.max(0, value.getFullYear() - new Date().getFullYear())} onSelect={i => { const d = new Date(value); d.setFullYear(new Date().getFullYear() + i); onChange(d); }} />
-            <Text style={{ color: Colors.gold, fontSize: 28, fontFamily: Typography.nunito700, paddingBottom: 4, paddingHorizontal: 8 }}>·</Text>
-            <WheelCol flex={1} items={hours} selectedIndex={value.getHours()} onSelect={i => { const d = new Date(value); d.setHours(i); onChange(d); }} />
-            <Text style={{ color: Colors.gold, fontSize: 28, fontFamily: Typography.nunito700, paddingBottom: 4, paddingHorizontal: 4 }}>:</Text>
-            <WheelCol flex={1} items={minutes} selectedIndex={value.getMinutes()} onSelect={i => { const d = new Date(value); d.setMinutes(i); onChange(d); }} />
-          </View>
-        ) : (
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 100 }}>
-            <WheelCol flex={1} items={hours} selectedIndex={value.getHours()} onSelect={i => { const d = new Date(value); d.setHours(i); onChange(d); }} />
-            <Text style={{ color: Colors.gold, fontSize: 28, fontFamily: Typography.nunito700, paddingBottom: 4, paddingHorizontal: 8 }}>:</Text>
-            <WheelCol flex={1} items={minutes} selectedIndex={value.getMinutes()} onSelect={i => { const d = new Date(value); d.setMinutes(i); onChange(d); }} />
-          </View>
-        )}
-      </View>
-    </View>
-  );
-}
 
 interface Musician {
   uid?: string;
@@ -198,7 +100,7 @@ export default function EventModal({
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 20 }}>
-              <CustomDatePicker value={eventDate} onChange={setEventDate} mode={mode} />
+              <WheelTimePicker value={eventDate} onChange={setEventDate} mode={mode} />
 
               {mode === 'time-only' && (
                 <>
