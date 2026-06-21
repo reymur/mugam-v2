@@ -301,7 +301,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
     markChatAsReadBy(chatId, user.uid).catch(() => {});
     const unsub = subscribeChatMeta(chatId, (data) => {
       const { readBy, typing, cancelledBy: cb, closedBy, eventDate: ed, eventType: et, eventLocation: el, eventNotes: en } = data;
-      const otherUid = musician.uid;
+      const otherUid = musicianUid;
       setRecipientRead(readBy.includes(otherUid));
       typingTsRef.current = typing[otherUid] ?? null;
       setRecipientTyping(!!typing[otherUid] && Date.now() - typing[otherUid] < 5000);
@@ -696,7 +696,7 @@ const id = await createOrGetDirectChat(
                   if (!chatId || !user?.uid) return;
                   setCancelling(true);
                   try {
-                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name, initiatorUid ?? user.uid, initiatorUid === user.uid ? (user.displayName ?? '') : musician.name);
+                    await cancelChat(chatId, user.uid, user.displayName ?? '', musicianUid, musician.name, initiatorUid ?? user.uid, initiatorUid === user.uid ? (user.displayName ?? '') : musician.name);
                     showToast('İmtina edildi');
                     setTimeout(() => { onClose(); setTimeout(() => onCancelled?.(), 300); }, 1000);
                   } finally { setCancelling(false); }
@@ -755,7 +755,7 @@ const id = await createOrGetDirectChat(
                   if (!chatId || !user?.uid) return;
                   setCancelling(true);
                   try {
-                    await cancelChat(chatId, user.uid, user.displayName ?? '', musician.uid, musician.name, initiatorUid ?? user.uid, initiatorUid === user.uid ? (user.displayName ?? '') : musician.name);
+                    await cancelChat(chatId, user.uid, user.displayName ?? '', musicianUid, musician.name, initiatorUid ?? user.uid, initiatorUid === user.uid ? (user.displayName ?? '') : musician.name);
                     showToast('İmtina edildi');
                     setTimeout(() => { onClose(); setTimeout(() => onCancelled?.(), 300); }, 1000);
                   } finally { setCancelling(false); }
@@ -883,7 +883,6 @@ const id = await createOrGetDirectChat(
             if (chatId) {
               await saveChatEventDate(chatId, date, type, location, notes).catch(() => {});
               await setWaitingForDate(chatId, false).catch(() => {});
-              waitingAlertShownRef.current = false;
               showToast('✅ Tarix saxlanıldı');
             }
           }}

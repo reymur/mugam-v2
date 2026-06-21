@@ -170,12 +170,18 @@ export interface Invite {
 }
 
 export interface Agreement {
-  id:         string;
-  fromUid:    string;   // who initiated chat
-  fromName:   string;
-  toUid:      string;   // who agreed
-  toName:     string;
-  status:     'agreed' | 'cancelled';
-  cancelledBy?: string;
-  createdAt:  any;
+  id:              string;
+  fromUid:         string;   // who initiated chat
+  fromName:        string;
+  toUid:           string;   // who agreed
+  toName:          string;
+  status:          'agreed' | 'cancelled';
+  chatId?:         string | null;
+  eventDate?:      string | null;
+  eventType?:      string | null;
+  eventLocation?:  string | null;
+  eventNotes?:     string | null;
+  cancelledBy?:    string;
+  cancelledByName?: string;
+  createdAt:       any;
 }

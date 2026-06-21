@@ -106,12 +106,12 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         <ScrollView contentContainerStyle={d.container}>
           {/* Status badge */}
           <View style={d.statusWrap}>
-            <View style={[(ag => (ag as any).status === 'cancelled')(agreement) ? d.statusBadgeCancelled : d.statusBadge]}>
-              <Text style={[(ag => (ag as any).status === 'cancelled')(agreement) ? d.statusTextCancelled : d.statusText]}>
-                {(agreement as any).status === 'cancelled'
-                  ? (agreement as any).cancelledBy === user?.uid
+            <View style={[agreement.status === 'cancelled' ? d.statusBadgeCancelled : d.statusBadge]}>
+              <Text style={[agreement.status === 'cancelled' ? d.statusTextCancelled : d.statusText]}>
+                {agreement.status === 'cancelled'
+                  ? agreement.cancelledBy === user?.uid
                     ? '✖ Siz imtina etdiniz'
-                    : `✖ ${(agreement as any).cancelledByName ?? ''} imtina etdi`
+                    : `✖ ${agreement.cancelledByName ?? ''} imtina etdi`
                   : '✅ Razılaşma qəbul edildi'}
               </Text>
             </View>
@@ -119,41 +119,41 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           </View>
 
           {/* Event details */}
-          {((agreement as any).eventDate || (agreement as any).eventType) && (agreement as any).status !== 'cancelled' && (
+          {(agreement.eventDate || agreement.eventType) && agreement.status !== 'cancelled' && (
             <View style={d.card}>
               <Text style={d.cardTitle}>📅 Tədbir məlumatı</Text>
-              {(agreement as any).eventType && (
+              {agreement.eventType && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>Növ</Text>
-                  <Text style={d.detailValue}>{(agreement as any).eventType}</Text>
+                  <Text style={d.detailValue}>{agreement.eventType}</Text>
                 </View>
               )}
-              {(agreement as any).eventDate && (
+              {agreement.eventDate && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>Tarix</Text>
                   <Text style={d.detailValue}>
-                    {new Date((agreement as any).eventDate).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {new Date(agreement.eventDate).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </Text>
                 </View>
               )}
-              {(agreement as any).eventDate && (
+              {agreement.eventDate && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>Vaxt</Text>
                   <Text style={d.detailValue}>
-                    {new Date((agreement as any).eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(agreement.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
               )}
-              {(agreement as any).eventLocation && (
+              {agreement.eventLocation && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>📍 Yer</Text>
-                  <Text style={d.detailValue}>{(agreement as any).eventLocation}</Text>
+                  <Text style={d.detailValue}>{agreement.eventLocation}</Text>
                 </View>
               )}
-              {(agreement as any).eventNotes && (
+              {agreement.eventNotes && (
                 <View style={[d.detailRow, { borderBottomWidth: 0 }]}>
                   <Text style={d.detailLabel}>📝 Əlavələr</Text>
-                  <Text style={d.detailValue}>{(agreement as any).eventNotes}</Text>
+                  <Text style={d.detailValue}>{agreement.eventNotes}</Text>
                 </View>
               )}
             </View>
@@ -172,9 +172,9 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                 <View style={[d.onlineDot, { backgroundColor: fromOnline ? Colors.green : Colors.muted }]} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[d.partyName, (agreement as any).cancelledBy === agreement.fromUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.fromName}</Text>
-                <Text style={[d.partyRole, (agreement as any).cancelledBy === agreement.fromUid && { color: Colors.red }]}>
-                  {(agreement as any).cancelledBy === agreement.fromUid ? 'İmtina etdi' : 'Göndərən (Təklif edən)'}
+                <Text style={[d.partyName, agreement.cancelledBy === agreement.fromUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.fromName}</Text>
+                <Text style={[d.partyRole, agreement.cancelledBy === agreement.fromUid && { color: Colors.red }]}>
+                  {agreement.cancelledBy === agreement.fromUid ? 'İmtina etdi' : 'Göndərən (Təklif edən)'}
                 </Text>
               </View>
               <Text style={[d.onlineLabel, { color: fromOnline ? Colors.green : Colors.muted }]}>
@@ -193,9 +193,9 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                 <View style={[d.onlineDot, { backgroundColor: toOnline ? Colors.green : Colors.muted }]} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[d.partyName, (agreement as any).cancelledBy === agreement.toUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.toName}</Text>
-                <Text style={[d.partyRole, (agreement as any).cancelledBy === agreement.toUid && { color: Colors.red }]}>
-                  {(agreement as any).cancelledBy === agreement.toUid ? 'İmtina etdi' : 'Qəbul edən'}
+                <Text style={[d.partyName, agreement.cancelledBy === agreement.toUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.toName}</Text>
+                <Text style={[d.partyRole, agreement.cancelledBy === agreement.toUid && { color: Colors.red }]}>
+                  {agreement.cancelledBy === agreement.toUid ? 'İmtina etdi' : 'Qəbul edən'}
                 </Text>
               </View>
               <Text style={[d.onlineLabel, { color: toOnline ? Colors.green : Colors.muted }]}>
@@ -811,12 +811,12 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
   const { user } = useAppStore();
   const isSender    = ag.fromUid === user?.uid;
   const otherName   = isSender ? ag.toName : ag.fromName;
-  const isCancelled = (ag as any).status === 'cancelled';
-  const cancelledByMe = (ag as any).cancelledBy === user?.uid;
-  const cancelledByName = (ag as any).cancelledByName ?? otherName;
-  const eventDate = (ag as any).eventDate ? new Date((ag as any).eventDate) : null;
-  const eventType = (ag as any).eventType ?? null;
-  const eventLocation = (ag as any).eventLocation ?? null;
+  const isCancelled = ag.status === 'cancelled';
+  const cancelledByMe = ag.cancelledBy === user?.uid;
+  const cancelledByName = ag.cancelledByName ?? otherName;
+  const eventDate = ag.eventDate ? new Date(ag.eventDate) : null;
+  const eventType = ag.eventType ?? null;
+  const eventLocation = ag.eventLocation ?? null;
   const eventDateStr = eventDate
     ? eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
@@ -905,7 +905,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
     : null;
 
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
-  const [mainView, setMainView] = useState<'agreements' | 'calendar'>('agreements');
+  const [mainView, setMainView] = useState<'agreements' | 'calendar' | 'tedbirler'>('agreements');
   const personalEvents = useAppStore(s => s.personalEvents);
   const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
   const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
@@ -926,6 +926,12 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             onPress={() => setMainView('calendar')}
           >
             <Text style={[s.mainViewText, mainView === 'calendar' && s.mainViewTextActive]}>📅 Təqvim</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.mainViewBtn, mainView === 'tedbirler' && s.mainViewBtnActive]}
+            onPress={() => setMainView('tedbirler')}
+          >
+            <Text style={[s.mainViewText, mainView === 'tedbirler' && s.mainViewTextActive]}>🎪 Tədbirlər</Text>
           </TouchableOpacity>
         </View>
         <Text style={s.subtitle}>{agreements.length} müqavilə</Text>
@@ -1036,7 +1042,7 @@ const s = StyleSheet.create({
   list:        { padding: 14, gap: 10, paddingBottom: 20 },
   mainViewBtn:        { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   mainViewBtnActive:  { borderBottomColor: Colors.gold },
-  mainViewText:       { color: Colors.muted, fontFamily: Typography.playfair700, fontSize: 20 },
+  mainViewText:       { color: Colors.muted, fontFamily: Typography.playfair700, fontSize: 16 },
   mainViewTextActive: { color: Colors.text },
   mainSwitcher:       { flexDirection: 'row', backgroundColor: Colors.bg3, borderRadius: 10, padding: 3 },
   mainSwitchBtn:      { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8 },

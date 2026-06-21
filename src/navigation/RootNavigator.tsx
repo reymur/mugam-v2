@@ -84,7 +84,7 @@ export default function RootNavigator() {
   const chatsIcon      = useCallback(({ focused }: { focused: boolean }) =>
     <TabIcon emoji="💬" label={t('navMesaj')}      focused={focused} badge={totalUnread} />, [t, totalUnread]);
   const agreementsIcon = useCallback(({ focused }: { focused: boolean }) =>
-    <TabIcon emoji="📋" label="Müqavilə"           focused={focused} badge={agreementsCount} />, [agreementsCount]);
+    <TabIcon emoji="📅" label="Kalendar"           focused={focused} badge={agreementsCount} />, [agreementsCount]);
   const profileIcon    = useCallback(({ focused }: { focused: boolean }) =>
     <TabIcon emoji="👤" label="Profil"             focused={focused} />, []);
 
@@ -106,6 +106,7 @@ export default function RootNavigator() {
           }}
         >
           <Tab.Screen name="Home"       component={HomeScreen}       options={{ tabBarIcon: homeIcon }} />
+          <Tab.Screen name="Agreements" component={AgreementsScreen} options={{ tabBarIcon: agreementsIcon }} />
           <Tab.Screen name="Search"     component={SearchScreen}     options={{ tabBarIcon: searchIcon }} />
           <Tab.Screen name="Board"      component={BoardScreen}      options={{ tabBarIcon: boardIcon }} />
           <Tab.Screen name="Gigs"       component={GigsScreen}       options={{ tabBarIcon: gigsIcon }} />
@@ -113,7 +114,6 @@ export default function RootNavigator() {
           <Tab.Screen name="Stories"    component={StoriesScreen}    options={{ tabBarIcon: storiesIcon }} />
           <Tab.Screen name="Video"      component={VideoScreen}      options={{ tabBarIcon: videoIcon }} />
           <Tab.Screen name="Chats"      component={ChatsScreen}      options={{ tabBarIcon: chatsIcon }} />
-          <Tab.Screen name="Agreements" component={AgreementsScreen} options={{ tabBarIcon: agreementsIcon }} />
           <Tab.Screen name="Profile"    component={ProfileScreen}    options={{ tabBarIcon: profileIcon }} />
         </Tab.Navigator>
       )}
