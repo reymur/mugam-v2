@@ -908,6 +908,8 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const [mainView, setMainView] = useState<'agreements' | 'calendar' | 'tedbirler'>('agreements');
   const personalEvents = useAppStore(s => s.personalEvents);
   const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
+  const musicians = useAppStore(s => s.musicians);
+  const [tedbirDetail, setTedbirDetail] = useState<any>(null);
   const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
   const [calendarShowModal, setCalendarShowModal] = useState(false);
 
@@ -949,6 +951,58 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         </TouchableOpacity>
       </View>}
 
+      {mainView === 'tedbirler' && (
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
+          {[
+              ...personalEvents.map(e => ({ ...e, _type: 'personal' })),
+              ...eventsAsMusician.map(e => ({ ...e, _isInvited: true, _type: 'personal' })),
+              ...agreements.filter((a: any) => a.status === 'agreed' && a.eventDate).map((a: any) => ({ ...a, _type: 'agreement', date: a.eventDate })),
+            ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .map((e, i) => {
+              const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+              if (e._type === 'agreement') {
+                const initiator = musicians.find((m: any) => (m.uid ?? m.id) === e.fromUid) ?? { name: e.fromName, emoji: '👑', instrument: '' };
+                const toMusician = musicians.find((m: any) => (m.uid ?? m.id) === e.toUid);
+                return (
+                  <EventCard
+                    key={e.id ?? i}
+                    type={e.eventType}
+                    time={time}
+                    location={e.eventLocation}
+                    notes={e.eventNotes}
+                    badge={{ label: '🤝', color: Colors.green, bg: 'rgba(39,174,96,0.15)' }}
+                    initiator={initiator}
+                    musicians={toMusician ? [toMusician] : []}
+                    onPress={() => setSelected(e)}
+                    currentUserUid={user?.uid}
+                  />
+                );
+              }
+              const isInvited = e._isInvited;
+              const owner = musicians.find((m: any) => (m.uid ?? m.id) === e.ownerUid);
+              const currentUser = user ? { name: user.displayName ?? '', emoji: user.emoji ?? '👤', instrument: user.instrument ?? '' } : undefined;
+              return (
+                <EventCard
+                  key={e.id ?? i}
+                  type={e.type}
+                  time={time}
+                  location={e.location}
+                  notes={e.notes}
+                  badge={{ label: '', color: Colors.green, bg: 'transparent' }}
+                  initiator={isInvited ? (owner ?? undefined) : currentUser}
+                  musicians={(e.musicians ?? []).map((uid: string) => musicians.find((m: any) => (m.uid ?? m.id) === uid)).filter(Boolean)}
+                  onPress={() => setTedbirDetail(e)}
+                  onMusicianPress={(m: any) => setCalendarProfileMusician(m)}
+                  currentUserUid={user?.uid}
+                />
+              );
+            })}
+          {personalEvents.length === 0 && eventsAsMusician.length === 0 && (
+            <Text style={{ color: Colors.muted, textAlign: 'center', marginTop: 40 }}>Heç bir tədbir yoxdur</Text>
+          )}
+        </ScrollView>
+      )}
+
       {mainView === 'calendar' && (
         <CalendarView key="calendar-view" agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
       )}
@@ -982,6 +1036,13 @@ export default function AgreementsScreen({ route }: { route?: any }) {
 
       {calendarProfileMusician && (
         <MusicianProfileScreen musician={calendarProfileMusician} onClose={() => { setCalendarProfileMusician(null); }} />
+      )}
+      {tedbirDetail && (
+        <PersonalEventDetail
+          event={[...personalEvents, ...eventsAsMusician].find(e => e.id === tedbirDetail.id) ?? tedbirDetail}
+          onClose={() => setTedbirDetail(null)}
+          onOpenProfile={(m) => { setTedbirDetail(null); setCalendarProfileMusician(m); }}
+        />
       )}
       {selected && (
         <AgreementDetail
