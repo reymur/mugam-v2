@@ -11,18 +11,35 @@
 - Emoji в отдельном Text без стилей
 - Zustand — только string[], не Set
 
-## Последние изменения
-- EventModal.tsx — единый Modal для календаря и чата договора
-- WheelTimePicker.tsx — нативный DateTimePicker с height:102
-- LocationPicker.tsx — выбор города/района/ресторана через Google Places API
-- MusicianPicker.tsx — выбор музыкантов как отдельный Modal
-- BottomSheet.tsx — общий overlay компонент
-- CloseButton.tsx — общая кнопка закрытия
-- EventCard.tsx — единая карточка для всех событий
-- PersonalEventDetail — детальный экран личного мероприятия
-- Firestore: personalEvents (flat структура с ownerUid)
-- Google Places API ключ: AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk
+## Структура компонентов
+src/components/common/
+  - EventCard.tsx — единая карточка событий
+  - EventModal.tsx — единый Modal (mode: full | time-only)
+  - WheelTimePicker.tsx — нативный DateTimePicker height:102
+  - LocationPicker.tsx — город/район/ресторан через Google Places API
+  - MusicianPicker.tsx — выбор музыкантов как отдельный Modal
+  - BottomSheet.tsx — общий overlay
+  - CloseButton.tsx — общая кнопка закрытия
+  - PersonalEventDetail — детальный экран
 
-## Pending задачи
-- Тестировать LocationPicker и MusicianPicker в приложении
-- DirectChat — старый MusicianPicker Modal ещё не удалён
+src/data/
+  - locations.ts — города и районы Азербайджана
+  - seedLocations.js — скрипт загрузки в Firestore
+
+## Firebase
+- Проект: mugam-club
+- Google Places API ключ: AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk
+- Firestore: personalEvents (flat, ownerUid + musicians[])
+
+## Последние коммиты
+- WheelTimePicker — native picker centered, date aligned
+- LocationPicker — city/district/place selector with Google Places
+- MusicianPicker — separate modal overlay like LocationPicker
+- BottomSheet — shared overlay component
+- EventCard — unified design, single border style
+- EventModal — replaced Modal with EventModal component
+
+## Pending
+- Протестировать LocationPicker и MusicianPicker
+- Убрать старый MusicianPicker из Agreements/index.tsx
+- DirectChat — старый CustomDatePicker ещё в файле

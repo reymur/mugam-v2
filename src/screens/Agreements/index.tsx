@@ -94,7 +94,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
       StyleSheet.absoluteFillObject,
       { backgroundColor: Colors.bg, zIndex: 100, transform: [{ translateX: slideAnim }] },
     ]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
         <View style={d.header}>
           <TouchableOpacity style={d.backBtn} onPress={handleClose} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
             <Text style={d.backText}>←</Text>
@@ -403,6 +403,8 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
   const dateStr = date ? `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}` : '';
   const timeStr = date ? date.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
   const isOwner = event.ownerUid === user?.uid;
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [editMusicians, setEditMusicians] = React.useState<string[]>(event.musicians ?? []);
   const owner = musicians.find(m => (m.uid ?? m.id) === event.ownerUid);
   const eventMusicians = (event.musicians ?? []).map((uid: string) => musicians.find(m => (m.uid ?? m.id) === uid)).filter(Boolean);
 
@@ -414,20 +416,31 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
             <Text style={d.backText}>←</Text>
           </TouchableOpacity>
           <Text style={d.headerTitle}>Tədbir</Text>
-          <View style={{ width: 40 }} />
+          {isOwner ? (
+            <TouchableOpacity onPress={() => setShowEditModal(true)} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
+              <Text style={{ color: Colors.gold, fontSize: 22, width: 40, textAlign: 'right' }}>✏️</Text>
+            </TouchableOpacity>
+          ) : <View style={{ width: 40 }} />}
         </View>
 
         <ScrollView contentContainerStyle={d.container}>
           {/* Status */}
           <View style={d.statusWrap}>
-            <View style={{ backgroundColor: 'rgba(212,160,60,0.15)', borderWidth: 1, borderColor: Colors.gold, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
-              <Text style={{ color: Colors.gold, fontSize: 15, fontFamily: Typography.nunito700 }}>
-                {isOwner ? '📅 Şəxsi tədbir' : '🎵 Dəvət olunmusan'}
-              </Text>
-            </View>
-            <Text style={d.dateText}>{dateStr} · {timeStr}</Text>
-            <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 20, marginTop: 8 }}>{event.type}</Text>
-            {event.location ? <Text style={{ color: Colors.muted, fontSize: 14, marginTop: 4 }}>{"📍 " + event.location}</Text> : null}
+            {(() => {
+              const initiator = isOwner
+                ? { name: user?.displayName ?? 'Siz', emoji: user?.emoji ?? '👤', instrument: user?.instrument ?? 'Təklif edən' }
+                : owner ? { name: owner.name, emoji: owner.emoji ?? '👤', instrument: owner.instrument ?? 'Təklif edən' } : null;
+              return initiator ? (
+                <TouchableOpacity onPress={() => { if (owner) onOpenProfile(owner); }} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.gold + '22', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 }}>
+                  <Text style={{ fontSize: 20 }}>{initiator.emoji}</Text>
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={{ color: Colors.gold, fontFamily: Typography.playfair700, fontSize: 16 }}>{initiator.name}</Text>
+                    <Text style={{ color: Colors.gold, fontSize: 11, opacity: 0.8 }}>{initiator.instrument}</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null;
+            })()}
+
           </View>
 
           {/* Details */}
@@ -441,6 +454,18 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
               <View style={d.row}>
                 <Text style={d.rowLabel}>Yer</Text>
                 <Text style={d.rowValue}>{event.location}</Text>
+              </View>
+            ) : null}
+            {dateStr ? (
+              <View style={d.row}>
+                <Text style={d.rowLabel}>Tarix</Text>
+                <Text style={d.rowValue}>{dateStr}</Text>
+              </View>
+            ) : null}
+            {timeStr ? (
+              <View style={d.row}>
+                <Text style={d.rowLabel}>Saat</Text>
+                <Text style={d.rowValue}>{timeStr}</Text>
               </View>
             ) : null}
             {event.notes ? (
@@ -491,6 +516,31 @@ function PersonalEventDetail({ event, onClose, onOpenProfile }: { event: any; on
           )}
         </ScrollView>
       </SafeAreaView>
+
+      <EventModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        mode="time-only"
+        title="Tədbiri redaktə et"
+        initialDate={event.date ? new Date(event.date) : new Date()}
+        initialType={event.type}
+        initialLocation={event.location}
+        initialNotes={event.notes}
+        allMusicians={musicians.filter(m => (m.uid ?? m.id) !== user?.uid)}
+        selectedMusicians={editMusicians}
+        onMusicianChange={(uids) => setEditMusicians(uids)}
+        onRemoveMusician={(uid) => setEditMusicians(prev => prev.filter(x => x !== uid))}
+        onSave={async (data) => {
+          await FireStore.updatePersonalEvent(event.id, {
+            date: data.date.toISOString(),
+            type: data.type,
+            location: data.location,
+            notes: [data.notes, data.qeyd].filter(Boolean).join(' | '),
+            musicians: data.musicians,
+          });
+          setShowEditModal(false);
+        }}
+      />
     </Animated.View>
   );
 }
@@ -502,8 +552,6 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [newEventDate, setNewEventDate] = React.useState(new Date());
   const [selectedMusicians, setSelectedMusicians] = React.useState<string[]>([]);
-  const [musicianSearch, setMusicianSearch] = React.useState('');
-  const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
   const [selectedPersonalEvent, setSelectedPersonalEvent] = React.useState<any>(null);
   const [profileMusician, setProfileMusician] = React.useState<any>(null);
   const lastTapRef = React.useRef<{ day: number; time: number } | null>(null);
@@ -720,9 +768,9 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
 
       {selectedPersonalEvent && (
         <PersonalEventDetail
-          event={selectedPersonalEvent}
+          event={[...personalEvents, ...eventsAsMusician].find(e => e.id === selectedPersonalEvent.id) ?? selectedPersonalEvent}
           onClose={() => setSelectedPersonalEvent(null)}
-          onOpenProfile={(m) => { setSelectedPersonalEvent(null); onOpenProfile(m); }}
+          onOpenProfile={(m) => { onOpenProfile(m); }}
         />
       )}
       {profileMusician && (
@@ -734,7 +782,6 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
         initialDate={newEventDate}
         allMusicians={musicians}
         selectedMusicians={selectedMusicians}
-        onOpenMusicianPicker={() => { setShowAddModal(false); setShowMusicianPicker(true); }}
         onMusicianChange={(uids) => setSelectedMusicians(uids)}
         onRemoveMusician={(uid) => setSelectedMusicians(prev => prev.filter(x => x !== uid))}
         onOpenProfile={(m) => { setShowAddModal(false); onOpenProfile(m); }}
@@ -928,7 +975,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       </ScrollView>}
 
       {calendarProfileMusician && (
-        <MusicianProfileScreen musician={calendarProfileMusician} onClose={() => { setCalendarProfileMusician(null); setCalendarShowModal(true); }} />
+        <MusicianProfileScreen musician={calendarProfileMusician} onClose={() => { setCalendarProfileMusician(null); }} />
       )}
       {selected && (
         <AgreementDetail
@@ -941,7 +988,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
 }
 
 const d = StyleSheet.create({
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: Colors.border },
   backBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backText:    { fontSize: 24, color: Colors.text },
   headerTitle: { fontFamily: Typography.playfair700, fontSize: 18, color: Colors.text },

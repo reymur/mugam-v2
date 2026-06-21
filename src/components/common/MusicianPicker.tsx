@@ -38,7 +38,7 @@ export default function MusicianPicker({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} maxHeight='85%'>
-          <View>
+          <View style={{ flex: 1 }}>
             
             {/* Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -63,7 +63,7 @@ export default function MusicianPicker({
             </View>
 
             {/* List */}
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
               {filtered.map(m => {
                 const mid = m.uid ?? m.id ?? '';
                 const sel = selectedMusicians.includes(mid);

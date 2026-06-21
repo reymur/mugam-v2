@@ -663,3 +663,19 @@ export async function deletePersonalEvent(
     doc(fbFirestore, 'personalEvents', eventId)
   );
 }
+
+export async function updatePersonalEvent(
+  eventId: string,
+  data: Partial<{
+    date: string;
+    type: string;
+    location: string;
+    notes: string;
+    musicians: string[];
+  }>
+): Promise<void> {
+  await updateDoc(
+    doc(fbFirestore, 'personalEvents', eventId),
+    data
+  );
+}

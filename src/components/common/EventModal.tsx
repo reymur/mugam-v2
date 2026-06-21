@@ -35,8 +35,10 @@ interface EventModalProps {
   onSave: (data: { date: Date; type: string; location: string; notes: string; qeyd: string; musicians: string[] }) => Promise<void>;
   mode: 'full' | 'time-only';
   initialDate?: Date;
+  initialType?: string;
+  initialLocation?: string;
+  initialNotes?: string;
   allMusicians?: Musician[];
-  onOpenMusicianPicker?: () => void;
   onMusicianChange?: (uids: string[]) => void;
   selectedMusicians?: string[];
   onRemoveMusician?: (uid: string) => void;
@@ -46,8 +48,8 @@ interface EventModalProps {
 
 export default function EventModal({
   visible, onClose, onSave, mode,
-  initialDate, allMusicians = [],
-  onOpenMusicianPicker, selectedMusicians = [], onMusicianChange,
+  initialDate, initialType, initialLocation, initialNotes, allMusicians = [],
+  selectedMusicians = [], onMusicianChange,
   onRemoveMusician, onOpenProfile,
   title,
 }: EventModalProps) {
@@ -64,13 +66,21 @@ export default function EventModal({
   React.useEffect(() => {
     if (visible) {
       setEventDate(initialDate ?? new Date());
-      setEventType('Toy');
-      setEventLocation('');
-      setEventNotes('');
-      setEventQeyd('');
-      setDigerText('');
+      setEventType(initialType ?? 'Toy');
+      setEventLocation(initialLocation ?? '');
+      const parts = (initialNotes ?? '').split(' | ');
+      const mainNotes = parts[0] ?? '';
+      const qeydPart = parts.slice(1).join(' | ');
+      const standardOpts = NOTES_OPTIONS.slice(0, -1);
+      const noteItems = mainNotes.split(', ').filter(Boolean);
+      const standardItems = noteItems.filter(x => standardOpts.includes(x));
+      const digerItem = noteItems.find(x => !standardOpts.includes(x)) ?? '';
+      setEventNotes(mainNotes);
+      setEventQeyd(qeydPart);
+      setDigerText(digerItem);
     }
-  }, [visible, initialDate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   return (
     <Modal visible={visible} transparent animationType="slide">

@@ -174,7 +174,7 @@ export default function MusicianProfileScreen({ musician, onClose, fromInvite }:
   return (
     <Animated.View style={[
       StyleSheet.absoluteFillObject,
-      { backgroundColor: Colors.bg, zIndex: 100, transform: [{ translateX: slideAnim }] },
+      { backgroundColor: Colors.bg, zIndex: 300, transform: [{ translateX: slideAnim }] },
     ]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
 
