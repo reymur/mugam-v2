@@ -4,6 +4,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Colors } from '../../theme/colors';
+import CloseButton from './CloseButton';
 import { Typography } from '../../theme/typography';
 
 interface Musician {
@@ -44,9 +45,7 @@ export default function MusicianPicker({
             {/* Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 18 }}>Musiqiçi seç</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={{ color: Colors.muted, fontSize: 22 }}>×</Text>
-              </TouchableOpacity>
+              <CloseButton onPress={onClose} />
             </View>
 
             {/* Search */}
