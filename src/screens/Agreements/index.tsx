@@ -927,7 +927,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
     : null;
 
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
-  const [mainView, setMainView] = useState<'agreements' | 'calendar' | 'tedbirler'>('agreements');
+  const [mainView, setMainView] = useState<'agreements' | 'calendar' | 'tedbirler'>('calendar');
   const personalEvents = useAppStore(s => s.personalEvents);
   const eventsAsMusician = useAppStore(s => s.eventsAsMusician);
   const musicians = useAppStore(s => s.musicians);
