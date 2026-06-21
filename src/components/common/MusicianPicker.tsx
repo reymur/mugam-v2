@@ -57,7 +57,6 @@ export default function MusicianPicker({
                 placeholderTextColor={Colors.muted}
                 value={search}
                 onChangeText={setSearch}
-                autoFocus
               />
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch('')}>
