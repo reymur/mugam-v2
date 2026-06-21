@@ -309,57 +309,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           setShowEditModal(false);
         }}
       />
-      <ConflictModal
-        visible={conflictVisible}
-        conflictEvent={conflictEvent}
-        pendingData={conflictPending}
-        onClose={() => setConflictVisible(false)}
-        onBax={(ce) => { setConflictVisible(false); }}
-        onEvezEt={async (pd) => {
-          setConflictVisible(false);
-          await FireStore.updatePersonalEvent(event.id, {
-            date: pd.date.toISOString(),
-            type: pd.type,
-            location: pd.location,
-            notes: [pd.notes, pd.qeyd].filter(Boolean).join(' | '),
-            musicians: pd.musicians,
-          });
-          setShowEditModal(false);
-        }}
-        onYeniTedbir={(pd, ce) => {
-          setConflictVisible(false);
-          setShowEditModal(false);
-        }}
-      />
-      <ConflictModal
-        visible={conflictVisible}
-        conflictEvent={conflictEvent}
-        pendingData={conflictPending}
-        onClose={() => setConflictVisible(false)}
-        onBax={(ce) => { setConflictVisible(false); }}
-        onEvezEt={async (pd) => {
-          setConflictVisible(false);
-          await FireStore.updatePersonalEvent(event.id, {
-            date: pd.date.toISOString(),
-            type: pd.type,
-            location: pd.location,
-            notes: [pd.notes, pd.qeyd].filter(Boolean).join(' | '),
-            musicians: pd.musicians,
-          });
-          setShowEditModal(false);
-        }}
-        onYeniTedbir={(_pd, _ce) => {
-          setConflictVisible(false);
-          setShowEditModal(false);
-        }}
-      />
-      {tedbirBaxEvent && (
-        <PersonalEventDetail
-          event={tedbirBaxEvent}
-          onClose={() => setTedbirBaxEvent(null)}
-          onOpenProfile={onOpenProfile}
-        />
-      )}
+
     </Animated.View>
   );
 }
@@ -635,7 +585,7 @@ function PersonalEventDetail({ event, onClose, onOpenProfile, onConflictTrigger,
 }
 
 // ── Calendar View ────────────────────────────────────────
-function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsMusician, onOpenProfile, showModalFromParent, onModalShown }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[]; eventsAsMusician: any[]; onOpenProfile: (m: any) => void; showModalFromParent?: boolean; onModalShown?: () => void }) {
+function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsMusician, onOpenProfile, showModalFromParent, onModalShown, onDayPress }: { agreements: any[]; onSelectAgreement: (ag: any) => void; personalEvents: any[]; eventsAsMusician: any[]; onOpenProfile: (m: any) => void; showModalFromParent?: boolean; onModalShown?: () => void; onDayPress?: (date: Date, events: any[]) => void }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
@@ -751,6 +701,9 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   // Single tap — select day
                   lastTapRef.current = { day, time: now };
                   setSelectedDay(isSelected ? null : day);
+                  if (eventDays[day] && eventDays[day].length > 0 && onDayPress) {
+                    onDayPress(new Date(year, month, day), eventDays[day]);
+                  }
                 }
               }}
             >
@@ -763,7 +716,11 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               }}>
                 <Text style={{ color: isSelected ? '#1a0e00' : hasEvent ? Colors.gold : Colors.text, fontSize: 15, fontFamily: Typography.nunito600 }}>{day}</Text>
               </View>
-              {hasEvent && !isSelected && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.gold, marginTop: 2 }} />}
+              {hasEvent && !isSelected && (
+                <View style={{ position: 'absolute', top: 2, right: 2, backgroundColor: Colors.gold, borderRadius: 8, minWidth: 14, height: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 }}>
+                  <Text style={{ color: '#1a0e00', fontSize: 9, fontFamily: Typography.nunito700 }}>{eventDays[day].length}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -819,7 +776,11 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
             const personalCards = personalEventsList.map((e: any, pi: number) => {
               const isInvited = !!e._isInvited;
               const owner = isInvited ? musicians.find(m => (m.uid ?? m.id) === e.ownerUid) : null;
-              const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+              const eDateTime = e.date ? new Date(e.date) : null;
+              const timeStr = eDateTime ? eDateTime.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+              const dateStr = eDateTime ? eDateTime.getDate() + ' ' + ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'][eDateTime.getMonth()] : '';
+              const time = tedbirFilterDate ? timeStr : (dateStr + ' ' + timeStr).trim();
+
               return (
                 <EventCard
                   key={'p' + pi}
@@ -894,6 +855,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
           } catch { Alert.alert('Xəta', 'Saxlamaq mümkün olmadı'); }
         }}
       />
+
     </View>
   );
 }
@@ -1007,6 +969,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
   const [conflictPending, setConflictPending] = useState<any>(null);
   const [conflictEventId, setConflictEventId] = useState<string | null>(null);
   const [baxDetail, setBaxDetail] = useState<any>(null);
+  const [tedbirFilterDate, setTedbirFilterDate] = useState<Date | null>(null);
   const [tedbirTab, setTedbirTab] = useState<'hamisi' | 'sexsi' | 'dəvətli'>('hamisi');
   const [calendarProfileMusician, setCalendarProfileMusician] = useState<any>(null);
   const [calendarShowModal, setCalendarShowModal] = useState(false);
@@ -1060,14 +1023,35 @@ export default function AgreementsScreen({ route }: { route?: any }) {
               </TouchableOpacity>
             ))}
           </View>
+          {tedbirFilterDate && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 14, marginTop: 4, marginBottom: 4, backgroundColor: Colors.gold + '22', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: Colors.gold }}>
+              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 13 }}>
+                {'📅 ' + tedbirFilterDate.getDate() + ' ' + ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'][tedbirFilterDate.getMonth()] + ' ' + tedbirFilterDate.getFullYear()}
+              </Text>
+              <TouchableOpacity onPress={() => setTedbirFilterDate(null)} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
+                <Text style={{ color: Colors.gold, fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
           {[
               ...(tedbirTab === 'dəvətli' ? [] : personalEvents.map(e => ({ ...e, _type: 'personal' }))),
               ...(tedbirTab === 'sexsi' ? [] : eventsAsMusician.map(e => ({ ...e, _isInvited: true, _type: 'personal' }))),
               ...(tedbirTab === 'sexsi' ? [] : agreements.filter((a: any) => a.status === 'agreed' && a.eventDate).map((a: any) => ({ ...a, _type: 'agreement', date: a.eventDate }))),
             ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .filter(e => {
+              if (!tedbirFilterDate) return true;
+              const eDate = new Date(e.date);
+              const match = eDate.getFullYear() === tedbirFilterDate.getFullYear() &&
+                     eDate.getMonth() === tedbirFilterDate.getMonth() &&
+                     eDate.getDate() === tedbirFilterDate.getDate();
+              return match;
+            })
             .map((e, i) => {
-              const time = e.date ? new Date(e.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+              const eDateTime = e.date ? new Date(e.date) : null;
+              const timeStr2 = eDateTime ? eDateTime.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
+              const dateStr2 = eDateTime ? eDateTime.getDate() + ' ' + ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'][eDateTime.getMonth()] : '';
+              const time = tedbirFilterDate ? timeStr2 : (dateStr2 + ' ' + timeStr2).trim();
               if (e._type === 'agreement') {
                 const initiator = musicians.find((m: any) => (m.uid ?? m.id) === e.fromUid) ?? { name: e.fromName, emoji: '👑', instrument: '' };
                 const toMusician = musicians.find((m: any) => (m.uid ?? m.id) === e.toUid);
@@ -1113,7 +1097,15 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       )}
 
       {mainView === 'calendar' && (
-        <CalendarView key="calendar-view" agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} />
+        <CalendarView key="calendar-view" agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} onDayPress={(date, events) => {
+              const uid = user?.uid;
+              const hasPersonal = events.some((e: any) => e._isPersonal && e.ownerUid === uid);
+              const hasInvited = events.some((e: any) => e._isInvited || !e._isPersonal);
+              const tab = hasPersonal && hasInvited ? 'hamisi' : hasPersonal ? 'sexsi' : 'dəvətli';
+              setTedbirFilterDate(date);
+              setTedbirTab(tab as any);
+              setMainView('tedbirler');
+            }} />
       )}
 
       {mainView === 'agreements' && <ScrollView

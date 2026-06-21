@@ -66,6 +66,7 @@ export default function EventModal({
   const [showLocationPicker, setShowLocationPicker] = React.useState(false);
   const [showMusicianPicker, setShowMusicianPicker] = React.useState(false);
   const [showConflictModal, setShowConflictModal] = React.useState(false);
+  const [blockedTime, setBlockedTime] = React.useState<string | null>(null);
   const [pendingData, setPendingData] = React.useState<{ date: Date; type: string; location: string; notes: string; qeyd: string; musicians: string[] } | null>(null);
   const [conflictEvent, setConflictEvent] = React.useState<any>(null);
 
@@ -118,6 +119,9 @@ export default function EventModal({
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 20 }}>
               <WheelTimePicker value={eventDate} onChange={setEventDate} mode={mode} />
+              {blockedTime ? (
+                <Text style={{ color: '#ff3b30', fontSize: 16, textAlign: 'center', marginTop: 8, marginBottom: 8, fontFamily: Typography.nunito700 }}>{'⚠️ ' + blockedTime + ' (məşğul)'}</Text>
+              ) : null}
 
               {mode === 'time-only' && (
                 <>
@@ -312,11 +316,10 @@ export default function EventModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={{ paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border }}
-              onPress={async () => {
+              onPress={() => {
+                const ceTime = conflictEvent ? new Date(conflictEvent.date ?? conflictEvent.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) + ' — ' + (conflictEvent.type ?? conflictEvent.eventType ?? '') : null;
+                setBlockedTime(ceTime);
                 setShowConflictModal(false);
-                if (!pendingData) return;
-                setSaving(true);
-                try { await onSave(pendingData); } finally { setSaving(false); }
               }}
             >
               <Text style={{ color: Colors.text, fontFamily: Typography.nunito700 }}>Yeni tədbir</Text>

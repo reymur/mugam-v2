@@ -53,10 +53,10 @@ export default function EventCard({
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 14 }}>{type}</Text>
-          {location ? <Text style={{ color: Colors.muted, fontSize: 12 }}>{'📍 ' + location}</Text> : null}
-          <Text style={{ color: Colors.muted, fontSize: 12 }}>{'🕐 ' + time}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 }}>
+          <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15 }}>{type}</Text>
+          {location ? <Text style={{ color: Colors.muted, fontSize: 13 }}>{'📍 ' + location}</Text> : null}
+          <Text style={{ color: Colors.muted, fontSize: 13 }}>{'🕐 ' + time}</Text>
         </View>
         <View style={{ borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'transparent' }}>
           <Text style={{ color: badge.color, fontSize: 16 }}>{badge.label}</Text>
