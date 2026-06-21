@@ -1,10 +1,11 @@
 import React from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, TextInput,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  View, Text, TouchableOpacity, TextInput,
+  ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../../theme/colors';
 import CloseButton from './CloseButton';
+import BottomSheet from './BottomSheet';
 import { Typography } from '../../theme/typography';
 import { AZERBAIJAN_LOCATIONS } from '../../data/locations';
 
@@ -75,10 +76,8 @@ export default function LocationPicker({ visible, onClose, onSelect }: LocationP
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '85%' }}>
+    <BottomSheet visible={visible} onClose={onClose} maxHeight='85%'>
+          <View>
             {renderHeader()}
 
             {/* Breadcrumb */}
@@ -187,8 +186,6 @@ export default function LocationPicker({ visible, onClose, onSelect }: LocationP
               </>
             )}
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheet>
   );
 }

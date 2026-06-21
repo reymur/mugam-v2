@@ -1,10 +1,10 @@
 import React from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Modal,
-  ScrollView, KeyboardAvoidingView, Platform,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
 } from 'react-native';
 import { Colors } from '../../theme/colors';
 import CloseButton from './CloseButton';
+import BottomSheet from './BottomSheet';
 import { Typography } from '../../theme/typography';
 
 interface Musician {
@@ -37,10 +37,8 @@ export default function MusicianPicker({
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '85%' }}>
+    <BottomSheet visible={visible} onClose={onClose} maxHeight='85%'>
+          <View>
             
             {/* Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -104,8 +102,6 @@ export default function MusicianPicker({
             </TouchableOpacity>
 
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheet>
   );
 }
