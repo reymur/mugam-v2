@@ -94,7 +94,7 @@ export default function EventModal({
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15, textAlign: 'center', marginTop: 12 }}>
+              <Text style={{ color: Colors.gold, fontFamily: Typography.nunito700, fontSize: 15, textAlign: 'center', marginTop: 12, marginLeft: -10 }}>
                 {eventDate.getDate()} {MONTH_NAMES[eventDate.getMonth()]} {eventDate.getFullYear()}
               </Text>
             </View>

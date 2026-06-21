@@ -11,7 +11,7 @@ interface WheelTimePickerProps {
 
 export default function WheelTimePicker({ value, onChange, mode }: WheelTimePickerProps) {
   return (
-    <View style={{ height: 102, overflow: 'hidden', justifyContent: 'center' }}>
+    <View style={{ height: 102, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
       <DateTimePicker
         value={value}
         mode={mode === 'full' ? 'datetime' : 'time'}
