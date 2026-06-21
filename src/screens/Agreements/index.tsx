@@ -168,13 +168,13 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           <View style={d.card}>
             <Text style={d.cardTitle}>Tərəflər</Text>
             <TouchableOpacity
-              style={d.party}
+              style={[d.party, { backgroundColor: Colors.gold + '22', borderRadius: 14 }]}
               onPress={() => openMusician(agreement.fromUid, agreement.fromName)}
               activeOpacity={0.7}
             >
               <View style={d.partyAvaWrap}>
                 <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
-                <View style={[d.onlineDot, { backgroundColor: fromOnline ? Colors.green : Colors.muted }]} />
+
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[d.partyName, agreement.cancelledBy === agreement.fromUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.fromName}</Text>
@@ -182,9 +182,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                   {agreement.cancelledBy === agreement.fromUid ? 'İmtina etdi' : 'Göndərən (Təklif edən)'}
                 </Text>
               </View>
-              <Text style={[d.onlineLabel, { color: fromOnline ? Colors.green : Colors.muted }]}>
-                {fromOnline ? '● Onlayn' : '○ Oflayn'}
-              </Text>
+
               <Text style={d.partyArrow}>›</Text>
             </TouchableOpacity>
             <View style={d.divider} />
@@ -195,7 +193,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             >
               <View style={d.partyAvaWrap}>
                 <View style={d.partyAva}><Text style={{ fontSize: 22 }}>👤</Text></View>
-                <View style={[d.onlineDot, { backgroundColor: toOnline ? Colors.green : Colors.muted }]} />
+
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[d.partyName, agreement.cancelledBy === agreement.toUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.toName}</Text>
@@ -203,9 +201,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                   {agreement.cancelledBy === agreement.toUid ? 'İmtina etdi' : 'Qəbul edən'}
                 </Text>
               </View>
-              <Text style={[d.onlineLabel, { color: toOnline ? Colors.green : Colors.muted }]}>
-                {toOnline ? '● Onlayn' : '○ Oflayn'}
-              </Text>
+
               <Text style={d.partyArrow}>›</Text>
             </TouchableOpacity>
           </View>
