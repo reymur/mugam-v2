@@ -4,6 +4,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../../theme/colors';
+import LocationPicker from './LocationPicker';
 import { Typography } from '../../theme/typography';
 
 const EVENT_TYPES = ['Toy', 'Konsert', 'Bayram', 'Digər'];
@@ -153,6 +154,7 @@ export default function EventModal({
   const [eventQeyd, setEventQeyd] = React.useState('');
   const [digerText, setDigerText] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [showLocationPicker, setShowLocationPicker] = React.useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -227,12 +229,19 @@ export default function EventModal({
                 </>
               )}
 
-              <TextInput
-                style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, color: Colors.text, borderWidth: 1, borderColor: Colors.border, marginBottom: 16 }}
-                placeholder="Məkan daxil edin..."
-                placeholderTextColor={Colors.muted}
-                value={eventLocation}
-                onChangeText={setEventLocation}
+              <TouchableOpacity
+                style={{ backgroundColor: Colors.bg3, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                onPress={() => setShowLocationPicker(true)}
+              >
+                <Text style={{ color: eventLocation ? Colors.text : Colors.muted, fontSize: 14 }}>
+                  {eventLocation || 'Məkan daxil edin...'}
+                </Text>
+                <Text style={{ color: Colors.gold, fontSize: 16 }}>📍</Text>
+              </TouchableOpacity>
+              <LocationPicker
+                visible={showLocationPicker}
+                onClose={() => setShowLocationPicker(false)}
+                onSelect={(loc) => { setEventLocation(loc); setShowLocationPicker(false); }}
               />
 
               <Text style={{ color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito700, marginBottom: 8 }}>ƏLAVƏLƏR (istəyə görə)</Text>
