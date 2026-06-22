@@ -872,7 +872,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
     }
   }, [route?.params?.tab, route?.params?._t]);
 
-  const agreeEvents = personalEvents.filter((e: any) => e.isAgree === true);
+  const agreeEvents = (personalEvents ?? []).filter((e: any) => e.isAgree === true);
   const outgoing  = agreeEvents.filter((e: any) => e.ownerUid === user?.uid && e.status !== 'cancelled');
   const incoming  = agreeEvents.filter((e: any) => e.ownerUid !== user?.uid && e.status !== 'cancelled');
   const cancelled = agreeEvents.filter((e: any) => e.status === 'cancelled');

@@ -25,24 +25,32 @@ function tsToTime(ts: any): string {
 
 // ── MUSICIANS ─────────────────────────────────────────────
 export async function fetchMusicians(): Promise<Musician[]> {
-  const q = query(collection(fbFirestore, COLLECTIONS.MUSICIANS), limit(50));
+  const q = query(collection(fbFirestore, COLLECTIONS.USERS), where('role', '==', 'musician'), limit(50));
   return snapToList<Musician>(await getDocs(q));
 }
 
 export function subscribeMusicians(cb: (items: Musician[]) => void): () => void {
-  const q = query(collection(fbFirestore, COLLECTIONS.MUSICIANS), limit(50));
+  const q = query(collection(fbFirestore, COLLECTIONS.USERS), where('role', '==', 'musician'), limit(50));
   return onSnapshot(q, snap => cb(snapToList<Musician>(snap)));
 }
 
 export async function saveUserAsMusician(uid: string, data: Partial<Musician>): Promise<void> {
-  // Save to musicians collection (legacy)
-  await setDoc(doc(fbFirestore, COLLECTIONS.MUSICIANS, uid), {
-    ...data, uid, updatedAt: serverTimestamp(),
-  }, { merge: true });
-  // Also save role and specialty to users collection
+  // Save to users collection with role = musician
   await setDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
-    role: data.role ?? 'musician',
+    id: uid,
+    uid,
+    name: data.name ?? '',
+    emoji: data.emoji ?? '🎵',
+    instrument: data.instrument ?? '',
     specialty: data.instrument ?? data.specialty ?? '',
+    city: data.city ?? '',
+    rating: data.rating ?? 0,
+    reviews: data.reviews ?? 0,
+    available: data.available ?? false,
+    goldRing: data.goldRing ?? false,
+    online: data.online ?? true,
+    bio: data.bio ?? '',
+    role: 'musician',
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }
@@ -457,18 +465,11 @@ export async function getAgreement(uid1: string, uid2: string): Promise<Agreemen
 // ── ONLINE STATUS ─────────────────────────────────────────
 export async function setUserOnlineStatus(uid: string, online: boolean): Promise<void> {
   try {
-    // Update in musicians collection
-    await setDoc(
-      doc(fbFirestore, COLLECTIONS.MUSICIANS, uid),
-      { online, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
-    // Update in users collection
     await updateDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
       online,
       lastSeen: serverTimestamp(),
     });
-  } catch { /* ignore — user may not be in musicians */ }
+  } catch { /* ignore */ }
 }
 export async function saveReadAgreementId(uid: string, agreementId: string): Promise<void> {
   try {
