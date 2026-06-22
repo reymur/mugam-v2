@@ -164,6 +164,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
         rating: 0, reviews: 0, available: false,
         verified: false, followers: 0, gigs: 0,
       };
+      // Save role to users collection
+      await FireStore.saveUserProfile(cred.user.uid, {
+        role: role === 'musiqici' ? 'musician' : 'user',
+        specialty: inst,
+        displayName: name,
+        city,
+      });
       // If user registered as musician — add to musicians collection
       if (role === 'musiqici') {
         await FireStore.saveUserAsMusician(cred.user.uid, {
@@ -179,6 +186,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
           goldRing:   false,
           online:     true,
           bio:        '',
+          role:       'musician',
+          specialty:  inst,
         });
       }
       set({ user: profile, isAuthenticated: true, authLoading: false });

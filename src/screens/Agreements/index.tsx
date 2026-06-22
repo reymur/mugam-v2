@@ -288,9 +288,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         onClose={() => setShowEditModal(false)}
         mode="full"
         existingEvents={[
-          ...agreeEvents.filter((e: any) => e.date).map((e: any) => ({ ...e })),
           ...personalEvents,
-          ...eventsAsMusician,
         ]}
         title="Müqaviləni redaktə et"
         initialDate={agreement.date ? new Date(agreement.date) : new Date()}

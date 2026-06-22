@@ -35,8 +35,30 @@ export function subscribeMusicians(cb: (items: Musician[]) => void): () => void 
 }
 
 export async function saveUserAsMusician(uid: string, data: Partial<Musician>): Promise<void> {
+  // Save to musicians collection (legacy)
   await setDoc(doc(fbFirestore, COLLECTIONS.MUSICIANS, uid), {
     ...data, uid, updatedAt: serverTimestamp(),
+  }, { merge: true });
+  // Also save role and specialty to users collection
+  await setDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
+    role: data.role ?? 'musician',
+    specialty: data.instrument ?? data.specialty ?? '',
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function saveUserProfile(uid: string, data: {
+  role?: import('../types').UserRole;
+  specialty?: string;
+  displayName?: string;
+  emoji?: string;
+  city?: string;
+  bio?: string;
+  instrument?: string;
+}): Promise<void> {
+  await setDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
+    ...data,
+    updatedAt: serverTimestamp(),
   }, { merge: true });
 }
 

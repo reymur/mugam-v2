@@ -1,4 +1,6 @@
 // src/types.ts — all shared types, no circular deps
+export type UserRole = 'user' | 'musician' | 'concertmaster' | 'moderator';
+
 export interface UserProfile {
   uid:         string;
   displayName: string;
@@ -15,6 +17,9 @@ export interface UserProfile {
   gigs:        number;
   photoURL?:   string;
   fcmToken?:   string;
+  role?:       UserRole;
+  specialty?:  string;
+  online?:     boolean;
 }
 
 export interface Musician {
@@ -32,6 +37,8 @@ export interface Musician {
   experience?: string;
   photoURL?:   string;
   uid?:        string;
+  role?:       UserRole;
+  specialty?:  string;
 }
 
 export interface Event {
