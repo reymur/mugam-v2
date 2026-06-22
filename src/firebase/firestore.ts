@@ -605,6 +605,9 @@ export async function addPersonalEvent(
     location: string;
     notes: string;
     musicians: string[];
+    isAgree?: boolean;
+    agreementChatId?: string;
+    partnerUid?: string;
   }
 ): Promise<string> {
   const ref = await addDoc(
@@ -612,7 +615,9 @@ export async function addPersonalEvent(
     {
       ...event,
       ownerUid: uid,
-      fromAgreement: false,
+      isAgree: event.isAgree ?? false,
+      agreementChatId: event.agreementChatId ?? null,
+      partnerUid: event.partnerUid ?? null,
       createdAt: serverTimestamp(),
     }
   );
