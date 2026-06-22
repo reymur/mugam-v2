@@ -514,6 +514,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         isAgree: true,
         agreementChatId: chatId ?? undefined,
         partnerUid: toUid,
+        partnerName: toName,
+        status: 'agreed',
       });
       // Create personalEvent for recipient
       await FireStore.addPersonalEvent(toUid, {
@@ -525,6 +527,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         isAgree: true,
         agreementChatId: chatId ?? undefined,
         partnerUid: user.uid,
+        partnerName: user.displayName ?? '',
+        status: 'agreed',
       });
     }
   },

@@ -32,8 +32,8 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
   const slideAnim = React.useRef(new Animated.Value(SCREEN_W)).current;
 
   // Check online status from musicians list
-  const fromMusician = musicians.find(m => (m.uid ?? m.id) === agreement.fromUid);
-  const toMusician   = musicians.find(m => (m.uid ?? m.id) === agreement.toUid);
+  const fromMusician = musicians.find(m => (m.uid ?? m.id) === agreement.ownerUid);
+  const toMusician   = musicians.find(m => (m.uid ?? m.id) === agreement.partnerUid);
   const fromOnline   = fromMusician?.online ?? false;
 
   const openMusician = (uid: string, name: string) => {
@@ -53,14 +53,14 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 
   // Load chat messages
   React.useEffect(() => {
-    console.log('chatId:', agreement.chatId);
-    if (!agreement.chatId) return;
+    const chatId = agreement.agreementChatId ?? agreement.chatId;
+    if (!chatId) return;
     const load = async () => {
       setLoadingMsgs(true);
       console.log('Loading msgs started');
       try {
         const snap = await getDocs(query(
-          collection(fbFirestore, COLLECTIONS.CHATS, agreement.chatId!, COLLECTIONS.MESSAGES),
+          collection(fbFirestore, COLLECTIONS.CHATS, chatId!, COLLECTIONS.MESSAGES),
           fbOrderBy('createdAt', 'asc'),
         ));
         const msgs = snap.docs.map(d => {
@@ -105,7 +105,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <Text style={d.backText}>←</Text>
           </TouchableOpacity>
           <Text style={d.headerTitle}>Müqavilə</Text>
-          {agreement.fromUid === user?.uid ? (
+          {agreement.ownerUid === user?.uid ? (
             <TouchableOpacity onPress={() => setShowEditModal(true)} hitSlop={{ top:10, bottom:10, left:10, right:10 }}>
               <Text style={{ color: Colors.gold, fontSize: 22, width: 40, textAlign: 'right' }}>✏️</Text>
             </TouchableOpacity>
@@ -120,7 +120,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
                 {agreement.status === 'cancelled'
                   ? agreement.cancelledBy === user?.uid
                     ? '✖ Siz imtina etdiniz'
-                    : `✖ ${agreement.cancelledByName ?? ''} imtina etdi`
+                    : `✖ ${agreement.partnerName ?? ''} imtina etdi`
                   : '✅ Razılaşma qəbul edildi'}
               </Text>
             </View>
@@ -128,41 +128,41 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           </View>
 
           {/* Event details */}
-          {(agreement.eventDate || agreement.eventType) && agreement.status !== 'cancelled' && (
+          {(agreement.date || agreement.type) && agreement.status !== 'cancelled' && (
             <View style={d.card}>
               <Text style={d.cardTitle}>📅 Tədbir məlumatı</Text>
-              {agreement.eventType && (
+              {agreement.type && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>Növ</Text>
-                  <Text style={d.detailValue}>{agreement.eventType}</Text>
+                  <Text style={d.detailValue}>{agreement.type}</Text>
                 </View>
               )}
-              {agreement.eventDate && (
+              {agreement.date && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>Tarix</Text>
                   <Text style={d.detailValue}>
-                    {new Date(agreement.eventDate).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {new Date(agreement.date).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </Text>
                 </View>
               )}
-              {agreement.eventDate && (
+              {agreement.date && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>Vaxt</Text>
                   <Text style={d.detailValue}>
-                    {new Date(agreement.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(agreement.date).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
               )}
-              {agreement.eventLocation && (
+              {agreement.location && (
                 <View style={d.detailRow}>
                   <Text style={d.detailLabel}>📍 Yer</Text>
-                  <Text style={d.detailValue}>{agreement.eventLocation}</Text>
+                  <Text style={d.detailValue}>{agreement.location}</Text>
                 </View>
               )}
-              {agreement.eventNotes && (
+              {agreement.notes && (
                 <View style={[d.detailRow, { borderBottomWidth: 0 }]}>
                   <Text style={d.detailLabel}>📝 Əlavələr</Text>
-                  <Text style={d.detailValue}>{agreement.eventNotes}</Text>
+                  <Text style={d.detailValue}>{agreement.notes}</Text>
                 </View>
               )}
             </View>
@@ -173,7 +173,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <Text style={d.cardTitle}>Tərəflər</Text>
             <TouchableOpacity
               style={[d.party, { backgroundColor: Colors.gold + '22', borderRadius: 14 }]}
-              onPress={() => openMusician(agreement.fromUid, agreement.fromName)}
+              onPress={() => openMusician(agreement.ownerUid, user?.displayName ?? '')}
               activeOpacity={0.7}
             >
               <View style={d.partyAvaWrap}>
@@ -181,9 +181,9 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[d.partyName, agreement.cancelledBy === agreement.fromUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.fromName}</Text>
-                <Text style={[d.partyRole, agreement.cancelledBy === agreement.fromUid && { color: Colors.red }]}>
-                  {agreement.cancelledBy === agreement.fromUid ? 'İmtina etdi' : 'Göndərən (Təklif edən)'}
+                <Text style={[d.partyName, agreement.cancelledBy === agreement.ownerUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{user?.displayName ?? ''}</Text>
+                <Text style={[d.partyRole, agreement.cancelledBy === agreement.ownerUid && { color: Colors.red }]}>
+                  {agreement.cancelledBy === agreement.ownerUid ? 'İmtina etdi' : 'Göndərən (Təklif edən)'}
                 </Text>
               </View>
 
@@ -192,7 +192,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
             <View style={d.divider} />
             <TouchableOpacity
               style={d.party}
-              onPress={() => openMusician(agreement.toUid, agreement.toName)}
+              onPress={() => openMusician(agreement.partnerUid, agreement.partnerName ?? '')}
               activeOpacity={0.7}
             >
               <View style={d.partyAvaWrap}>
@@ -200,9 +200,9 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
 
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[d.partyName, agreement.cancelledBy === agreement.toUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.toName}</Text>
-                <Text style={[d.partyRole, agreement.cancelledBy === agreement.toUid && { color: Colors.red }]}>
-                  {agreement.cancelledBy === agreement.toUid ? 'İmtina etdi' : 'Qəbul edən'}
+                <Text style={[d.partyName, agreement.cancelledBy === agreement.partnerUid && { color: Colors.red, textDecorationLine: 'underline' }]}>{agreement.partnerName ?? ''}</Text>
+                <Text style={[d.partyRole, agreement.cancelledBy === agreement.partnerUid && { color: Colors.red }]}>
+                  {agreement.cancelledBy === agreement.partnerUid ? 'İmtina etdi' : 'Qəbul edən'}
                 </Text>
               </View>
 
@@ -269,7 +269,7 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
           {/* Note */}
           <View style={d.noteCard}>
             <Text style={d.noteText}>
-              Bu müqavilə {agreement.fromName} və {agreement.toName} arasında
+              Bu müqavilə {user?.displayName ?? ''} və {agreement.partnerName ?? ''} arasında
               qarşılıqlı razılıq əsasında bağlanmışdır.
             </Text>
           </View>
@@ -288,23 +288,23 @@ function AgreementDetail({ agreement, onClose }: { agreement: Agreement; onClose
         onClose={() => setShowEditModal(false)}
         mode="full"
         existingEvents={[
-          ...agreements.filter((a: any) => a.eventDate).map((a: any) => ({ ...a, date: a.eventDate })),
+          ...agreeEvents.filter((e: any) => e.date).map((e: any) => ({ ...e })),
           ...personalEvents,
           ...eventsAsMusician,
         ]}
         title="Müqaviləni redaktə et"
-        initialDate={agreement.eventDate ? new Date(agreement.eventDate) : new Date()}
-        initialType={(agreement as any).eventType}
-        initialLocation={(agreement as any).eventLocation}
-        initialNotes={(agreement as any).eventNotes}
+        initialDate={agreement.date ? new Date(agreement.date) : new Date()}
+        initialType={agreement.type}
+        initialLocation={agreement.location}
+        initialNotes={agreement.notes}
         allMusicians={[]}
         selectedMusicians={[]}
         onSave={async (data) => {
-          await FireStore.updateAgreement(agreement.id, {
-            eventType: data.type,
-            eventDate: data.date.toISOString(),
-            eventLocation: data.location,
-            eventNotes: [data.notes, data.qeyd].filter(Boolean).join(' | '),
+          await FireStore.updatePersonalEvent(agreement.id, {
+            type: data.type,
+            date: data.date.toISOString(),
+            location: data.location,
+            notes: [data.notes, data.qeyd].filter(Boolean).join(' | '),
           });
           setShowEditModal(false);
         }}
@@ -622,18 +622,8 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startOffset = firstDay === 0 ? 6 : firstDay - 1;
 
-  // Group agreements by day
+  // Group all events by day (from personalEvents only)
   const eventDays: Record<number, any[]> = {};
-  agreements.forEach(a => {
-    const d = new Date(a.eventDate);
-    if (d.getFullYear() === year && d.getMonth() === month) {
-      const day = d.getDate();
-      if (!eventDays[day]) eventDays[day] = [];
-      eventDays[day].push(a);
-    }
-  });
-
-  // Add personal events to calendar
   const allPersonal = [...personalEvents, ...eventsAsMusician.map(e => ({ ...e, _isInvited: true }))];
   allPersonal.forEach(e => {
     if (!e.date) return;
@@ -735,52 +725,13 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
             {selectedDay} {monthNames[month]}
           </Text>
           {(() => {
-            const agreementEvents = selectedEvents.filter((a: any) => !a._isPersonal);
-            const personalEventsList = selectedEvents.filter((a: any) => a._isPersonal);
-            const groups: Record<string, any[]> = {};
-            agreementEvents.forEach((a: any) => {
-              if (!a.eventDate) return;
-              const time = new Date(a.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-              const key = `${a.fromUid}|${a.eventType}|${a.eventLocation ?? ''}|${time}`;
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(a);
-            });
-            const groupCards = Object.entries(groups).map(([key, items], gi) => {
-              const first = items[0];
-              const time = new Date(first.eventDate).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-              const locations = [...new Set(items.map((a: any) => a.eventLocation).filter(Boolean))];
-              const allMusicians = items.map((a: any) => {
-                const m = musicians.find(x => (x.uid ?? x.id) === a.toUid);
-                return m ?? { name: a.toName, emoji: '🎵', instrument: '', uid: a.toUid };
-              });
-              const initiator = musicians.find(x => (x.uid ?? x.id) === first.fromUid) ?? { name: first.fromName, emoji: '👑', instrument: '', uid: first.fromUid };
-              return (
-                <EventCard
-                  key={gi}
-                  type={first.eventType}
-                  time={time}
-                  location={locations.join(', ')}
-                  notes={first.eventNotes}
-                  badge={{ label: '🤝', color: Colors.green, bg: 'rgba(39,174,96,0.15)' }}
-                  initiator={initiator}
-                  musicians={allMusicians}
-                  onPress={() => onSelectAgreement(first)}
-                  onInitiatorPress={() => onSelectAgreement(first)}
-                  onMusicianPress={(m) => onSelectAgreement(items[allMusicians.indexOf(m)])}
-                  currentUserUid={user?.uid ?? undefined}
-                />
-              );
-            });
-
-            // Render personal events
-            const personalCards = personalEventsList.map((e: any, pi: number) => {
-              const isInvited = !!e._isInvited;
+            // Render all events from personalEvents
+            const personalCards = selectedEvents.map((e: any, pi: number) => {
+              const isInvited = e.ownerUid !== user?.uid;
               const owner = isInvited ? musicians.find(m => (m.uid ?? m.id) === e.ownerUid) : null;
               const eDateTime = e.date ? new Date(e.date) : null;
               const timeStr = eDateTime ? eDateTime.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
-              const dateStr = eDateTime ? eDateTime.getDate() + ' ' + ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'][eDateTime.getMonth()] : '';
-              const time = tedbirFilterDate ? timeStr : (dateStr + ' ' + timeStr).trim();
-
+              const time = timeStr;
               return (
                 <EventCard
                   key={'p' + pi}
@@ -788,13 +739,9 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
                   time={time}
                   location={e.location}
                   notes={e.notes}
-                  badge={{
-                    label: '',
-                    color: Colors.green,
-                    bg: 'transparent',
-                  }}
+                  badge={e.isAgree ? { label: '🤝', color: Colors.green, bg: 'rgba(39,174,96,0.15)' } : { label: '', color: Colors.green, bg: 'transparent' }}
                   initiator={isInvited ? (owner ?? undefined) : (user ? { name: user.displayName ?? '', emoji: user.emoji ?? '👤', instrument: user.instrument ?? '' } : undefined)}
-                  musicians={(e.musicians ?? []).map((uid: string) => musicians.find(x => (x.uid ?? x.id) === uid)).filter(Boolean)}
+                  musicians={(e.musicians ?? []).map((uid: string) => musicians.find((x: any) => (x.uid ?? x.id) === uid)).filter(Boolean)}
                   onPress={() => setSelectedPersonalEvent(e)}
                   onMusicianPress={(m) => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }}
                   currentUserUid={user?.uid ?? undefined}
@@ -802,7 +749,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               );
             });
 
-            return [...groupCards, ...personalCards];
+            return [...personalCards];
           })()}
         </View>
       )}
@@ -832,7 +779,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
         visible={showAddModal}
         mode="time-only"
         initialDate={newEventDate}
-        existingEvents={[...personalEvents, ...eventsAsMusician, ...agreements.filter((a: any) => a.eventDate).map((a: any) => ({ ...a, date: a.eventDate }))]}
+        existingEvents={[...personalEvents, ...eventsAsMusician]}
         allMusicians={musicians}
         selectedMusicians={selectedMusicians}
         onMusicianChange={(uids) => setSelectedMusicians(uids)}
@@ -861,31 +808,24 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
 }
 
 // ── Agreement Card with messages ─────────────────────────
-function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () => void; isUnread: boolean }) {
+function AgreementCard({ ag, onPress, isUnread }: { ag: any; onPress: () => void; isUnread: boolean }) {
   const { user } = useAppStore();
-  const isSender    = ag.fromUid === user?.uid;
-  const otherName   = isSender ? ag.toName : ag.fromName;
+  const isMine = ag.ownerUid === user?.uid;
+  const otherName = ag.partnerName ?? '';
   const isCancelled = ag.status === 'cancelled';
   const cancelledByMe = ag.cancelledBy === user?.uid;
-  const cancelledByName = ag.cancelledByName ?? otherName;
-  const eventDate = ag.eventDate ? new Date(ag.eventDate) : null;
-  const eventType = ag.eventType ?? null;
-  const eventLocation = ag.eventLocation ?? null;
+  const eventDate = ag.date ? new Date(ag.date) : null;
   const eventDateStr = eventDate
     ? eventDate.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
-
   const dateObj = ag.createdAt?.toDate ? ag.createdAt.toDate() : null;
   const date = dateObj
     ? dateObj.toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }) +
       ' ' + dateObj.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })
     : '';
-
   const roleText = isCancelled
-    ? cancelledByMe
-      ? 'Siz imtina etdiniz'
-      : `${cancelledByName} imtina etdi`
-    : isSender ? 'Siz göndərdiniz' : 'Sizə göndərildi';
+    ? cancelledByMe ? 'Siz imtina etdiniz' : `${otherName} imtina etdi`
+    : isMine ? 'Siz göndərdiniz' : 'Sizə göndərildi';
 
   return (
     <TouchableOpacity
@@ -907,8 +847,7 @@ function AgreementCard({ ag, onPress, isUnread }: { ag: Agreement; onPress: () =
           <Text style={[s.cardDate, !isUnread && s.cardDateRead]}>{date}</Text>
           {eventDateStr && !isCancelled && (
             <Text style={[s.cardDate, { color: Colors.gold, marginTop: 2 }]}>
-              📅 {eventType} — {eventDateStr}
-              {eventLocation ? ` · ${eventLocation}` : ''}
+              {'📅 ' + (ag.type ?? '') + ' — ' + eventDateStr + (ag.location ? ' · ' + ag.location : '')}
             </Text>
           )}
         </View>
@@ -935,9 +874,10 @@ export default function AgreementsScreen({ route }: { route?: any }) {
     }
   }, [route?.params?.tab, route?.params?._t]);
 
-  const outgoing  = agreements.filter((a: any) => a.fromUid === user?.uid && a.status !== 'cancelled');
-  const incoming  = agreements.filter((a: any) => a.toUid === user?.uid && a.status !== 'cancelled');
-  const cancelled = agreements.filter((a: any) => a.status === 'cancelled' && (a.fromUid === user?.uid || a.toUid === user?.uid));
+  const agreeEvents = personalEvents.filter((e: any) => e.isAgree === true);
+  const outgoing  = agreeEvents.filter((e: any) => e.ownerUid === user?.uid && e.status !== 'cancelled');
+  const incoming  = agreeEvents.filter((e: any) => e.ownerUid !== user?.uid && e.status !== 'cancelled');
+  const cancelled = agreeEvents.filter((e: any) => e.status === 'cancelled');
   const sortAndGroup = (list: any[]) => {
     const unread = list.filter((a: any) => !readAgreementIds.includes(a.id))
       .sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
@@ -955,7 +895,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
 
   // Auto-open agreement with specific musician
   const autoAgreement = autoOpenUid
-    ? agreements.find(a => a.fromUid === autoOpenUid || a.toUid === autoOpenUid) ?? null
+    ? agreeEvents.find(a => a.partnerUid === autoOpenUid || a.ownerUid === autoOpenUid) ?? null
     : null;
 
   const [selected, setSelected] = useState<Agreement | null>(autoAgreement);
@@ -984,9 +924,9 @@ export default function AgreementsScreen({ route }: { route?: any }) {
           >
             <View style={{ position: 'relative' }}>
               <Text style={[s.mainViewText, mainView === 'agreements' && s.mainViewTextActive]} numberOfLines={1} ellipsizeMode="tail">📋 Müqavilələr</Text>
-              {agreements.length > 0 && (() => {
-                const unreadCount = agreements.filter(a => !readAgreementIds.includes(a.id)).length;
-                const count = unreadCount > 0 ? unreadCount : agreements.length;
+              {agreeEvents.length > 0 && (() => {
+                const unreadCount = agreeEvents.filter(a => !readAgreementIds.includes(a.id)).length;
+                const count = unreadCount > 0 ? unreadCount : agreeEvents.length;
                 const bg = unreadCount > 0 ? '#ff3b30' : Colors.gold;
                 const textColor = unreadCount > 0 ? '#fff' : '#1a0e00';
                 return (
@@ -1064,15 +1004,15 @@ export default function AgreementsScreen({ route }: { route?: any }) {
               const dateStr2 = eDateTime ? eDateTime.getDate() + ' ' + ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'][eDateTime.getMonth()] : '';
               const time = tedbirFilterDate ? timeStr2 : (dateStr2 + ' ' + timeStr2).trim();
               if (e._type === 'agreement') {
-                const initiator = musicians.find((m: any) => (m.uid ?? m.id) === e.fromUid) ?? { name: e.fromName, emoji: '👑', instrument: '' };
-                const toMusician = musicians.find((m: any) => (m.uid ?? m.id) === e.toUid);
+                const initiator = musicians.find((m: any) => (m.uid ?? m.id) === e.ownerUid) ?? { name: e.partnerName ?? '', emoji: '👑', instrument: '' };
+                const toMusician = musicians.find((m: any) => (m.uid ?? m.id) === e.partnerUid);
                 return (
                   <EventCard
                     key={e.id ?? i}
-                    type={e.eventType}
+                    type={e.type}
                     time={time}
-                    location={e.eventLocation}
-                    notes={e.eventNotes}
+                    location={e.location}
+                    notes={e.notes}
                     badge={{ label: '🤝', color: Colors.green, bg: 'rgba(39,174,96,0.15)' }}
                     initiator={initiator}
                     musicians={toMusician ? [toMusician] : []}
@@ -1108,16 +1048,10 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       )}
 
       {mainView === 'calendar' && (
-        <CalendarView key="calendar-view" agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} onDayPress={(date, events) => {
+        <CalendarView key="calendar-view" agreements={[]} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} onDayPress={(date, events) => {
               const uid = user?.uid;
-              const hasSexsi = events.some((e: any) => {
-                if (e._isPersonal) return e.ownerUid === uid;
-                return e.fromUid === uid;
-              });
-              const hasDavetli = events.some((e: any) => {
-                if (e._isPersonal) return e.ownerUid !== uid;
-                return e.fromUid !== uid;
-              });
+              const hasSexsi = events.some((e: any) => e.ownerUid === uid);
+              const hasDavetli = events.some((e: any) => e.ownerUid !== uid);
               const tab = hasSexsi && hasDavetli ? 'hamisi' : hasSexsi ? 'sexsi' : 'dəvətli';
               setTedbirFilterDate(date);
               setTedbirTab(tab as any);
@@ -1129,7 +1063,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
       >
-        {agreements.length === 0 ? (
+        {agreeEvents.length === 0 ? (
           <View style={s.empty}>
             <Text style={s.emptyEmoji}>📋</Text>
             <Text style={s.emptyTitle}>Hələ müqavilə yoxdur</Text>
@@ -1166,7 +1100,7 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       )}
       {selected && (
         <AgreementDetail
-          agreement={agreements.find(a => a.id === selected.id) ?? selected}
+          agreement={agreeEvents.find(a => a.id === selected.id) ?? selected}
           onClose={() => setSelected(null)}
         />
       )}

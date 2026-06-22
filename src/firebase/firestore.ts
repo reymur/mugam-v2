@@ -608,6 +608,9 @@ export async function addPersonalEvent(
     isAgree?: boolean;
     agreementChatId?: string;
     partnerUid?: string;
+    partnerName?: string;
+    status?: 'agreed' | 'cancelled';
+    cancelledBy?: string;
   }
 ): Promise<string> {
   const ref = await addDoc(
@@ -618,6 +621,9 @@ export async function addPersonalEvent(
       isAgree: event.isAgree ?? false,
       agreementChatId: event.agreementChatId ?? null,
       partnerUid: event.partnerUid ?? null,
+      partnerName: event.partnerName ?? null,
+      status: event.status ?? 'agreed',
+      cancelledBy: event.cancelledBy ?? null,
       createdAt: serverTimestamp(),
     }
   );
@@ -722,4 +728,28 @@ export async function addPersonalEventFromAgreement(
     fromAgreement: data.fromAgreement,
     createdAt: serverTimestamp(),
   });
+}
+
+export async function cancelPersonalEventAgreement(
+  eventId: string,
+  cancelledByUid: string
+): Promise<void> {
+  await updateDoc(
+    doc(fbFirestore, 'personalEvents', eventId),
+    { status: 'cancelled', cancelledBy: cancelledByUid }
+  );
+}
+
+export async function findPersonalEventByAgreementChat(
+  chatId: string,
+  ownerUid: string
+): Promise<string | null> {
+  const q = query(
+    collection(fbFirestore, 'personalEvents'),
+    where('agreementChatId', '==', chatId),
+    where('ownerUid', '==', ownerUid)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return snap.docs[0].id;
 }
