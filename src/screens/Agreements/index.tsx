@@ -555,7 +555,7 @@ function PersonalEventDetail({ event, onClose, onOpenProfile, onConflictTrigger,
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
         mode="time-only"
-        existingEvents={[...personalEvents, ...eventsAsMusician]}
+        existingEvents={[...personalEvents, ...eventsAsMusician].filter(e => e.id !== event.id)}
         onConflict={(ce, pd) => { onConflictTrigger?.(ce, pd); }}
         onBax={(ce) => { setShowEditModal(false); setTimeout(() => onBaxTrigger?.(ce), 300); }}
         title="Tədbiri redaktə et"
@@ -678,22 +678,17 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
               key={day}
               style={{ width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
               onPress={() => {
-                const now = Date.now();
-                const last = lastTapRef.current;
-                if (last && last.day === day && now - last.time < 300) {
-                  // Double tap — open modal
-                  lastTapRef.current = null;
-                  setSelectedDay(day);
-                  setShowAddModal(true);
-                } else {
-                  // Single tap — select day
-                  lastTapRef.current = { day, time: now };
-                  setSelectedDay(isSelected ? null : day);
-                  if (eventDays[day] && eventDays[day].length > 0 && onDayPress) {
-                    onDayPress(new Date(year, month, day), eventDays[day]);
-                  }
+                setSelectedDay(isSelected ? null : day);
+                if (eventDays[day] && eventDays[day].length > 0 && onDayPress) {
+                  onDayPress(new Date(year, month, day), eventDays[day]);
                 }
               }}
+              onLongPress={() => {
+                setSelectedDay(day);
+                setNewEventDate(new Date(year, month, day, 12, 0));
+                setShowAddModal(true);
+              }}
+              delayLongPress={400}
             >
               <View style={{
                 width: 40, height: 40, borderRadius: 20,
@@ -717,45 +712,7 @@ function CalendarView({ agreements, onSelectAgreement, personalEvents, eventsAsM
       </View>
       <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
       {/* Selected day events */}
-      {selectedDay && selectedEvents.length > 0 && (
-        <View style={{ marginTop: 20 }}>
-          <Text style={{ color: Colors.text, fontFamily: Typography.playfair700, fontSize: 16, marginBottom: 12 }}>
-            {selectedDay} {monthNames[month]}
-          </Text>
-          {(() => {
-            // Render all events from personalEvents
-            const personalCards = selectedEvents.map((e: any, pi: number) => {
-              const isInvited = e.ownerUid !== user?.uid;
-              const owner = isInvited ? musicians.find(m => (m.uid ?? m.id) === e.ownerUid) : null;
-              const eDateTime = e.date ? new Date(e.date) : null;
-              const timeStr = eDateTime ? eDateTime.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }) : '';
-              const time = timeStr;
-              return (
-                <EventCard
-                  key={'p' + pi}
-                  type={e.type}
-                  time={time}
-                  location={e.location}
-                  notes={e.notes}
-                  badge={e.isAgree ? { label: '🤝', color: Colors.green, bg: 'rgba(39,174,96,0.15)' } : { label: '', color: Colors.green, bg: 'transparent' }}
-                  initiator={isInvited ? (owner ?? undefined) : (user ? { name: user.displayName ?? '', emoji: user.emoji ?? '👤', instrument: user.instrument ?? '' } : undefined)}
-                  musicians={(e.musicians ?? []).map((uid: string) => musicians.find((x: any) => (x.uid ?? x.id) === uid)).filter(Boolean)}
-                  onPress={() => setSelectedPersonalEvent(e)}
-                  onMusicianPress={(m) => { setSelectedPersonalEvent(null); setTimeout(() => setProfileMusician(m), 100); }}
-                  currentUserUid={user?.uid ?? undefined}
-                />
-              );
-            });
 
-            return [...personalCards];
-          })()}
-        </View>
-      )}
-      {selectedDay && selectedEvents.length === 0 && (
-        <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <Text style={{ color: Colors.muted }}>Bu gün üçün tədbir yoxdur</Text>
-        </View>
-      )}
 
       </ScrollView>
       {/* Musician Picker Modal */}

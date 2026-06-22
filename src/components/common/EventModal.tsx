@@ -249,23 +249,26 @@ export default function EventModal({
                 disabled={saving}
                 onPress={async () => {
                   const data = { date: eventDate, type: eventType, location: eventLocation, notes: eventNotes, qeyd: eventQeyd, musicians: selectedMusicians };
-                  const conflict = existingEvents.find(e => {
-                    const eDate = new Date(e.date ?? e.eventDate);
-                    const match = eDate.getFullYear() === eventDate.getFullYear() &&
-                           eDate.getMonth() === eventDate.getMonth() &&
-                           eDate.getDate() === eventDate.getDate();
-                    return match;
-                  });
-                  if (conflict) {
-                    console.log('SHOW CONFLICT MODAL');
-                    setPendingData(data);
-                    setConflictEvent(conflict);
-                    setShowConflictModal(true);
-                    return;
+                  // If user already chose "Yeni tədbir" — skip conflict check
+                  if (!blockedTime) {
+                    const conflict = existingEvents.find(e => {
+                      const eDate = new Date(e.date ?? e.eventDate);
+                      const match = eDate.getFullYear() === eventDate.getFullYear() &&
+                             eDate.getMonth() === eventDate.getMonth() &&
+                             eDate.getDate() === eventDate.getDate();
+                      return match;
+                    });
+                    if (conflict) {
+                      setPendingData(data);
+                      setConflictEvent(conflict);
+                      setShowConflictModal(true);
+                      return;
+                    }
                   }
                   setSaving(true);
                   try {
                     await onSave(data);
+                    setBlockedTime(null);
                   } finally {
                     setSaving(false);
                   }
