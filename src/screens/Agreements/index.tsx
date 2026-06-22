@@ -982,7 +982,20 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             style={[s.mainViewBtn, mainView === 'agreements' && s.mainViewBtnActive]}
             onPress={() => setMainView('agreements')}
           >
-            <Text style={[s.mainViewText, mainView === 'agreements' && s.mainViewTextActive]}>📋 Müqavilələr</Text>
+            <View style={{ position: 'relative' }}>
+              <Text style={[s.mainViewText, mainView === 'agreements' && s.mainViewTextActive]} numberOfLines={1} ellipsizeMode="tail">📋 Müqavilələr</Text>
+              {agreements.length > 0 && (() => {
+                const unreadCount = agreements.filter(a => !readAgreementIds.includes(a.id)).length;
+                const count = unreadCount > 0 ? unreadCount : agreements.length;
+                const bg = unreadCount > 0 ? '#ff3b30' : Colors.gold;
+                const textColor = unreadCount > 0 ? '#fff' : '#1a0e00';
+                return (
+                  <View style={{ position: 'absolute', top: -6, left: 10, backgroundColor: bg, borderRadius: 10, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+                    <Text style={{ color: textColor, fontSize: 10, fontFamily: Typography.nunito700 }}>{count}</Text>
+                  </View>
+                );
+              })()}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.mainViewBtn, mainView === 'calendar' && s.mainViewBtnActive]}
@@ -997,7 +1010,6 @@ export default function AgreementsScreen({ route }: { route?: any }) {
             <Text style={[s.mainViewText, mainView === 'tedbirler' && s.mainViewTextActive]}>🎪 Tədbirlər</Text>
           </TouchableOpacity>
         </View>
-        <Text style={s.subtitle}>{agreements.length} müqavilə</Text>
       </View>
 
       {mainView === 'agreements' && <View style={s.tabRow}>
@@ -1035,9 +1047,8 @@ export default function AgreementsScreen({ route }: { route?: any }) {
           )}
           <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
           {[
-              ...(tedbirTab === 'dəvətli' ? [] : personalEvents.map(e => ({ ...e, _type: 'personal' }))),
-              ...(tedbirTab === 'sexsi' ? [] : eventsAsMusician.map(e => ({ ...e, _isInvited: true, _type: 'personal' }))),
-              ...(tedbirTab === 'sexsi' ? [] : agreements.filter((a: any) => a.status === 'agreed' && a.eventDate).map((a: any) => ({ ...a, _type: 'agreement', date: a.eventDate }))),
+              ...(tedbirTab === 'dəvətli' ? [] : personalEvents.filter((e: any) => e.ownerUid === user?.uid).map(e => ({ ...e, _type: 'personal' }))),
+              ...(tedbirTab === 'sexsi' ? [] : personalEvents.filter((e: any) => e.ownerUid !== user?.uid).map(e => ({ ...e, _isInvited: true, _type: 'personal' }))),
             ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .filter(e => {
               if (!tedbirFilterDate) return true;
@@ -1099,9 +1110,15 @@ export default function AgreementsScreen({ route }: { route?: any }) {
       {mainView === 'calendar' && (
         <CalendarView key="calendar-view" agreements={agreements.filter((a: any) => a.status === 'agreed' && a.eventDate)} onSelectAgreement={(ag) => setSelected(ag)} personalEvents={personalEvents} eventsAsMusician={eventsAsMusician} onOpenProfile={(m) => setCalendarProfileMusician(m)} showModalFromParent={calendarShowModal} onModalShown={() => setCalendarShowModal(false)} onDayPress={(date, events) => {
               const uid = user?.uid;
-              const hasPersonal = events.some((e: any) => e._isPersonal && e.ownerUid === uid);
-              const hasInvited = events.some((e: any) => e._isInvited || !e._isPersonal);
-              const tab = hasPersonal && hasInvited ? 'hamisi' : hasPersonal ? 'sexsi' : 'dəvətli';
+              const hasSexsi = events.some((e: any) => {
+                if (e._isPersonal) return e.ownerUid === uid;
+                return e.fromUid === uid;
+              });
+              const hasDavetli = events.some((e: any) => {
+                if (e._isPersonal) return e.ownerUid !== uid;
+                return e.fromUid !== uid;
+              });
+              const tab = hasSexsi && hasDavetli ? 'hamisi' : hasSexsi ? 'sexsi' : 'dəvətli';
               setTedbirFilterDate(date);
               setTedbirTab(tab as any);
               setMainView('tedbirler');

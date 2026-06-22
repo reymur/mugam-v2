@@ -503,6 +503,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const user = get().user;
     if (!user) return;
     await FireStore.createAgreement(toUid, toName, user.uid, user.displayName, chatId, eventDate, eventType, eventLocation, eventNotes);
+    if (eventDate) {
+      const eventData = {
+        date: eventDate,
+        type: eventType ?? '',
+        location: eventLocation ?? '',
+        notes: eventNotes ?? '',
+        musicians: [toUid],
+        fromAgreement: true,
+      };
+      // Create for initiator (fromUid = current user)
+      await FireStore.addPersonalEventFromAgreement(user.uid, { ...eventData, musicians: [toUid] });
+      // Create for recipient (toUid)
+      await FireStore.addPersonalEventFromAgreement(toUid, { ...eventData, musicians: [user.uid] });
+    }
   },
 
   hasAgreementWith: (uid) => {

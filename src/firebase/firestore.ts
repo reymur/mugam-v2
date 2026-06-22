@@ -612,6 +612,7 @@ export async function addPersonalEvent(
     {
       ...event,
       ownerUid: uid,
+      fromAgreement: false,
       createdAt: serverTimestamp(),
     }
   );
@@ -693,4 +694,27 @@ export async function updateAgreement(
     doc(fbFirestore, COLLECTIONS.AGREEMENTS, agreementId),
     data
   );
+}
+
+export async function addPersonalEventFromAgreement(
+  ownerUid: string,
+  data: {
+    date: string;
+    type: string;
+    location: string;
+    notes: string;
+    musicians: string[];
+    fromAgreement: boolean;
+  }
+): Promise<void> {
+  await addDoc(collection(fbFirestore, 'personalEvents'), {
+    ownerUid,
+    date: data.date,
+    type: data.type,
+    location: data.location,
+    notes: data.notes,
+    musicians: data.musicians,
+    fromAgreement: data.fromAgreement,
+    createdAt: serverTimestamp(),
+  });
 }
