@@ -1047,18 +1047,14 @@ const id = await createOrGetDirectChat(
                   }}
                   onSwipeRight={() => { setReplyMsg(msg); setTimeout(() => inputRef.current?.focus(), 100); }}
                 >
-                <TouchableOpacity
+                <View
                   style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs, highlightId === msg.id && s.msgHighlight]}
                   onLayout={e => {
                     if (msg.id) {
-                      // Accumulate Y position relative to scroll content
                       const y = e.nativeEvent.layout.y;
                       msgPositions.current[msg.id] = y;
                     }
                   }}
-                  onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)}
-                  activeOpacity={0.8}
-                  delayLongPress={400}
                 >
                   {isDeletedForAll ? (
                     <View style={[s.msgBubble, s.msgBubbleDeleted]}>
@@ -1067,7 +1063,7 @@ const id = await createOrGetDirectChat(
                   ) : isVoice && voiceUri ? (
                     <VoicePlayer uri={voiceUri} mine={msg.mine} />
                   ) : (
-                    <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
+                    <TouchableOpacity style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]} onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)} delayLongPress={400} activeOpacity={1}>
                       {msg.replyTo && (
                         <TouchableOpacity
                           style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}
@@ -1105,11 +1101,13 @@ const id = await createOrGetDirectChat(
                           }}
                           activeOpacity={0.7}
                         >
-                          <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
-                          <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
+                          <View style={{ padding: 10 }}>
+                            <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
+                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
+                          </View>
                         </TouchableOpacity>
                       )}
-                      <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
+                      <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]} onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)} suppressHighlighting>
                         {msg.text}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: msg.mine ? 'flex-end' : 'flex-start' }}>
@@ -1127,9 +1125,9 @@ const id = await createOrGetDirectChat(
                           return <CheckMark isRead={isRead} isDelivered={isDelivered} />;
                         })()}
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </View>
                 </SwipeableMessage>
                 </View>
               );
@@ -1382,7 +1380,7 @@ const s = StyleSheet.create({
   replyBarName:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 2 },
   replyBarText:     { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
   msgHighlight:     { backgroundColor: 'rgba(212,160,60,0.15)', borderRadius: 12 },
-  replyQuote:       { borderRadius: 6, padding: 8, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: 'rgba(26,14,0,0.5)' },
+  replyQuote:       { borderRadius: 6, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: 'rgba(26,14,0,0.5)', alignSelf: 'stretch', overflow: 'hidden' },
   replyQuoteMine:   { backgroundColor: 'rgba(26,14,0,0.2)' },
   replyQuoteTheirs: { backgroundColor: 'rgba(212,160,60,0.12)', borderLeftColor: Colors.gold },
   replyQuoteName:   { fontSize: 13, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 3 },
