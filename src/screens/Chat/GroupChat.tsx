@@ -1,0 +1,296 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, TextInput,
+  StyleSheet, Animated, KeyboardAvoidingView,
+  Platform, ScrollView, Dimensions, ActivityIndicator,
+  Alert, Modal, Keyboard, PanResponder, Pressable,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '../../theme/colors';
+import { Typography } from '../../theme/typography';
+import { useAppStore } from '../../store/useAppStore';
+import { markChatAsReadBy, markChatAsDelivered } from '../../firebase/firestore';
+import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
+import type { ChatItem, Message } from '../../store/useAppStore';
+import SwipeableMessage from '../../components/common/SwipeableMessage';
+
+const SCREEN_W = Dimensions.get('window').width;
+
+interface Props {
+  chat: ChatItem;
+  onClose: () => void;
+}
+
+export default function GroupChat({ chat, onClose }: Props) {
+  const { user, messages, sendMessage, loadMessages, showToast } = useAppStore();
+
+  const [inputText, setInputText] = useState('');
+  const [replyMsg, setReplyMsg] = useState<Message | null>(null);
+  const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
+  const [readyToShow, setReadyToShow] = useState(false);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
+  const slideAnim = useRef(new Animated.Value(SCREEN_W)).current;
+  const msgRefs = useRef<Record<string, any>>({});
+
+  // Slide in
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0, damping: 26, stiffness: 300, useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Load messages
+  useEffect(() => {
+    loadMessages(chat.id);
+    if (user?.uid) markChatAsReadBy(chat.id, user.uid).catch(() => {});
+  }, [chat.id]);
+
+  const chatMessages = messages[chat.id] ?? [];
+
+  useEffect(() => {
+    if (chatMessages.length > 0 && !readyToShow) {
+      setTimeout(() => {
+        setReadyToShow(true);
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
+      }, 100);
+    }
+  }, [chatMessages.length]);
+
+  // Mark as read when new messages arrive
+  useEffect(() => {
+    if (!user?.uid || chatMessages.length === 0) return;
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    markChatAsReadBy(chat.id, user.uid, lastMsg?.id).catch(() => {});
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  }, [chatMessages.length]);
+
+  const resolved = readyToShow || chatMessages.length === 0
+    ? chatMessages
+        .filter(m => !m.deletedFor?.includes(user?.uid ?? ''))
+        .filter(m => {
+          if (!m.deletedForAll) return true;
+          if (!m.deletedAt) return true;
+          return Date.now() - new Date(m.deletedAt).getTime() < 60000;
+        })
+        .map(m => ({ ...m, mine: m.senderId === user?.uid }))
+    : [];
+
+  const handleClose = useCallback(() => {
+    Animated.timing(slideAnim, {
+      toValue: SCREEN_W, duration: 250, useNativeDriver: true,
+    }).start(onClose);
+  }, [onClose]);
+
+  const handleSend = useCallback(async () => {
+    if (!inputText.trim() || !user) return;
+    const text = inputText.trim();
+    const replyData = replyMsg ? { id: replyMsg.id ?? '', text: replyMsg.text, senderName: replyMsg.senderName ?? '' } : undefined;
+    setInputText('');
+    setReplyMsg(null);
+    await sendMessage(chat.id, text, replyData);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
+  }, [inputText, chat.id, user, sendMessage, replyMsg]);
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: Colors.bg, zIndex: 200, transform: [{ translateX: slideAnim }] }]}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+
+        {/* Header */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={s.backText}>←</Text>
+          </TouchableOpacity>
+          <View style={[s.groupAva, { borderRadius: 12 }]}>
+            <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.groupName} numberOfLines={1}>{chat.name}</Text>
+            <Text style={s.groupSub}>{chat.members?.length ?? 0} iştirakçı</Text>
+          </View>
+        </View>
+
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={s.msgList}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {!readyToShow && chatMessages.length > 0 && (
+              <ActivityIndicator size="large" color={Colors.gold} style={{ marginTop: 30 }} />
+            )}
+
+            {resolved.map((msg, i) => {
+              if (msg.isSystem) {
+                return (
+                  <View key={msg.id ?? i} style={s.systemMsg}>
+                    <Text style={s.systemText}>{msg.text}</Text>
+                  </View>
+                );
+              }
+              return (
+                <View key={msg.id ?? i} ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}>
+                  <SwipeableMessage
+                    onSwipeLeft={async () => {
+                      if (!msg.id) return;
+                      await deleteMessagePermanently(chat.id, msg.id).catch(() => {});
+                    }}
+                    onSwipeRight={() => {
+                      setReplyMsg(msg);
+                      setTimeout(() => inputRef.current?.focus(), 100);
+                    }}
+                  >
+                  <Pressable
+                    style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs]}
+                    onLongPress={() => setSelectedMsg(msg)}
+                    delayLongPress={400}
+                  >
+                    {/* Sender name for group */}
+                    {!msg.mine && (
+                      <Text style={s.senderName}>{msg.senderName}</Text>
+                    )}
+                    <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
+                      {msg.replyTo && (
+                        <TouchableOpacity style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}>
+                          <View style={{ padding: 8 }}>
+                            <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
+                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                      <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
+                        {msg.text}
+                      </Text>
+                      <Text style={[s.msgTime, msg.mine ? s.msgTimeMine : s.msgTimeTheirs]}>
+                        {msg.time}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  </SwipeableMessage>
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          {/* Reply preview */}
+          {replyMsg && (
+            <View style={s.replyBar}>
+              <View style={s.replyBarLine} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.replyBarName}>{replyMsg.mine ? 'Siz' : replyMsg.senderName}</Text>
+                <Text style={s.replyBarText} numberOfLines={1}>{replyMsg.text}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setReplyMsg(null)}>
+                <Text style={{ fontSize: 18, color: Colors.muted }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Input */}
+          <View style={s.inputRow}>
+            <TextInput
+              ref={inputRef}
+              style={s.input}
+              placeholder="Mesaj yaz..."
+              placeholderTextColor={Colors.muted}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, !inputText.trim() && s.sendBtnDis]}
+              onPress={handleSend}
+              disabled={!inputText.trim()}
+            >
+              <Text style={s.sendBtnText}>➤</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+
+        {/* Delete message modal */}
+        <Modal transparent visible={!!selectedMsg} animationType="slide" onRequestClose={() => setSelectedMsg(null)}>
+          <TouchableOpacity style={s.menuOverlay} activeOpacity={1} onPress={() => setSelectedMsg(null)}>
+            <View style={s.deleteSheet}>
+              {selectedMsg?.mine && (
+                <TouchableOpacity style={s.menuItem} onPress={async () => {
+                  if (!selectedMsg?.id) return;
+                  setSelectedMsg(null);
+                  await deleteMessageForAll(chat.id, selectedMsg.id).catch(() => {});
+                }}>
+                  <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Hamıdan sil</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={s.menuItem} onPress={async () => {
+                if (!selectedMsg?.id || !user?.uid) return;
+                setSelectedMsg(null);
+                await deleteMessageForMe(chat.id, selectedMsg.id, user.uid).catch(() => {});
+              }}>
+                <Text style={s.menuItemText}>🗑 Yalnız məndən sil</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.menuItem} onPress={() => {
+                setReplyMsg(selectedMsg);
+                setSelectedMsg(null);
+                setTimeout(() => inputRef.current?.focus(), 100);
+              }}>
+                <Text style={s.menuItemText}>↩️ Cavabla</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.menuItem, { borderBottomWidth: 0 }]} onPress={() => setSelectedMsg(null)}>
+                <Text style={[s.menuItemText, { color: Colors.muted }]}>Ləğv et</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+      </SafeAreaView>
+    </Animated.View>
+  );
+}
+
+const s = StyleSheet.create({
+  header:        { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  backText:      { fontSize: 24, color: Colors.text },
+  groupAva:      { width: 40, height: 40, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.gold },
+  groupName:     { fontFamily: Typography.playfair700, fontSize: 15, color: Colors.text },
+  groupSub:      { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
+  msgList:       { padding: 14, gap: 8, paddingBottom: 8 },
+  systemMsg:     { alignItems: 'center', marginVertical: 8 },
+  systemText:    { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400, backgroundColor: Colors.bg3, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  senderName:    { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 3, marginLeft: 4 },
+  msgWrap:       { flexDirection: 'column', marginBottom: 4 },
+  msgWrapMine:   { alignItems: 'flex-end' },
+  msgWrapTheirs: { alignItems: 'flex-start' },
+  msgBubble:     { maxWidth: '75%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  msgBubbleMine: { backgroundColor: Colors.gold, borderBottomRightRadius: 4 },
+  msgBubbleTheirs: { backgroundColor: Colors.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: Colors.border },
+  msgText:       { fontSize: 15, lineHeight: 22, fontFamily: Typography.nunito400 },
+  msgTextMine:   { color: '#1a0e00' },
+  msgTextTheirs: { color: Colors.text },
+  msgTime:       { fontSize: 10, marginTop: 4, fontFamily: Typography.nunito400 },
+  msgTimeMine:   { color: 'rgba(26,14,0,0.5)', textAlign: 'right' },
+  msgTimeTheirs: { color: Colors.muted },
+  replyBar:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: Colors.bg2, borderTopWidth: 1, borderTopColor: Colors.border },
+  replyBarLine:  { width: 3, height: 36, borderRadius: 2, backgroundColor: Colors.gold },
+  replyBarName:  { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 2 },
+  replyBarText:  { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
+  replyQuote:    { borderRadius: 6, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: 'rgba(26,14,0,0.5)', alignSelf: 'stretch', overflow: 'hidden' },
+  replyQuoteMine:   { backgroundColor: 'rgba(26,14,0,0.2)' },
+  replyQuoteTheirs: { backgroundColor: 'rgba(212,160,60,0.12)', borderLeftColor: Colors.gold },
+  replyQuoteName:   { fontSize: 13, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 3 },
+  replyQuoteText:   { fontSize: 13, color: Colors.text, fontFamily: Typography.nunito400 },
+  inputRow:      { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.bg },
+  input:         { flex: 1, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: Colors.text, fontSize: 15, fontFamily: Typography.nunito400, maxHeight: 120 },
+  sendBtn:       { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.gold, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDis:    { opacity: 0.4 },
+  sendBtnText:   { color: '#1a0e00', fontSize: 18, fontFamily: Typography.nunito700 },
+  menuOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  deleteSheet:   { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden' },
+  menuItem:      { paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  menuItemText:  { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
+  red:           { color: Colors.red },
+});

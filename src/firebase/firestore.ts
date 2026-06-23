@@ -232,6 +232,8 @@ export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void)
         deletedFor: data.deletedFor ?? [],
         deletedAt: data.deletedAt ?? null,
         replyTo: data.replyTo ?? null,
+        senderName: data.senderName ?? '',
+        isSystem: data.isSystem ?? false,
       } as Message;
     });
     cb(msgs);
@@ -855,4 +857,40 @@ export async function markAllChatsDelivered(uid: string): Promise<void> {
     });
     await batch.commit();
   } catch { /* ignore */ }
+}
+
+export async function createGroupChat(
+  creatorUid: string,
+  creatorName: string,
+  groupName: string,
+  memberUids: string[],
+  emoji: string,
+  photoURL?: string,
+): Promise<string> {
+  const members = [creatorUid, ...memberUids.filter(u => u !== creatorUid)];
+  const ref = await addDoc(collection(fbFirestore, COLLECTIONS.CHATS), {
+    isGroup:     true,
+    name:        groupName,
+    emoji:       emoji,
+    photoURL:    photoURL ?? null,
+    members:     members,
+    admins:      [creatorUid],
+    createdBy:   creatorUid,
+    preview:     `${creatorName} qrupu yaratdı`,
+    lastMessageAt: serverTimestamp(),
+    createdAt:   serverTimestamp(),
+    completed:   false,
+    unreadCount: {},
+  });
+
+  // System message
+  await addDoc(collection(fbFirestore, COLLECTIONS.CHATS, ref.id, COLLECTIONS.MESSAGES), {
+    text:       `${creatorName} qrupu yaratdı`,
+    senderId:   'system',
+    senderName: 'system',
+    createdAt:  serverTimestamp(),
+    isSystem:   true,
+  });
+
+  return ref.id;
 }

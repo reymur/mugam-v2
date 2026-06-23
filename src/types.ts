@@ -149,7 +149,10 @@ export interface ChatItem {
   online?:      boolean;
   isGroup?:     boolean;
   members?:     string[];
-  initiatorUid?: string;  // who started the chat
+  admins?:      string[];
+  createdBy?:   string;
+  photoURL?:    string;
+  initiatorUid?: string;
 }
 
 export interface Message {
@@ -163,6 +166,8 @@ export interface Message {
   deletedFor?:    string[];
   deletedAt?:     string;
   replyTo?:       { id: string; text: string; senderName: string };
+  senderName?:    string;
+  isSystem?:      boolean;
 }
 
 export type Lang = 'az' | 'ru';
