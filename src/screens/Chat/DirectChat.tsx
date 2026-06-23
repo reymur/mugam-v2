@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
-  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput, PanResponder,
+  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput, PanResponder, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -41,14 +41,17 @@ function SwipeableMessage({ children, onSwipeLeft, onSwipeRight }: { children: R
   const replyTriggered = useRef(false);
 
   const panResponder = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dy) < 20,
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, g) => {
+      const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 10;
+      return isHorizontal;
+    },
+    onPanResponderTerminationRequest: () => false,
     onPanResponderMove: (_, g) => {
       if (g.dx < 0) {
-        // свайп влево
         translateX.setValue(g.dx);
         replyIconOpacity.setValue(0);
       } else if (g.dx > 0) {
-        // свайп вправо — reply
         const clamped = Math.min(g.dx, 80);
         translateX.setValue(clamped);
         const progress = clamped / 80;
@@ -82,7 +85,6 @@ function SwipeableMessage({ children, onSwipeLeft, onSwipeRight }: { children: R
 
   return (
     <View style={{ position: 'relative' }}>
-      {/* Reply icon */}
       <Animated.View style={{
         position: 'absolute', left: 8, top: '50%',
         opacity: replyIconOpacity,
@@ -375,6 +377,9 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [clearedAt,   setClearedAt]   = useState<string | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [replyMsg,    setReplyMsg]    = useState<Message | null>(null);
+  const msgPositions = useRef<Record<string, number>>({});
+  const msgRefs = useRef<Record<string, any>>({});
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const musicianUid = musician.uid ?? musician.id;
 
@@ -529,6 +534,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   };
 
   const scrollRef  = useRef<ScrollView>(null);
+  const inputRef   = useRef<RNTextInput>(null);
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
   const recRef     = useRef<Audio.Recording | null>(null);
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -803,6 +809,8 @@ const id = await createOrGetDirectChat(
     if (!chatId || !user?.uid || chatMessages.length === 0) return;
     const lastMsg = chatMessages[chatMessages.length - 1];
     markChatAsReadBy(chatId, user.uid, lastMsg?.id).catch(() => {});
+    // Auto scroll to bottom when new message arrives
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [chatMessages.length, chatId, user?.uid]);
   const [readyToShow, setReadyToShow] = React.useState(false);
   React.useEffect(() => {
@@ -1008,7 +1016,7 @@ const id = await createOrGetDirectChat(
             style={{ flex: 1 }}
             contentContainerStyle={s.msgList}
             showsVerticalScrollIndicator={false}
-            
+            keyboardShouldPersistTaps="handled"
           >
             {loading && (
               <View style={{ alignItems: 'center', padding: 30 }}>
@@ -1028,16 +1036,26 @@ const id = await createOrGetDirectChat(
               const voiceUri = isVoice ? msg.text.replace('🎤 VOICE:', '') : null;
               const isDeletedForAll = msg.deletedForAll;
               return (
-                <SwipeableMessage
+                <View
                   key={msg.id ?? i}
+                  ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}
+                >
+                <SwipeableMessage
                   onSwipeLeft={async () => {
                     if (!chatId || !msg.id) return;
                     await deleteMessagePermanently(chatId, msg.id).catch(() => {});
                   }}
-                  onSwipeRight={() => setReplyMsg(msg)}
+                  onSwipeRight={() => { setReplyMsg(msg); setTimeout(() => inputRef.current?.focus(), 100); }}
                 >
                 <TouchableOpacity
-                  style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs]}
+                  style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs, highlightId === msg.id && s.msgHighlight]}
+                  onLayout={e => {
+                    if (msg.id) {
+                      // Accumulate Y position relative to scroll content
+                      const y = e.nativeEvent.layout.y;
+                      msgPositions.current[msg.id] = y;
+                    }
+                  }}
                   onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)}
                   activeOpacity={0.8}
                   delayLongPress={400}
@@ -1051,10 +1069,45 @@ const id = await createOrGetDirectChat(
                   ) : (
                     <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
                       {msg.replyTo && (
-                        <View style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}>
+                        <TouchableOpacity
+                          style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}
+                          onPress={() => {
+                            const id = msg.replyTo!.id;
+                            const ref = msgRefs.current[id];
+                            if (ref && scrollRef.current) {
+                              const doScroll = () => {
+
+                                ref.measureLayout(
+                                  scrollRef.current,
+                                  (_x: number, y: number) => {
+                                    scrollRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
+                                    setHighlightId(id);
+                                    setTimeout(() => setHighlightId(null), 1500);
+                                  },
+                                  () => {}
+                                );
+                              };
+                              inputRef.current?.blur();
+                              let done = false;
+                              const sub = Keyboard.addListener('keyboardDidHide', () => {
+                                if (done) return;
+                                done = true;
+                                sub.remove();
+                                doScroll();
+                              });
+                              setTimeout(() => {
+                                if (done) return;
+                                done = true;
+                                sub.remove();
+                                doScroll();
+                              }, 600);
+                            }
+                          }}
+                          activeOpacity={0.7}
+                        >
                           <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
                           <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
-                        </View>
+                        </TouchableOpacity>
                       )}
                       <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                         {msg.text}
@@ -1078,6 +1131,7 @@ const id = await createOrGetDirectChat(
                   )}
                 </TouchableOpacity>
                 </SwipeableMessage>
+                </View>
               );
             })}
           </ScrollView>
@@ -1117,6 +1171,7 @@ const id = await createOrGetDirectChat(
             </TouchableOpacity>
 
             <TextInput
+              ref={inputRef}
               style={s.input}
               placeholder="Mesaj yaz..."
               placeholderTextColor={Colors.muted}
@@ -1326,6 +1381,7 @@ const s = StyleSheet.create({
   replyBarLine:     { width: 3, height: 36, borderRadius: 2, backgroundColor: Colors.gold },
   replyBarName:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 2 },
   replyBarText:     { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
+  msgHighlight:     { backgroundColor: 'rgba(212,160,60,0.15)', borderRadius: 12 },
   replyQuote:       { borderRadius: 6, padding: 8, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: 'rgba(26,14,0,0.5)' },
   replyQuoteMine:   { backgroundColor: 'rgba(26,14,0,0.2)' },
   replyQuoteTheirs: { backgroundColor: 'rgba(212,160,60,0.12)', borderLeftColor: Colors.gold },
