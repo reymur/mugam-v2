@@ -153,11 +153,15 @@ export interface ChatItem {
 }
 
 export interface Message {
-  id:        string;
-  text:      string;
-  mine:      boolean;
-  time:      string;
-  senderId?: string;
+  id:          string;
+  text:        string;
+  mine:        boolean;
+  time:        string;
+  senderId?:   string;
+  createdAt?:  any;
+  deletedForAll?: boolean;
+  deletedFor?:    string[];
+  deletedAt?:     string;
 }
 
 export type Lang = 'az' | 'ru';

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
-  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput,
+  Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput, PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,7 +11,7 @@ import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser } from '../../firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -19,6 +19,33 @@ import type { Musician, Invite } from '../../store/useAppStore';
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Voice Message Player ──────────────────────────────────
+function SwipeableMessage({ children, onSwipeLeft }: { children: React.ReactNode; onSwipeLeft: () => void }) {
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dy) < 20,
+    onPanResponderMove: (_, g) => {
+      if (g.dx < 0) translateX.setValue(g.dx);
+    },
+    onPanResponderRelease: (_, g) => {
+      if (g.dx < -60) {
+        Animated.timing(translateX, { toValue: -SCREEN_W, duration: 200, useNativeDriver: true }).start(() => {
+          onSwipeLeft();
+          translateX.setValue(0);
+        });
+      } else {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+      }
+    },
+  })).current;
+
+  return (
+    <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
 function TypingDots() {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
@@ -290,6 +317,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [jobOfferBy,  setJobOfferBy]  = useState<string | null>(null);
   const [showMenu,    setShowMenu]    = useState(false);
   const [clearedAt,   setClearedAt]   = useState<string | null>(null);
+  const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
 
   const musicianUid = musician.uid ?? musician.id;
 
@@ -696,6 +724,12 @@ const id = await createOrGetDirectChat(
   const resolved = (readyToShow || chatMessages.length === 0)
     ? chatMessages
         .filter(m => !clearedAt || (m.createdAt && (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) > new Date(clearedAt)))
+        .filter(m => !m.deletedFor?.includes(user?.uid ?? ''))
+        .filter(m => {
+          if (!m.deletedForAll) return true;
+          if (!m.deletedAt) return true;
+          return Date.now() - new Date(m.deletedAt).getTime() < 60000;
+        })
         .map(m => ({ ...m, mine: m.senderId === user?.uid }))
     : [];
 
@@ -900,9 +934,26 @@ const id = await createOrGetDirectChat(
             {resolved.map((msg, i) => {
               const isVoice = msg.text?.startsWith('🎤 VOICE:');
               const voiceUri = isVoice ? msg.text.replace('🎤 VOICE:', '') : null;
+              const isDeletedForAll = msg.deletedForAll;
               return (
-                <View key={msg.id ?? i} style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs]}>
-                  {isVoice && voiceUri ? (
+                <SwipeableMessage
+                  key={msg.id ?? i}
+                  onSwipeLeft={async () => {
+                    if (!chatId || !msg.id) return;
+                    await deleteMessagePermanently(chatId, msg.id).catch(() => {});
+                  }}
+                >
+                <TouchableOpacity
+                  style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs]}
+                  onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)}
+                  activeOpacity={0.8}
+                  delayLongPress={400}
+                >
+                  {isDeletedForAll ? (
+                    <View style={[s.msgBubble, s.msgBubbleDeleted]}>
+                      <Text style={s.msgTextDeleted}>🚫 Bu mesaj silindi</Text>
+                    </View>
+                  ) : isVoice && voiceUri ? (
                     <VoicePlayer uri={voiceUri} mine={msg.mine} />
                   ) : (
                     <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
@@ -914,7 +965,8 @@ const id = await createOrGetDirectChat(
                       </Text>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
+                </SwipeableMessage>
               );
             })}
           </ScrollView>
@@ -1024,6 +1076,39 @@ const id = await createOrGetDirectChat(
           </TouchableOpacity>
         </Modal>
 
+        {/* Delete message modal */}
+        <Modal transparent visible={!!selectedMsg} animationType="slide" onRequestClose={() => setSelectedMsg(null)}>
+          <TouchableOpacity style={s.menuOverlay} activeOpacity={1} onPress={() => setSelectedMsg(null)}>
+            <View style={s.deleteSheet}>
+              {selectedMsg?.mine && (
+                <TouchableOpacity
+                  style={s.menuItem}
+                  onPress={async () => {
+                    if (!chatId || !selectedMsg?.id) return;
+                    setSelectedMsg(null);
+                    await deleteMessageForAll(chatId, selectedMsg.id).catch(() => {});
+                  }}
+                >
+                  <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Hamıdan sil</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={s.menuItem}
+                onPress={async () => {
+                  if (!chatId || !selectedMsg?.id || !user?.uid) return;
+                  setSelectedMsg(null);
+                  await deleteMessageForMe(chatId, selectedMsg.id, user.uid).catch(() => {});
+                }}
+              >
+                <Text style={s.menuItemText}>🗑 Yalnız məndən sil</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.menuItem, { borderBottomWidth: 0 }]} onPress={() => setSelectedMsg(null)}>
+                <Text style={[s.menuItemText, { color: Colors.muted }]}>Ləğv et</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
       </SafeAreaView>
     </Animated.View>
   );
@@ -1109,4 +1194,7 @@ const s = StyleSheet.create({
   menuBox:      { position: 'absolute', top: 100, right: 16, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, minWidth: 200, overflow: 'hidden' },
   menuItem:     { paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
   menuItemText: { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
+  msgBubbleDeleted: { backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
+  msgTextDeleted:   { color: Colors.muted, fontSize: 13, fontStyle: 'italic', fontFamily: Typography.nunito400 },
+  deleteSheet:      { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden' },
 });

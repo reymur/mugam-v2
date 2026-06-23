@@ -227,6 +227,10 @@ export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void)
         mine: false,
         time: tsToTime(data.createdAt),
         senderId: data.senderId ?? '',
+        createdAt: data.createdAt,
+        deletedForAll: data.deletedForAll ?? false,
+        deletedFor: data.deletedFor ?? [],
+        deletedAt: data.deletedAt ?? null,
       } as Message;
     });
     cb(msgs);
@@ -789,4 +793,22 @@ export async function clearChatForUser(chatId: string, uid: string): Promise<voi
   await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
     [`clearedBy.${uid}`]: new Date().toISOString(),
   });
+}
+
+export async function deleteMessageForAll(chatId: string, messageId: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES, messageId), {
+    deletedForAll: true,
+    deletedAt: new Date().toISOString(),
+    text: '',
+  });
+}
+
+export async function deleteMessageForMe(chatId: string, messageId: string, uid: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES, messageId), {
+    deletedFor: arrayUnion(uid),
+  });
+}
+
+export async function deleteMessagePermanently(chatId: string, messageId: string): Promise<void> {
+  await deleteDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES, messageId));
 }
