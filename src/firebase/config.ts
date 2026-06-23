@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStorage } from 'firebase/storage';
 
 export const FIREBASE_CONFIG = {
   apiKey:            'AIzaSyDFGOC39rQDKRZR2xZ9wR54x2VXWX3AERk',
@@ -28,7 +29,7 @@ try {
 
 export { fbAuth };
 export const fbFirestore = getFirestore(app);
-export const fbStorage   = null as any;
+export const fbStorage   = getStorage(app);
 
 export const COLLECTIONS = {
   USERS:         'users',

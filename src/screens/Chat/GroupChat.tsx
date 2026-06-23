@@ -13,6 +13,7 @@ import { markChatAsReadBy, markChatAsDelivered } from '../../firebase/firestore'
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
+import GroupInfo from './GroupInfo';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -28,6 +29,7 @@ export default function GroupChat({ chat, onClose }: Props) {
   const [replyMsg, setReplyMsg] = useState<Message | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [readyToShow, setReadyToShow] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -105,10 +107,13 @@ export default function GroupChat({ chat, onClose }: Props) {
           <View style={[s.groupAva, { borderRadius: 12 }]}>
             <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
           </View>
-          <View style={{ flex: 1 }}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowInfo(true)}>
             <Text style={s.groupName} numberOfLines={1}>{chat.name}</Text>
             <Text style={s.groupSub}>{chat.members?.length ?? 0} iştirakçı</Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: 20, color: Colors.text }}>⋯</Text>
+          </TouchableOpacity>
         </View>
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -245,6 +250,14 @@ export default function GroupChat({ chat, onClose }: Props) {
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
+        </Modal>
+
+        <Modal visible={showInfo} animationType="slide" presentationStyle="pageSheet">
+          <GroupInfo
+            chat={chat}
+            onClose={() => setShowInfo(false)}
+            onLeft={() => { setShowInfo(false); onClose(); }}
+          />
         </Modal>
 
       </SafeAreaView>

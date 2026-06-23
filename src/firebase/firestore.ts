@@ -195,6 +195,9 @@ export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): ()
           unread: data.unreadCount?.[uid] ?? data[`unreadCount.${uid}`] ?? 0,
           isGroup: data.isGroup ?? false,
           members: data.members ?? [],
+          admins: data.admins ?? [],
+          createdBy: data.createdBy ?? '',
+          photoURL: data.photoURL ?? null,
           online: data.online ?? false,
           initiatorUid: data.initiatorUid ?? '',
           completed: data.completed ?? false,
@@ -893,4 +896,81 @@ export async function createGroupChat(
   });
 
   return ref.id;
+}
+
+export async function leaveGroup(chatId: string, uid: string, userName: string): Promise<void> {
+  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+  await updateDoc(chatRef, {
+    members: arrayRemove(uid),
+    admins: arrayRemove(uid),
+  });
+  // System message
+  await addDoc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES), {
+    text:      `${userName} qrupdan çıxdı`,
+    senderId:  'system',
+    senderName: 'system',
+    createdAt: serverTimestamp(),
+    isSystem:  true,
+  });
+}
+
+export async function addGroupMember(chatId: string, uid: string, userName: string, addedByName: string): Promise<void> {
+  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+  await updateDoc(chatRef, {
+    members: arrayUnion(uid),
+  });
+  await addDoc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES), {
+    text:      `${addedByName} ${userName} qrupa əlavə etdi`,
+    senderId:  'system',
+    senderName: 'system',
+    createdAt: serverTimestamp(),
+    isSystem:  true,
+  });
+}
+
+export async function removeGroupMember(chatId: string, uid: string, userName: string, removedByName: string): Promise<void> {
+  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+  await updateDoc(chatRef, {
+    members: arrayRemove(uid),
+    admins: arrayRemove(uid),
+  });
+  await addDoc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES), {
+    text:      `${removedByName} ${userName} qrupdan çıxardı`,
+    senderId:  'system',
+    senderName: 'system',
+    createdAt: serverTimestamp(),
+    isSystem:  true,
+  });
+}
+
+export async function makeGroupAdmin(chatId: string, uid: string, userName: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+    admins: arrayUnion(uid),
+  });
+}
+
+export async function updateGroupInfo(chatId: string, name: string, emoji: string, photoURL?: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+    name,
+    emoji,
+    ...(photoURL !== undefined && { photoURL }),
+  });
+}
+
+export async function uploadGroupPhoto(chatId: string, uri: string): Promise<string> {
+  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+  const { fbStorage } = await import('./config');
+  const blob: Blob = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response);
+    xhr.onerror = () => reject(new Error('XHR failed'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+  const storageRef = ref(fbStorage, `groups/${chatId}/avatar.jpg`);
+  await uploadBytes(storageRef, blob);
+  const url = await getDownloadURL(storageRef);
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), { photoURL: url });
+  return url;
 }
