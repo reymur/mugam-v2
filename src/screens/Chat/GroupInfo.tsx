@@ -28,6 +28,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
   const [photoURL, setPhotoURL] = useState(chat.photoURL ?? null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
+  const [fullPhotoLoading, setFullPhotoLoading] = useState(false);
 
   const isAdmin = chat.admins?.includes(user?.uid ?? '') || chat.createdBy === user?.uid;
   const isCreator = chat.createdBy === user?.uid;
@@ -158,20 +159,23 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
         <View style={s.groupTop}>
           <TouchableOpacity
             style={s.groupAva}
-            onPress={() => photoURL ? setShowFullPhoto(true) : handlePickPhoto()}
+            onPress={() => { if (photoURL) { setFullPhotoLoading(true); setShowFullPhoto(true); } else handlePickPhoto(); }}
             onLongPress={isAdmin ? handlePickPhoto : undefined}
           >
-            {photoLoading ? (
-              <ActivityIndicator size="small" color={Colors.gold} />
-            ) : photoURL ? (
+            {photoURL ? (
               <Image source={{ uri: photoURL }} style={{ width: 110, height: 110, borderRadius: 30 }} />
             ) : (
               <Text style={{ fontSize: 40 }}>{chat.emoji}</Text>
             )}
-            {isAdmin && (
+            {isAdmin && !photoLoading && (
               <TouchableOpacity style={s.cameraBtn} onPress={handlePickPhoto}>
                 <Text style={{ fontSize: 26 }}>📷</Text>
               </TouchableOpacity>
+            )}
+            {photoLoading && (
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="large" color={Colors.gold} />
+              </View>
             )}
           </TouchableOpacity>
           {editMode ? (
@@ -271,7 +275,21 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
           >
             <Text style={{ color: '#fff', fontSize: 20 }}>✕</Text>
           </TouchableOpacity>
-          {photoURL && <ZoomableImage uri={photoURL} />}
+          {photoURL && (
+            <>
+              <Image
+                source={{ uri: photoURL }}
+                style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+                onLoad={() => setFullPhotoLoading(false)}
+              />
+              <ZoomableImage uri={photoURL} />
+              {fullPhotoLoading && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="large" color={Colors.gold} />
+                </View>
+              )}
+            </>
+          )}
         </View>
       </RNModal>
     </SafeAreaView>
