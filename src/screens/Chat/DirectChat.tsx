@@ -11,14 +11,52 @@ import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate } from '../../firebase/firestore';
-import { getDocs, query, collection, where, getDoc, doc } from 'firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer } from '../../firebase/firestore';
+import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
 
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Voice Message Player ──────────────────────────────────
+function TypingDots() {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: -6, duration: 200, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 200, useNativeDriver: true }),
+          Animated.delay(400),
+        ])
+      );
+    const a1 = anim(dot1, 0);
+    const a2 = anim(dot2, 150);
+    const a3 = anim(dot3, 300);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8 }}>
+      {[dot1, dot2, dot3].map((dot, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 8, height: 8, borderRadius: 4,
+            backgroundColor: Colors.gold,
+            transform: [{ translateY: dot }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 function VoicePlayer({ uri, mine }: { uri: string; mine: boolean }) {
   const [sound,   setSound]   = useState<Audio.Sound | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -249,6 +287,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [justAgreed,  setJustAgreed]  = useState(false);
   const [initiatorUid, setInitiatorUid] = useState<string | null>(null);
   const [navigating,  setNavigating]  = useState(false);
+  const [jobOfferBy,  setJobOfferBy]  = useState<string | null>(null);
+  const [showMenu,    setShowMenu]    = useState(false);
 
   const musicianUid = musician.uid ?? musician.id;
 
@@ -287,8 +327,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   // initiatorUid is loaded from Firestore chat document
   const isRecipient = initiatorUid !== null && initiatorUid !== user?.uid;
 
-  const showInitiatorBanner = !justAgreed && !navigating && !isRecipient && initiatorUid !== null;
-  const showRecipientBanner = !justAgreed && !navigating && isRecipient;
+  const showInitiatorBanner = !justAgreed && !navigating && jobOfferBy !== null && jobOfferBy === user?.uid;
+  const showRecipientBanner = !justAgreed && !navigating && jobOfferBy !== null && jobOfferBy !== user?.uid;
 
   // Subscribe to readBy and typing
   const typingTsRef = useRef<number | null>(null);
@@ -316,6 +356,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       const prevWaiting = prevWaitingForDateRef.current;
       const currWaiting = data.waitingForDate ?? false;
       setWaitingForDate2(currWaiting);
+      setJobOfferBy(data.jobOfferBy ?? null);
       // Only update ref and show alert when initiatorUid is loaded
       if (initiatorUid !== null) {
         if (currWaiting && !prevWaiting && initiatorUid === user?.uid) {
@@ -389,6 +430,31 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
     }).start();
   }, []);
 
+  // Watch for new chat created by other user while screen is open
+  useEffect(() => {
+    if (chatId || !user?.uid) return;
+    const mUid = musician.uid ?? musician.id;
+    const q = query(
+      collection(fbFirestore, COLLECTIONS.CHATS),
+      where('members', 'array-contains', user.uid),
+      where('isGroup', '==', false),
+    );
+    const unsub = onSnapshot(q, snap => {
+      if (chatId) { unsub(); return; }
+      const found = snap.docs.find(d => {
+        const data = d.data();
+        return data.members?.includes(mUid) && !data.completed && !data.closedBy;
+      });
+      if (found) {
+        unsub();
+        setChatId(found.id);
+        loadMessages(found.id);
+        useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [mUid]: found.id } }));
+      }
+    });
+    return () => unsub();
+  }, [chatId, user?.uid]);
+
   // Init chat — only load existing chat, don't create new one yet
   useEffect(() => {
     if (!user) return;
@@ -405,7 +471,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
             const chatSnap = await getDoc(doc(fbFirestore, COLLECTIONS.CHATS, cachedId));
             if (chatSnap.exists() && !chatSnap.data().closedBy && !chatSnap.data().completed) {
               setChatId(cachedId);
-              setMsgsLoading(true);
+              
               loadMessages(cachedId);
               setInitiatorUid(chatSnap.data().initiatorUid ?? user.uid);
               setLoading(false);
@@ -439,7 +505,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
           // Save to cache
           useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
           setChatId(id);
-          setMsgsLoading(true);
+          
           loadMessages(id);
           await markChatAsRead(id, user.uid).catch(() => {});
           const data = existing.data();
@@ -548,7 +614,9 @@ const id = await createOrGetDirectChat(
       }
 
       await sendMessage(activeChatId, text);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      if (chatId) {
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
+      }
     } catch {
       showToast('⚠️ Mesaj göndərilmədi');
     }
@@ -609,7 +677,7 @@ const id = await createOrGetDirectChat(
       }
 
       await sendMessage(activeChatId, `🎤 VOICE:${uri}`);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
     } catch {
       showToast('⚠️ Səs mesajı göndərilmədi');
     }
@@ -617,7 +685,13 @@ const id = await createOrGetDirectChat(
 
   const chatMessages = chatId ? (messages[chatId] ?? []) : [];
   React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
-  const resolved = chatMessages.map(m => ({ ...m, mine: m.senderId === user?.uid }));
+  const [readyToShow, setReadyToShow] = React.useState(false);
+  React.useEffect(() => {
+    if (chatMessages.length > 0 && !readyToShow) {
+      setTimeout(() => setReadyToShow(true), 100);
+    }
+  }, [chatMessages.length]);
+  const resolved = (readyToShow || chatMessages.length === 0) ? chatMessages.map(m => ({ ...m, mine: m.senderId === user?.uid })) : [];
 
   const formatDur = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
@@ -640,17 +714,13 @@ const id = await createOrGetDirectChat(
               <Text style={s.headerSub}>{musician.instrument}</Text>
             </View>
           </View>
-          {!isRecipient ? (
-            <TouchableOpacity
-              style={s.closeChatBtn}
-              onPress={handleCloseChat}
-              hitSlop={{ top:10, bottom:10, left:10, right:10 }}
-            >
-              <Text style={s.closeChatText}>✕</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
+          <TouchableOpacity
+            style={s.closeChatBtn}
+            onPress={() => setShowMenu(true)}
+            hitSlop={{ top:10, bottom:10, left:10, right:10 }}
+          >
+            <Text style={s.closeChatText}>⋯</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Cancelled banner */}
@@ -786,25 +856,21 @@ const id = await createOrGetDirectChat(
             style={{ flex: 1 }}
             contentContainerStyle={s.msgList}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+            
           >
             {loading && (
               <View style={{ alignItems: 'center', padding: 30 }}>
                 <ActivityIndicator size="large" color={Colors.gold} />
               </View>
             )}
-            {!loading && resolved.length === 0 && (
+            {!loading && resolved.length === 0 && !chatId && (
               <View style={s.emptyChat}>
                 <Text style={{ fontSize: 40 }}>💬</Text>
                 <Text style={s.emptyChatText}>{musician.name} ilə söhbət</Text>
                 <Text style={s.emptyChatSub}>Mesaj və ya səs göndər</Text>
               </View>
             )}
-            {msgsLoading && (
-              <View style={{ alignItems: 'center', padding: 20 }}>
-                <ActivityIndicator size="small" color={Colors.gold} />
-              </View>
-            )}
+
             {resolved.map((msg, i) => {
               const isVoice = msg.text?.startsWith('🎤 VOICE:');
               const voiceUri = isVoice ? msg.text.replace('🎤 VOICE:', '') : null;
@@ -888,6 +954,53 @@ const id = await createOrGetDirectChat(
           }}
         />
 
+        {/* Three dots menu */}
+        <Modal transparent visible={showMenu} animationType="fade" onRequestClose={() => setShowMenu(false)}>
+          <TouchableOpacity style={s.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+            <View style={s.menuBox}>
+              {!jobOfferBy && (
+                <TouchableOpacity
+                  style={s.menuItem}
+                  onPress={async () => {
+                    setShowMenu(false);
+                    if (!user?.uid) return;
+                    try {
+                      let activeChatId = chatId;
+                      if (!activeChatId) {
+                        activeChatId = await createOrGetDirectChat(
+                          user.uid,
+                          musician.uid ?? musician.id,
+                          musician.name,
+                          musician.emoji,
+                          user.displayName,
+                          user.city,
+                        );
+                        setChatId(activeChatId);
+                        loadMessages(activeChatId);
+                        setInitiatorUid(user.uid);
+                        const musicianUid = musician.uid ?? musician.id;
+                        useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: activeChatId! } }));
+                      }
+                      await setJobOffer(activeChatId, user.uid);
+                      showToast('📅 İş təklifi göndərildi');
+                    } catch {
+                      showToast('⚠️ Xəta baş verdi');
+                    }
+                  }}
+                >
+                  <Text style={s.menuItemText}>📅 İş təklif et</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={s.menuItem} onPress={() => { setShowMenu(false); handleCloseChat(); }}>
+                <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Çatı sil</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.menuItem} onPress={() => { setShowMenu(false); handleClose(); }}>
+                <Text style={s.menuItemText}>❌ Bağla</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
       </SafeAreaView>
     </Animated.View>
   );
@@ -968,4 +1081,9 @@ const s = StyleSheet.create({
   sendBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.gold, alignItems: 'center', justifyContent: 'center' },
   sendBtnDis:  { opacity: 0.4 },
   sendBtnText: { color: '#1a0e00', fontSize: 18, fontFamily: Typography.nunito700 },
+  typingWrap:  { alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 4 },
+  menuOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  menuBox:      { position: 'absolute', top: 60, right: 16, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, minWidth: 200, overflow: 'hidden' },
+  menuItem:     { paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  menuItemText: { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
 });

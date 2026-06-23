@@ -505,7 +505,7 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean; jobOfferBy: string | null }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
@@ -519,6 +519,7 @@ export function subscribeChatMeta(
         eventLocation:  snap.data().eventLocation  ?? '',
         eventNotes:     snap.data().eventNotes     ?? '',
         waitingForDate: snap.data().waitingForDate ?? false,
+        jobOfferBy:     snap.data().jobOfferBy     ?? null,
       });
     }
   });
@@ -775,4 +776,10 @@ export async function findPersonalEventByAgreementChat(
   const snap = await getDocs(q);
   if (snap.empty) return null;
   return snap.docs[0].id;
+}
+
+export async function setJobOffer(chatId: string, offerByUid: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+    jobOfferBy: offerByUid,
+  });
 }
