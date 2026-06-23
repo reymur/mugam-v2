@@ -846,7 +846,7 @@ export async function markAllChatsDelivered(uid: string): Promise<void> {
     const batch = writeBatch(fbFirestore);
     snap.docs.forEach(d => {
       if (!d.data().closedBy) {
-        batch.update(d.ref, { [`lastDeliveredAt.${uid}`]: new Date().toISOString() });
+        batch.update(d.ref, { [`deliveredTo.${uid}`]: true });
       }
     });
     await batch.commit();
