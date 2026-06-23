@@ -767,7 +767,10 @@ const id = await createOrGetDirectChat(
   const [readyToShow, setReadyToShow] = React.useState(false);
   React.useEffect(() => {
     if (chatMessages.length > 0 && !readyToShow) {
-      setTimeout(() => setReadyToShow(true), 100);
+      setTimeout(() => {
+        setReadyToShow(true);
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
+      }, 100);
     }
   }, [chatMessages.length]);
   const resolved = (readyToShow || chatMessages.length === 0)
