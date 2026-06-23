@@ -579,6 +579,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
           authLoading: false,
         });
         get().subscribeRealtime(firebaseUser.uid);
+        FireStore.setUserOnlineStatus(firebaseUser.uid, true).catch(() => {});
+        FireStore.markAllChatsDelivered(firebaseUser.uid).catch(() => {});
         // Load read agreement ids from Firestore
         FireStore.loadReadAgreementIds(firebaseUser.uid).then(ids => {
           if (ids.length > 0) set({ readAgreementIds: ids });

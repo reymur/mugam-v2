@@ -11,7 +11,7 @@ import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently } from '../../firebase/firestore';
+import { markChatAsReadBy, markChatAsDelivered, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently, subscribeUserOnline } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -19,6 +19,21 @@ import type { Musician, Invite } from '../../store/useAppStore';
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Voice Message Player ──────────────────────────────────
+function CheckMark({ isRead, isDelivered }: { isRead: boolean; isDelivered: boolean }) {
+  const color = isRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
+  if (!isDelivered) {
+    return (
+      <Text style={{ fontSize: 13, color: 'rgba(26,14,0,0.5)', marginLeft: 3, fontWeight: 'bold' }}>✓</Text>
+    );
+  }
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>
+      <Text style={{ fontSize: 13, color, fontWeight: 'bold', marginRight: -5 }}>✓</Text>
+      <Text style={{ fontSize: 13, color, fontWeight: 'bold' }}>✓</Text>
+    </View>
+  );
+}
+
 function SwipeableMessage({ children, onSwipeLeft }: { children: React.ReactNode; onSwipeLeft: () => void }) {
   const translateX = useRef(new Animated.Value(0)).current;
 
@@ -282,6 +297,10 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [chatId,      setChatId]      = useState<string | null>(null);
   const [msgsLoading, setMsgsLoading] = useState(false);
   const [recipientRead,  setRecipientRead]  = useState(false);
+  const [recipientOnline, setRecipientOnline] = useState(false);
+  const [lastReadAt,     setLastReadAt]     = useState<Record<string, string>>({});
+  const [lastReadMsgId,  setLastReadMsgId]  = useState<Record<string, string>>({});
+  const [deliveredTo, setDeliveredTo] = useState<Record<string, boolean>>({});
   const [recipientTyping, setRecipientTyping] = useState(false);
   const [cancelledBy,    setCancelledBy]    = useState<string | null>(null);
   const cancelledByRef = React.useRef<string | null>(null);
@@ -364,6 +383,26 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const initialCancelledByRef = useRef<string | null | undefined>(undefined);
   const prevWaitingForDateRef = useRef<boolean>(false);
 
+  // Subscribe to recipient online status
+  useEffect(() => {
+    const mUid = musician.uid ?? musician.id;
+    const unsub = subscribeUserOnline(mUid, (online) => {
+      setRecipientOnline(online);
+      const activeChatId = chatId ?? useAppStore.getState().chatIdCache[mUid];
+      if (online && activeChatId) {
+        markChatAsDelivered(activeChatId, mUid).catch(() => {});
+      }
+    });
+    return () => unsub();
+  }, [musician]);
+
+  // When chatId appears and recipient is online — mark as delivered
+  useEffect(() => {
+    if (!chatId || !recipientOnline) return;
+    const mUid = musician.uid ?? musician.id;
+    markChatAsDelivered(chatId, mUid).catch(() => {});
+  }, [chatId, recipientOnline]);
+
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     console.log('subscribeChatMeta for chatId:', chatId);
@@ -386,6 +425,9 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       const currWaiting = data.waitingForDate ?? false;
       setWaitingForDate2(currWaiting);
       setJobOfferBy(data.jobOfferBy ?? null);
+      setLastReadAt(data.lastReadAt ?? {});
+      setLastReadMsgId(data.lastReadMsgId ?? {});
+      setDeliveredTo(data.deliveredTo ?? {});
       if (user?.uid && data.clearedBy?.[user.uid]) setClearedAt(data.clearedBy[user.uid]);
       // Only update ref and show alert when initiatorUid is loaded
       if (initiatorUid !== null) {
@@ -715,6 +757,13 @@ const id = await createOrGetDirectChat(
 
   const chatMessages = chatId ? (messages[chatId] ?? []) : [];
   React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
+
+  // Mark as read when new messages arrive and chat is open
+  React.useEffect(() => {
+    if (!chatId || !user?.uid || chatMessages.length === 0) return;
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    markChatAsReadBy(chatId, user.uid, lastMsg?.id).catch(() => {});
+  }, [chatMessages.length, chatId, user?.uid]);
   const [readyToShow, setReadyToShow] = React.useState(false);
   React.useEffect(() => {
     if (chatMessages.length > 0 && !readyToShow) {
@@ -960,9 +1009,21 @@ const id = await createOrGetDirectChat(
                       <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                         {msg.text}
                       </Text>
-                      <Text style={[s.msgTime, msg.mine ? s.msgTimeMine : s.msgTimeTheirs]}>
-                        {msg.time}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: msg.mine ? 'flex-end' : 'flex-start' }}>
+                        <Text style={[s.msgTime, msg.mine ? s.msgTimeMine : s.msgTimeTheirs]}>
+                          {msg.time}
+                        </Text>
+                        {msg.mine && (() => {
+                          const mUid = musician.uid ?? musician.id;
+                          const readMsgId = lastReadMsgId[mUid] ?? '';
+                          const allMsgIds = chatMessages.map(m => m.id);
+                          const readIdx = allMsgIds.indexOf(readMsgId);
+                          const msgIdx = allMsgIds.indexOf(msg.id ?? '');
+                          const isRead = readMsgId !== '' && msgIdx !== -1 && msgIdx <= readIdx;
+                          const isDelivered = deliveredTo[mUid] === true || isRead;
+                          return <CheckMark isRead={isRead} isDelivered={isDelivered} />;
+                        })()}
+                      </View>
                     </View>
                   )}
                 </TouchableOpacity>

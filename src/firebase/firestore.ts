@@ -491,11 +491,24 @@ export async function loadReadAgreementIds(uid: string): Promise<string[]> {
   return [];
 }
 
-export async function markChatAsReadBy(chatId: string, uid: string): Promise<void> {
+export async function markChatAsDelivered(chatId: string, uid: string): Promise<void> {
   try {
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
-      readBy: arrayUnion(uid),
+      [`deliveredTo.${uid}`]: true,
     });
+  } catch { /* ignore */ }
+}
+
+export async function markChatAsReadBy(chatId: string, uid: string, lastMsgId?: string): Promise<void> {
+  try {
+    const update: Record<string, any> = {
+      readBy: arrayUnion(uid),
+      [`lastReadAt.${uid}`]: new Date().toISOString(),
+    };
+    if (lastMsgId) {
+      update[`lastReadMsgId.${uid}`] = lastMsgId;
+    }
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), update);
   } catch { /* ignore */ }
 }
 
@@ -509,7 +522,7 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean; jobOfferBy: string | null; clearedBy: Record<string, string> }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean; jobOfferBy: string | null; clearedBy: Record<string, string>; lastReadAt: Record<string, string>; lastReadMsgId: Record<string, string>; deliveredTo: Record<string, boolean> }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
@@ -525,6 +538,9 @@ export function subscribeChatMeta(
         waitingForDate: snap.data().waitingForDate ?? false,
         jobOfferBy:     snap.data().jobOfferBy     ?? null,
         clearedBy:      snap.data().clearedBy      ?? {},
+        lastReadAt:     snap.data().lastReadAt     ?? {},
+        lastReadMsgId:  snap.data().lastReadMsgId  ?? {},
+        deliveredTo: snap.data().deliveredTo ?? {},
       });
     }
   });
@@ -811,4 +827,28 @@ export async function deleteMessageForMe(chatId: string, messageId: string, uid:
 
 export async function deleteMessagePermanently(chatId: string, messageId: string): Promise<void> {
   await deleteDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES, messageId));
+}
+
+export function subscribeUserOnline(uid: string, cb: (online: boolean) => void): () => void {
+  return onSnapshot(doc(fbFirestore, COLLECTIONS.USERS, uid), snap => {
+    if (snap.exists()) cb(snap.data().online ?? false);
+  });
+}
+
+export async function markAllChatsDelivered(uid: string): Promise<void> {
+  try {
+    const q = query(
+      collection(fbFirestore, COLLECTIONS.CHATS),
+      where('members', 'array-contains', uid),
+      where('completed', '==', false),
+    );
+    const snap = await getDocs(q);
+    const batch = writeBatch(fbFirestore);
+    snap.docs.forEach(d => {
+      if (!d.data().closedBy) {
+        batch.update(d.ref, { [`lastDeliveredAt.${uid}`]: new Date().toISOString() });
+      }
+    });
+    await batch.commit();
+  } catch { /* ignore */ }
 }
