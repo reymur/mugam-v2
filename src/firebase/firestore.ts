@@ -231,13 +231,14 @@ export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void)
         deletedForAll: data.deletedForAll ?? false,
         deletedFor: data.deletedFor ?? [],
         deletedAt: data.deletedAt ?? null,
+        replyTo: data.replyTo ?? null,
       } as Message;
     });
     cb(msgs);
   });
 }
 
-export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string): Promise<void> {
+export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }): Promise<void> {
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
 
   // Get members to increment unread for everyone except sender
@@ -246,8 +247,11 @@ export async function sendMessage(chatId: string, text: string, senderId: string
 
   const batch = writeBatch(fbFirestore);
 
+  const msgData: Record<string, any> = { text, senderId, senderName, createdAt: serverTimestamp() };
+  if (replyTo) msgData.replyTo = replyTo;
+
   const msgRef = doc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
-  batch.set(msgRef, { text, senderId, senderName, createdAt: serverTimestamp() });
+  batch.set(msgRef, msgData);
 
   // Build update — use dot notation correctly for nested map fields
   const chatUpdate: Record<string, any> = {

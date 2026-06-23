@@ -62,7 +62,7 @@ interface AppStore {
   addStory:     (s: Omit<FunCard, 'id'>)        => Promise<void>;
   applyGig:     (id: string)                    => Promise<void>;
   reactStory:   (storyId: string, reaction: 'laugh' | 'heart' | 'clap') => Promise<void>;
-  sendMessage:  (chatId: string, text: string)  => Promise<void>;
+  sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<void>;
   loadMessages: (chatId: string)                => void;
 
   // Invites
@@ -393,7 +393,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch { /* keep optimistic */ }
   },
 
-  sendMessage: async (chatId, text) => {
+  sendMessage: async (chatId, text, replyTo) => {
     const user = get().user;
     if (!user) return;
     const time = new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
@@ -402,7 +402,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), tempMsg] },
     }));
     try {
-      await FireStore.sendMessage(chatId, text, user.uid, user.displayName);
+      await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo);
     } catch { /* keep optimistic */ }
   },
 

@@ -162,6 +162,7 @@ export interface Message {
   deletedForAll?: boolean;
   deletedFor?:    string[];
   deletedAt?:     string;
+  replyTo?:       { id: string; text: string; senderName: string };
 }
 
 export type Lang = 'az' | 'ru';

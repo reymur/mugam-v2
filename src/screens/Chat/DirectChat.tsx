@@ -34,30 +34,67 @@ function CheckMark({ isRead, isDelivered }: { isRead: boolean; isDelivered: bool
   );
 }
 
-function SwipeableMessage({ children, onSwipeLeft }: { children: React.ReactNode; onSwipeLeft: () => void }) {
+function SwipeableMessage({ children, onSwipeLeft, onSwipeRight }: { children: React.ReactNode; onSwipeLeft: () => void; onSwipeRight: () => void }) {
   const translateX = useRef(new Animated.Value(0)).current;
+  const replyIconScale = useRef(new Animated.Value(0)).current;
+  const replyIconOpacity = useRef(new Animated.Value(0)).current;
+  const replyTriggered = useRef(false);
 
   const panResponder = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dy) < 20,
     onPanResponderMove: (_, g) => {
-      if (g.dx < 0) translateX.setValue(g.dx);
+      if (g.dx < 0) {
+        // свайп влево
+        translateX.setValue(g.dx);
+        replyIconOpacity.setValue(0);
+      } else if (g.dx > 0) {
+        // свайп вправо — reply
+        const clamped = Math.min(g.dx, 80);
+        translateX.setValue(clamped);
+        const progress = clamped / 80;
+        replyIconOpacity.setValue(progress);
+        replyIconScale.setValue(0.5 + progress * 0.5);
+        if (clamped >= 70 && !replyTriggered.current) {
+          replyTriggered.current = true;
+          Animated.spring(replyIconScale, { toValue: 1.3, useNativeDriver: true }).start(() => {
+            Animated.spring(replyIconScale, { toValue: 1, useNativeDriver: true }).start();
+          });
+        }
+      }
     },
     onPanResponderRelease: (_, g) => {
+      replyTriggered.current = false;
       if (g.dx < -60) {
         Animated.timing(translateX, { toValue: -SCREEN_W, duration: 200, useNativeDriver: true }).start(() => {
           onSwipeLeft();
           translateX.setValue(0);
         });
+      } else if (g.dx >= 60) {
+        onSwipeRight();
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        Animated.timing(replyIconOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
       } else {
         Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        Animated.timing(replyIconOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start();
       }
     },
   })).current;
 
   return (
-    <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
-      {children}
-    </Animated.View>
+    <View style={{ position: 'relative' }}>
+      {/* Reply icon */}
+      <Animated.View style={{
+        position: 'absolute', left: 8, top: '50%',
+        opacity: replyIconOpacity,
+        transform: [{ scale: replyIconScale }, { translateY: -12 }],
+        zIndex: 1,
+      }}>
+        <Text style={{ fontSize: 20 }}>↩️</Text>
+      </Animated.View>
+      <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
+        {children}
+      </Animated.View>
+    </View>
   );
 }
 
@@ -337,6 +374,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [showMenu,    setShowMenu]    = useState(false);
   const [clearedAt,   setClearedAt]   = useState<string | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
+  const [replyMsg,    setReplyMsg]    = useState<Message | null>(null);
 
   const musicianUid = musician.uid ?? musician.id;
 
@@ -685,7 +723,9 @@ const id = await createOrGetDirectChat(
         useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
 
-      await sendMessage(activeChatId, text);
+      const replyData = replyMsg ? { id: replyMsg.id ?? '', text: replyMsg.text, senderName: replyMsg.mine ? (user.displayName ?? '') : musician.name } : undefined;
+      await sendMessage(activeChatId, text, replyData);
+      setReplyMsg(null);
       if (chatId) {
         setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
       }
@@ -994,6 +1034,7 @@ const id = await createOrGetDirectChat(
                     if (!chatId || !msg.id) return;
                     await deleteMessagePermanently(chatId, msg.id).catch(() => {});
                   }}
+                  onSwipeRight={() => setReplyMsg(msg)}
                 >
                 <TouchableOpacity
                   style={[s.msgWrap, msg.mine ? s.msgWrapMine : s.msgWrapTheirs]}
@@ -1009,6 +1050,12 @@ const id = await createOrGetDirectChat(
                     <VoicePlayer uri={voiceUri} mine={msg.mine} />
                   ) : (
                     <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
+                      {msg.replyTo && (
+                        <View style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}>
+                          <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
+                          <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
+                        </View>
+                      )}
                       <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                         {msg.text}
                       </Text>
@@ -1041,6 +1088,20 @@ const id = await createOrGetDirectChat(
               <View style={s.recDot} />
               <Text style={s.recText}>Yazılır... {formatDur(recDuration)}</Text>
               <Text style={s.recHint}>Buraxmaq üçün mikrofonu bas</Text>
+            </View>
+          )}
+
+          {/* Reply preview */}
+          {replyMsg && (
+            <View style={s.replyBar}>
+              <View style={s.replyBarLine} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.replyBarName}>{replyMsg.mine ? 'Siz' : musician.name}</Text>
+                <Text style={s.replyBarText} numberOfLines={1}>{replyMsg.text}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setReplyMsg(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontSize: 18, color: Colors.muted }}>✕</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1261,4 +1322,13 @@ const s = StyleSheet.create({
   msgBubbleDeleted: { backgroundColor: Colors.bg3, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
   msgTextDeleted:   { color: Colors.muted, fontSize: 13, fontStyle: 'italic', fontFamily: Typography.nunito400 },
   deleteSheet:      { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden' },
+  replyBar:         { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: Colors.bg2, borderTopWidth: 1, borderTopColor: Colors.border },
+  replyBarLine:     { width: 3, height: 36, borderRadius: 2, backgroundColor: Colors.gold },
+  replyBarName:     { fontSize: 12, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 2 },
+  replyBarText:     { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
+  replyQuote:       { borderRadius: 6, padding: 8, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: 'rgba(26,14,0,0.5)' },
+  replyQuoteMine:   { backgroundColor: 'rgba(26,14,0,0.2)' },
+  replyQuoteTheirs: { backgroundColor: 'rgba(212,160,60,0.12)', borderLeftColor: Colors.gold },
+  replyQuoteName:   { fontSize: 13, color: Colors.gold, fontFamily: Typography.nunito700, marginBottom: 3 },
+  replyQuoteText:   { fontSize: 13, color: Colors.text, fontFamily: Typography.nunito400 },
 });
