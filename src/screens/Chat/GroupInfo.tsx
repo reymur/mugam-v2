@@ -10,6 +10,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto } from '../../firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { Image, Modal as RNModal } from 'react-native';
+import ZoomableImage from '../../components/common/ZoomableImage';
 import type { ChatItem } from '../../store/useAppStore';
 
 interface Props {
@@ -163,13 +164,13 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
             {photoLoading ? (
               <ActivityIndicator size="small" color={Colors.gold} />
             ) : photoURL ? (
-              <Image source={{ uri: photoURL }} style={{ width: 80, height: 80, borderRadius: 24 }} />
+              <Image source={{ uri: photoURL }} style={{ width: 110, height: 110, borderRadius: 30 }} />
             ) : (
               <Text style={{ fontSize: 40 }}>{chat.emoji}</Text>
             )}
             {isAdmin && (
               <TouchableOpacity style={s.cameraBtn} onPress={handlePickPhoto}>
-                <Text style={{ fontSize: 14 }}>📷</Text>
+                <Text style={{ fontSize: 26 }}>📷</Text>
               </TouchableOpacity>
             )}
           </TouchableOpacity>
@@ -263,10 +264,15 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
         </SafeAreaView>
       </Modal>
       <RNModal visible={showFullPhoto} transparent animationType="fade">
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setShowFullPhoto(false)}>
-          {photoURL && <Image source={{ uri: photoURL }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />}
-          <Text style={{ color: '#fff', marginTop: 16, fontFamily: Typography.nunito400, fontSize: 13 }}>Bağlamaq üçün toxun</Text>
-        </TouchableOpacity>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => setShowFullPhoto(false)}
+          >
+            <Text style={{ color: '#fff', fontSize: 20 }}>✕</Text>
+          </TouchableOpacity>
+          {photoURL && <ZoomableImage uri={photoURL} />}
+        </View>
       </RNModal>
     </SafeAreaView>
   );
@@ -279,7 +285,7 @@ const s = StyleSheet.create({
   back:         { fontSize: 24, color: Colors.text },
   edit:         { fontSize: 14, color: Colors.gold, fontFamily: Typography.nunito700 },
   groupTop:     { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  groupAva:     { width: 80, height: 80, borderRadius: 24, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.gold },
+  groupAva:     { width: 110, height: 110, borderRadius: 30, backgroundColor: Colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.gold },
   groupName:    { fontFamily: Typography.playfair700, fontSize: 20, color: Colors.text },
   groupSub:     { fontSize: 13, color: Colors.muted, fontFamily: Typography.nunito400 },
   nameInput:    { fontSize: 18, color: Colors.text, fontFamily: Typography.nunito400, borderBottomWidth: 1, borderBottomColor: Colors.gold, paddingVertical: 4, minWidth: 200, textAlign: 'center' },
@@ -295,5 +301,5 @@ const s = StyleSheet.create({
   leaveBtn:     { margin: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: Colors.red, alignItems: 'center' },
   leaveBtnText: { color: Colors.red, fontFamily: Typography.nunito700, fontSize: 14 },
   photoEdit:    { position: 'absolute', bottom: 0, right: 0, fontSize: 16, backgroundColor: Colors.card, borderRadius: 10, padding: 2 },
-  cameraBtn:    { position: 'absolute', bottom: -4, right: -4, backgroundColor: Colors.gold, borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.bg },
+  cameraBtn:    { position: 'absolute', bottom: -18, right: -18, backgroundColor: Colors.gold, borderRadius: 28, width: 56, height: 56, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.bg },
 });
