@@ -505,7 +505,7 @@ export async function setTyping(chatId: string, uid: string, isTyping: boolean):
 
 export function subscribeChatMeta(
   chatId: string,
-  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean; jobOfferBy: string | null }) => void
+  cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean; jobOfferBy: string | null; clearedBy: Record<string, string> }) => void
 ): () => void {
   const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
@@ -520,6 +520,7 @@ export function subscribeChatMeta(
         eventNotes:     snap.data().eventNotes     ?? '',
         waitingForDate: snap.data().waitingForDate ?? false,
         jobOfferBy:     snap.data().jobOfferBy     ?? null,
+        clearedBy:      snap.data().clearedBy      ?? {},
       });
     }
   });
@@ -781,5 +782,11 @@ export async function findPersonalEventByAgreementChat(
 export async function setJobOffer(chatId: string, offerByUid: string): Promise<void> {
   await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
     jobOfferBy: offerByUid,
+  });
+}
+
+export async function clearChatForUser(chatId: string, uid: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+    [`clearedBy.${uid}`]: new Date().toISOString(),
   });
 }

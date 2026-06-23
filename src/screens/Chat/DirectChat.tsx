@@ -11,7 +11,7 @@ import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer } from '../../firebase/firestore';
+import { markChatAsReadBy, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -289,6 +289,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [navigating,  setNavigating]  = useState(false);
   const [jobOfferBy,  setJobOfferBy]  = useState<string | null>(null);
   const [showMenu,    setShowMenu]    = useState(false);
+  const [clearedAt,   setClearedAt]   = useState<string | null>(null);
 
   const musicianUid = musician.uid ?? musician.id;
 
@@ -357,6 +358,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       const currWaiting = data.waitingForDate ?? false;
       setWaitingForDate2(currWaiting);
       setJobOfferBy(data.jobOfferBy ?? null);
+      if (user?.uid && data.clearedBy?.[user.uid]) setClearedAt(data.clearedBy[user.uid]);
       // Only update ref and show alert when initiatorUid is loaded
       if (initiatorUid !== null) {
         if (currWaiting && !prevWaiting && initiatorUid === user?.uid) {
@@ -691,7 +693,31 @@ const id = await createOrGetDirectChat(
       setTimeout(() => setReadyToShow(true), 100);
     }
   }, [chatMessages.length]);
-  const resolved = (readyToShow || chatMessages.length === 0) ? chatMessages.map(m => ({ ...m, mine: m.senderId === user?.uid })) : [];
+  const resolved = (readyToShow || chatMessages.length === 0)
+    ? chatMessages
+        .filter(m => !clearedAt || (m.createdAt && (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) > new Date(clearedAt)))
+        .map(m => ({ ...m, mine: m.senderId === user?.uid }))
+    : [];
+
+  const handleClearChat = useCallback(() => {
+    if (!chatId || !user?.uid) return;
+    Alert.alert(
+      'Çatı təmizlə',
+      'Bütün mesajlar sizin üçün silinəcək. Davam etmək istəyirsiniz?',
+      [
+        { text: 'Ləğv et', style: 'cancel' },
+        {
+          text: 'Təmizlə',
+          style: 'destructive',
+          onPress: async () => {
+            await clearChatForUser(chatId, user.uid).catch(() => {});
+            setClearedAt(new Date().toISOString());
+            showToast('🗑 Çat təmizləndi');
+          },
+        },
+      ]
+    );
+  }, [chatId, user?.uid]);
 
   const formatDur = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
@@ -991,11 +1017,8 @@ const id = await createOrGetDirectChat(
                   <Text style={s.menuItemText}>📅 İş təklif et</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={s.menuItem} onPress={() => { setShowMenu(false); handleCloseChat(); }}>
-                <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Çatı sil</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.menuItem} onPress={() => { setShowMenu(false); handleClose(); }}>
-                <Text style={s.menuItemText}>❌ Bağla</Text>
+              <TouchableOpacity style={s.menuItem} onPress={() => { setShowMenu(false); handleClearChat(); }}>
+                <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Çatı təmizlə</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1083,7 +1106,7 @@ const s = StyleSheet.create({
   sendBtnText: { color: '#1a0e00', fontSize: 18, fontFamily: Typography.nunito700 },
   typingWrap:  { alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 4 },
   menuOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  menuBox:      { position: 'absolute', top: 60, right: 16, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, minWidth: 200, overflow: 'hidden' },
+  menuBox:      { position: 'absolute', top: 100, right: 16, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, minWidth: 200, overflow: 'hidden' },
   menuItem:     { paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
   menuItemText: { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
 });
