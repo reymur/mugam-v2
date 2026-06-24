@@ -65,9 +65,20 @@ export function setupBackgroundHandler(): void {}
 export function onNotificationTap(
   callback: (data: Record<string, string>) => void,
 ): () => void {
+  // Handle tap when app is open or in background
   const sub = Notifications.addNotificationResponseReceivedListener(response => {
     const data = response.notification.request.content.data as Record<string, string>;
+    console.log('[messaging] addNotificationResponseReceivedListener:', data);
     callback(data);
   });
+
+  // Handle tap when app was closed (killed)
+  Notifications.getLastNotificationResponseAsync().then(response => {
+    if (!response) return;
+    const data = response.notification.request.content.data as Record<string, string>;
+    console.log('[messaging] getLastNotificationResponseAsync:', data);
+    callback(data);
+  }).catch(() => {});
+
   return () => sub.remove();
 }
