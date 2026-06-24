@@ -164,10 +164,6 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {!readyToShow && chatMessages.length > 0 && (
-              <ActivityIndicator size="large" color={Colors.gold} style={{ marginTop: 30 }} />
-            )}
-
             {resolved.map((msg, i) => {
               if (msg.isSystem) {
                 return (
