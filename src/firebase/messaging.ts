@@ -70,7 +70,6 @@ export function onNotificationTap(
   const sub = Notifications.addNotificationResponseReceivedListener(response => {
     if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
     const data = response.notification.request.content.data as Record<string, string>;
-    console.log('[messaging] tap:', data);
     callback(data);
   });
 
@@ -83,7 +82,6 @@ export function onNotificationTap(
     if (lastId === id) return;
     (global as any)[LAST_NOTIF_KEY] = id;
     const data = response.notification.request.content.data as Record<string, string>;
-    console.log('[messaging] getLastNotificationResponseAsync:', data);
     callback(data);
   }).catch(() => {});
 
