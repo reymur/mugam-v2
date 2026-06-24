@@ -256,7 +256,7 @@ function docToMessage(d: any): Message {
   } as Message;
 }
 
-// Subscribe to latest 50 messages (desc order, reversed for display)
+// Subscribe to latest messages (asc order) + pagination via fetchMoreMessages
 // cb receives msgs and the oldest raw doc for pagination cursor
 export function subscribeMessages(
   chatId: string,
@@ -264,13 +264,13 @@ export function subscribeMessages(
 ): () => void {
   const q = query(
     collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
-    orderBy('createdAt', 'desc'),
+    orderBy('createdAt', 'asc'),
     limit(50),
   );
   return onSnapshot(q, snap => {
-    const msgs = snap.docs.map(docToMessage).reverse();
-    // oldest doc is the last in desc-ordered snap (= first message chronologically)
-    const oldestDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+    const msgs = snap.docs.map(docToMessage);
+    // oldest doc is the first in asc-ordered snap
+    const oldestDoc = snap.docs.length > 0 ? snap.docs[0] : null;
     cb(msgs, oldestDoc);
   });
 }
