@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator,
-  Alert, Modal, Keyboard, PanResponder, Pressable,
+  Alert, Modal, Keyboard, PanResponder, Pressable, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
@@ -105,7 +105,10 @@ export default function GroupChat({ chat, onClose }: Props) {
             <Text style={s.backText}>←</Text>
           </TouchableOpacity>
           <View style={[s.groupAva, { borderRadius: 12 }]}>
-            <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
+            {chat.photoURL
+              ? <Image source={{ uri: chat.photoURL }} style={[StyleSheet.absoluteFill, { borderRadius: 12 }]} />
+              : <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
+            }
           </View>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowInfo(true)}>
             <Text style={s.groupName} numberOfLines={1}>{chat.name}</Text>

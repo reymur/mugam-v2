@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Modal,
+  StyleSheet, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
@@ -38,7 +38,10 @@ const GroupItem = React.memo(function GroupItem({
   return (
     <TouchableOpacity style={styles.cliItem} onPress={onPress} activeOpacity={0.8}>
       <View style={[styles.cliAva, { borderRadius: 14 }]}>
-        <Text style={{ fontSize: 21 }}>{chat.emoji}</Text>
+        {chat.photoURL
+          ? <Image source={{ uri: chat.photoURL }} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
+          : <Text style={{ fontSize: 21 }}>{chat.emoji}</Text>
+        }
       </View>
       <View style={styles.cliInfo}>
         <Text style={styles.cliName} numberOfLines={1}>{chat.name}</Text>
