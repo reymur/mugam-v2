@@ -576,8 +576,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const unsubAuth = FireAuth.onAuthStateChanged(async (firebaseUser) => {
       console.log('Auth state changed:', firebaseUser?.uid ?? 'null');
       if (firebaseUser) {
+        const isSameUser = get().user?.uid === firebaseUser.uid;
         get().unsubscribeAll();
-        set({ receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [], chats: [], messages: {} });
+        set({ receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [], chats: [], ...(isSameUser ? {} : { messages: {} }) });
         const profile = await loadUserDoc(firebaseUser.uid);
         set({
           user: profile ?? {
