@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Animated, Dimensions, PanResponder, Pressable, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 const { width, height } = Dimensions.get('window');
 
@@ -111,16 +112,15 @@ export default function ZoomableImage({ uri }: Props) {
   return (
     <Pressable onPress={handlePress} style={{ flex: 1 }}>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <Animated.Image
-          {...panResponder.panHandlers}
-          source={{ uri }}
-          style={{
-            width,
-            height: height * 0.75,
-            resizeMode: 'contain',
-            transform: [{ scale }, { translateX }, { translateY }],
-          }}
-        />
+        <Animated.View {...panResponder.panHandlers} style={{ transform: [{ scale }, { translateX }, { translateY }] }}>
+          <ExpoImage
+            source={{ uri }}
+            style={{ width, height: height * 0.75 }}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={200}
+          />
+        </Animated.View>
       </View>
     </Pressable>
   );
