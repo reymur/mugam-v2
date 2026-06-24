@@ -541,6 +541,19 @@ export async function markChatAsReadBy(chatId: string, uid: string, lastMsgId?: 
       update[`lastReadMsgId.${uid}`] = lastMsgId;
     }
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), update);
+
+    // Mark unread messages as read at message level
+    const msgsRef = collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES);
+    const q = query(msgsRef, orderBy('createdAt', 'asc'));
+    const snap = await getDocs(q);
+    const batch = writeBatch(fbFirestore);
+    snap.docs.forEach(d => {
+      const readBy = d.data().readBy ?? [];
+      if (!readBy.includes(uid) && d.data().senderId !== uid) {
+        batch.update(d.ref, { readBy: arrayUnion(uid) });
+      }
+    });
+    await batch.commit();
   } catch { /* ignore */ }
 }
 

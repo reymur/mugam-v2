@@ -14,7 +14,6 @@ import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } fro
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
 import { Image } from 'expo-image';
-import { GroupCheckMark } from '../../components/common/CheckMark';
 import GroupInfo from './GroupInfo';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -22,6 +21,18 @@ const SCREEN_W = Dimensions.get('window').width;
 interface Props {
   chat: ChatItem;
   onClose: () => void;
+}
+
+// ── Group CheckMark ──────────────────────────────────────
+function GroupCheckMark({ isRead, membersCount }: { isRead: boolean; membersCount: number }) {
+  if (membersCount <= 1) return null;
+  const color = isRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>
+      <Text style={{ fontSize: 13, color, fontWeight: 'bold', marginRight: -5 }}>✓</Text>
+      <Text style={{ fontSize: 13, color, fontWeight: 'bold' }}>✓</Text>
+    </View>
+  );
 }
 
 export default function GroupChat({ chat: chatProp, onClose }: Props) {
@@ -35,7 +46,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [showInfo, setShowInfo] = useState(false);
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [lastReadMsgId, setLastReadMsgId] = useState<Record<string, string>>({});
+  const [readBy, setReadBy] = useState<string[]>([]);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
@@ -54,7 +65,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   useEffect(() => {
     const unsub = subscribeChat(chatProp.id, (data) => {
       setLiveMembers(data.members ?? []);
-      setLastReadMsgId(data.lastReadMsgId ?? {});
+      setReadBy(data.readBy ?? []);
       const typing = data.typing ?? {};
       const now = Date.now();
       const activeTypers = Object.entries(typing)
@@ -77,6 +88,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   // Load messages
   useEffect(() => {
     loadMessages(chat.id);
+    if (user?.uid) markChatAsReadBy(chat.id, user.uid).catch(() => {});
   }, [chat.id]);
 
   const chatMessages = messages[chat.id] ?? [];
@@ -88,18 +100,13 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
         setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
       }, 100);
     }
-    // Mark as read with lastMsg id when messages load
-    if (user?.uid && chatMessages.length > 0) {
-      const lastMsg = chatMessages[chatMessages.length - 1];
-      if (lastMsg?.id && !lastMsg.id.startsWith('tmp_')) {
-        markChatAsReadBy(chat.id, user.uid, lastMsg.id).catch(() => {});
-      }
-    }
   }, [chatMessages.length]);
 
-  // Scroll to bottom when new messages arrive
+  // Mark as read when new messages arrive
   useEffect(() => {
-    if (chatMessages.length === 0) return;
+    if (!user?.uid || chatMessages.length === 0) return;
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    markChatAsReadBy(chat.id, user.uid, lastMsg?.id).catch(() => {});
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [chatMessages.length]);
 
@@ -213,11 +220,8 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                         </Text>
                         {msg.mine && (
                           <GroupCheckMark
-                            lastReadMsgId={lastReadMsgId}
-                            allMsgIds={resolved.map(m => m.id ?? '')}
-                            msgId={msg.id ?? ''}
-                            members={liveMembers}
-                            senderUid={user?.uid ?? ''}
+                            isRead={readBy.length >= (liveMembers.length - 1) && liveMembers.length > 1}
+                            membersCount={liveMembers.length}
                           />
                         )}
                       </View>
