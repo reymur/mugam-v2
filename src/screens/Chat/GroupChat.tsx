@@ -42,9 +42,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [inputText, setInputText] = useState('');
   const [replyMsg, setReplyMsg] = useState<Message | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
-  const readyToShowRef = useRef(false);
-  const [readyToShow, setReadyToShowState] = useState(false);
-  const setReadyToShow = (v: boolean) => { if (v) readyToShowRef.current = true; setReadyToShowState(v); };
+
   const [showInfo, setShowInfo] = useState(false);
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -97,13 +95,10 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   React.useEffect(() => { console.log('[GroupChat] chatMessages:', chatMessages.length, 'readyToShow:', readyToShow); }, [chatMessages.length, readyToShow]);
 
   useEffect(() => {
-    if (chatMessages.length > 0 && !readyToShow) {
-      setTimeout(() => {
-        setReadyToShow(true);
-        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
-      }, 100);
+    if (chatMessages.length > 0) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
     }
-  }, [chatMessages.length]);
+  }, []);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -111,7 +106,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [chatMessages.length]);
 
-  const resolved = readyToShowRef.current || chatMessages.length === 0
+  const resolved = chatMessages.length >= 0
     ? chatMessages
         .filter(m => !m.deletedFor?.includes(user?.uid ?? ''))
         .filter(m => {
