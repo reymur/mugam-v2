@@ -285,12 +285,24 @@ export function subscribeNewMessages(
     : query(
         collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
         orderBy('createdAt', 'asc'),
-        limit(50),
       );
+  // Skip first snapshot — it contains already-loaded messages
+  let initialized = false;
   return onSnapshot(q, snap => {
+    if (!initialized) {
+      initialized = true;
+      // For empty chats (no afterDoc) — first snapshot IS the initial data, pass it
+      if (!afterDoc && !snap.empty) {
+        cb(snap.docs.map(docToMessage));
+      }
+      return;
+    }
     if (snap.empty) return;
-    const msgs = snap.docs.map(docToMessage);
-    cb(msgs);
+    // Only pass new docs (docChanges with type 'added')
+    const newMsgs = snap.docChanges()
+      .filter(change => change.type === 'added')
+      .map(change => docToMessage(change.doc));
+    if (newMsgs.length > 0) cb(newMsgs);
   });
 }
 
