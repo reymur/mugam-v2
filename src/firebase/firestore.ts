@@ -557,6 +557,19 @@ export async function markChatAsReadBy(chatId: string, uid: string, lastMsgId?: 
   } catch { /* ignore */ }
 }
 
+export async function markGroupChatAsReadBy(chatId: string, uid: string, lastMsgId?: string): Promise<void> {
+  try {
+    const update: Record<string, any> = {
+      readBy: arrayUnion(uid),
+      [`lastReadAt.${uid}`]: new Date().toISOString(),
+    };
+    if (lastMsgId) {
+      update[`lastReadMsgId.${uid}`] = lastMsgId;
+    }
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), update);
+  } catch { /* ignore */ }
+}
+
 export async function setTyping(chatId: string, uid: string, isTyping: boolean): Promise<void> {
   try {
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {

@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } from '../../firebase/firestore';
+import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } from '../../firebase/firestore';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -90,7 +90,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   // Load messages
   useEffect(() => {
     loadMessages(chat.id);
-    if (user?.uid) markChatAsReadBy(chat.id, user.uid).catch(() => {});
+    if (user?.uid) markGroupChatAsReadBy(chat.id, user.uid).catch(() => {});
   }, [chat.id]);
 
   const chatMessages = messages[chat.id] ?? [];
