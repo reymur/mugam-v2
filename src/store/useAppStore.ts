@@ -445,11 +445,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const resolvedNew = newMsgs.map(m => ({ ...m, mine: m.senderId === uid }));
       set(s => {
         const existing = s.messages[chatId] ?? [];
+        // Remove temp messages from sender that are now confirmed by Firestore
+        const senderIds = new Set(resolvedNew.map(m => m.senderId));
+        const withoutTemps = existing.filter(m => {
+          if (m.id?.startsWith('tmp_') && senderIds.has(m.senderId)) return false;
+          return true;
+        });
         // Merge: avoid duplicates by id
-        const existingIds = new Set(existing.map(m => m.id));
+        const existingIds = new Set(withoutTemps.map(m => m.id));
         const toAdd = resolvedNew.filter(m => !existingIds.has(m.id));
         if (toAdd.length === 0) return s;
-        return { messages: { ...s.messages, [chatId]: [...existing, ...toAdd] } };
+        return { messages: { ...s.messages, [chatId]: [...withoutTemps, ...toAdd] } };
       });
     });
     set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
