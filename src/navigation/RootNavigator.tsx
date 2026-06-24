@@ -60,6 +60,7 @@ export default function RootNavigator() {
   const isAuthenticated = useAppStore(s => s.isAuthenticated);
   const authLoading     = useAppStore(s => s.authLoading);
   const pendingGroupChatId = useAppStore(s => s.pendingGroupChatId);
+  const removedFromGroup = useAppStore(s => s.removedFromGroup);
   const totalUnread     = useAppStore(
     s => s.chats.reduce((acc, c) => acc + (c.unread ?? 0), 0)
   );
@@ -76,6 +77,18 @@ export default function RootNavigator() {
     };
     tryNavigate();
   }, [pendingGroupChatId]);
+
+  useEffect(() => {
+    if (!removedFromGroup) return;
+    const tryNavigate = () => {
+      if (navRef.current?.isReady()) {
+        navRef.current.navigate('Chats');
+      } else {
+        setTimeout(tryNavigate, 100);
+      }
+    };
+    tryNavigate();
+  }, [removedFromGroup]);
 
   const agreementsCount = useAppStore(s => {
     const ids = s.readAgreementIds ?? [];
