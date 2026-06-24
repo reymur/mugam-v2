@@ -39,7 +39,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
     const musician = musicians.find(m => (m.uid ?? m.id) === uid);
     return {
       uid,
-      name: musician?.name ?? uid === user?.uid ? (user?.displayName ?? 'Siz') : 'İstifadəçi',
+      name: musician?.name ?? (uid === user?.uid ? (user?.displayName ?? 'Siz') : 'İstifadəçi'),
       emoji: musician?.emoji ?? '👤',
       isAdmin: chat.admins?.includes(uid) ?? false,
       isCreator: chat.createdBy === uid,
