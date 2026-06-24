@@ -271,6 +271,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   pendingGroupChatId: null,
   removedFromGroup: null,
   messages:    {},
+  _chatUnsubs: {} as Record<string, () => void>,
 
   myInvites:          [],
   receivedInvites:    [],
@@ -416,12 +417,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   loadMessages: (chatId) => {
     const uid = get().user?.uid;
-    // If already subscribed to this chatId, skip
-    if (get().messages[chatId]) return;
+    // Unsubscribe existing listener for this chatId
+    const existing = get()._chatUnsubs[chatId];
+    if (existing) existing();
     const unsub = FireStore.subscribeMessages(chatId, (msgs) => {
       const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
       set(s => ({ messages: { ...s.messages, [chatId]: resolved } }));
     });
+    set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
     get()._addUnsub(unsub);
   },
 
