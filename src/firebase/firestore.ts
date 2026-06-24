@@ -966,7 +966,7 @@ export async function removeGroupMember(chatId: string, uid: string, userName: s
     createdAt: serverTimestamp(),
     isSystem:  true,
   });
-  await sendPushToUser(uid, chatName ?? 'Qrup', 'Sizi qrupdan çıxardılar', { chatId, type: 'group_removed' });
+  await sendPushToUser(uid, chatName ?? 'Qrup', 'Sizi qrupdan çıxardılar', { chatId, type: 'group_removed', removedByName, chatName: chatName ?? 'Qrup' });
 }
 
 export async function makeGroupAdmin(chatId: string, uid: string, userName: string): Promise<void> {

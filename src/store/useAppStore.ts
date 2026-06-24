@@ -90,6 +90,8 @@ interface AppStore {
   initApp: () => Promise<void>;
   pendingGroupChatId: string | null;
   setPendingGroupChatId: (id: string | null) => void;
+  removedFromGroup: { chatName: string; removedByName: string } | null;
+  setRemovedFromGroup: (data: { chatName: string; removedByName: string } | null) => void;
 }
 
 // ── Seed data (fallback when Firestore empty / offline) ───
@@ -267,6 +269,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   chats:       [],
   chatIdCache: {},
   pendingGroupChatId: null,
+  removedFromGroup: null,
   messages:    {},
 
   myInvites:          [],
@@ -284,6 +287,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   _addUnsub: (fn) => set(s => ({ _unsubs: [...s._unsubs, fn] })),
 
   setPendingGroupChatId: (id) => set({ pendingGroupChatId: id }),
+  setRemovedFromGroup: (data) => set({ removedFromGroup: data }),
   unsubscribeAll: () => {
     get()._unsubs.forEach(fn => fn());
     set({ _unsubs: [] });
@@ -626,6 +630,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (data.type === 'group_added' && data.chatId) {
         console.log('[PUSH TAP] setting pendingGroupChatId:', data.chatId);
         get().setPendingGroupChatId(data.chatId);
+      } else if (data.type === 'group_removed') {
+        get().setRemovedFromGroup({ chatName: data.chatName ?? 'Qrup', removedByName: data.removedByName ?? '' });
       }
     });
     get()._addUnsub(unsubTap);

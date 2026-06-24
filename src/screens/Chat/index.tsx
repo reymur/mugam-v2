@@ -66,6 +66,8 @@ export default function ChatsScreen() {
 
   const pendingGroupChatId = useAppStore(s => s.pendingGroupChatId);
   const setPendingGroupChatId = useAppStore(s => s.setPendingGroupChatId);
+  const removedFromGroup = useAppStore(s => s.removedFromGroup);
+  const setRemovedFromGroup = useAppStore(s => s.setRemovedFromGroup);
 
   const [activeMusician, setActiveMusician] = useState<Musician | null>(null);
   const [activeGroup, setActiveGroup] = useState<ChatItem | null>(null);
@@ -128,6 +130,23 @@ export default function ChatsScreen() {
         <GroupChat chat={activeGroup} onClose={() => setActiveGroup(null)} />
       )}
 
+      <Modal visible={!!removedFromGroup} transparent animationType="fade">
+        <View style={styles.removedOverlay}>
+          <View style={styles.removedModal}>
+            <Text style={styles.removedTitle}>Qrupdan çıxarıldınız</Text>
+            <Text style={styles.removedText}>
+              {removedFromGroup?.removedByName
+                ? `${removedFromGroup.removedByName} sizi ${removedFromGroup.chatName} qrupundan çıxardı`
+                : `Siz ${removedFromGroup?.chatName} qrupundan çıxarıldınız`
+              }
+            </Text>
+            <TouchableOpacity style={styles.removedBtn} onPress={() => setRemovedFromGroup(null)}>
+              <Text style={styles.removedBtnText}>Bağla</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showCreateGroup} animationType="slide" presentationStyle="pageSheet">
         <CreateGroup
           onClose={() => setShowCreateGroup(false)}
@@ -153,4 +172,10 @@ const styles = StyleSheet.create({
   cliPreview:  { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
   badge:       { backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, minWidth: 20, alignItems: 'center' },
   badgeText:   { color: '#1a0e00', fontSize: 11, fontFamily: Typography.nunito700 },
+  removedOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  removedModal:   { backgroundColor: Colors.card, borderRadius: 16, padding: 24, marginHorizontal: 32, borderWidth: 1, borderColor: Colors.border },
+  removedTitle:   { fontFamily: Typography.playfair700, fontSize: 16, color: Colors.text, marginBottom: 10, textAlign: 'center' },
+  removedText:    { fontFamily: Typography.nunito400, fontSize: 14, color: Colors.muted, marginBottom: 20, textAlign: 'center', lineHeight: 20 },
+  removedBtn:     { backgroundColor: Colors.gold, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  removedBtnText: { color: '#1a0e00', fontFamily: Typography.nunito700, fontSize: 14 },
 });
