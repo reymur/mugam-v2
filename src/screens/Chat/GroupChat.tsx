@@ -24,7 +24,8 @@ interface Props {
 }
 
 export default function GroupChat({ chat, onClose }: Props) {
-  const { user, messages, sendMessage, loadMessages, showToast } = useAppStore();
+  const { user, messages, sendMessage, loadMessages, showToast, chats, setRemovedFromGroup } = useAppStore();
+  const chat = chats.find(ch => ch.id === chatProp.id) ?? chatProp;
 
   const [inputText, setInputText] = useState('');
   const [replyMsg, setReplyMsg] = useState<Message | null>(null);
@@ -43,6 +44,15 @@ export default function GroupChat({ chat, onClose }: Props) {
       toValue: 0, damping: 26, stiffness: 300, useNativeDriver: true,
     }).start();
   }, []);
+
+  // Close chat if current user is removed from group
+  useEffect(() => {
+    if (!user?.uid || !chat.members) return;
+    if (!chat.members.includes(user.uid)) {
+      setRemovedFromGroup({ chatName: chat.name, removedByName: '' });
+      handleClose();
+    }
+  }, [chat.members, user?.uid]);
 
   // Load messages
   useEffect(() => {
