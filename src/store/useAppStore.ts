@@ -421,9 +421,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   loadMessages: (chatId) => {
     const uid = get().user?.uid;
-    // Unsubscribe existing listener for this chatId
+    // If already subscribed to this chatId — do nothing
     const existing = get()._chatUnsubs[chatId];
-    if (existing) existing();
+    if (existing) return;
     const unsub = FireStore.subscribeMessages(chatId, (msgs) => {
       const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
       set(s => ({ messages: { ...s.messages, [chatId]: resolved } }));
