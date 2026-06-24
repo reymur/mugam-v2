@@ -36,7 +36,7 @@ function GroupCheckMark({ isRead, membersCount }: { isRead: boolean; membersCoun
 }
 
 export default function GroupChat({ chat: chatProp, onClose }: Props) {
-  const { user, messages, sendMessage, loadMessages, showToast, chats, setRemovedFromGroup } = useAppStore();
+  const { user, messages, sendMessage, loadMessages, loadMoreMessages, showToast, chats, setRemovedFromGroup, _chatHasMore } = useAppStore();
   const chat = chats.find(ch => ch.id === chatProp.id) ?? chatProp;
 
   const [inputText, setInputText] = useState('');
@@ -47,6 +47,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [readBy, setReadBy] = useState<string[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
@@ -164,7 +165,20 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             contentContainerStyle={s.msgList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            onScroll={async (e) => {
+              if (e.nativeEvent.contentOffset.y < 50 && _chatHasMore[chat.id] && !isLoadingMore) {
+                setIsLoadingMore(true);
+                await loadMoreMessages(chat.id);
+                setIsLoadingMore(false);
+              }
+            }}
+            scrollEventThrottle={200}
           >
+            {isLoadingMore && (
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <ActivityIndicator size="small" color={Colors.gold} />
+              </View>
+            )}
             {resolved.map((msg, i) => {
               if (msg.isSystem) {
                 return (

@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-  getDoc, getDocs, query, where, orderBy, limit,
+  getDoc, getDocs, query, where, orderBy, limit, startAfter,
   onSnapshot, serverTimestamp, increment,
   writeBatch, arrayUnion, arrayRemove,
   type QuerySnapshot, type DocumentData,
@@ -237,34 +237,56 @@ export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): ()
 }
 
 // ── MESSAGES ──────────────────────────────────────────────
-export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void): () => void {
+function docToMessage(d: any): Message {
+  const data = d.data();
+  return {
+    id: d.id,
+    text: data.text ?? '',
+    mine: false,
+    time: tsToTime(data.createdAt),
+    senderId: data.senderId ?? '',
+    createdAt: data.createdAt,
+    deletedForAll: data.deletedForAll ?? false,
+    deletedFor: data.deletedFor ?? [],
+    deletedAt: data.deletedAt ?? null,
+    replyTo: data.replyTo ?? null,
+    senderName: data.senderName ?? '',
+    isSystem: data.isSystem ?? false,
+    readBy: data.readBy ?? [],
+  } as Message;
+}
+
+// Subscribe to latest 50 messages (desc order, reversed for display)
+// cb receives msgs and the oldest raw doc for pagination cursor
+export function subscribeMessages(
+  chatId: string,
+  cb: (msgs: Message[], oldestDoc: any | null) => void
+): () => void {
   const q = query(
     collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
-    orderBy('createdAt', 'asc'),
-    limit(100),
+    orderBy('createdAt', 'desc'),
+    limit(50),
   );
   return onSnapshot(q, snap => {
-    console.log('[SUB] subscribeMessages fired, chatId:', chatId, 'count:', snap.docs.length);
-    const msgs = snap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        text: data.text ?? '',
-        mine: false,
-        time: tsToTime(data.createdAt),
-        senderId: data.senderId ?? '',
-        createdAt: data.createdAt,
-        deletedForAll: data.deletedForAll ?? false,
-        deletedFor: data.deletedFor ?? [],
-        deletedAt: data.deletedAt ?? null,
-        replyTo: data.replyTo ?? null,
-        senderName: data.senderName ?? '',
-        isSystem: data.isSystem ?? false,
-        readBy: data.readBy ?? [],
-      } as Message;
-    });
-    cb(msgs);
+    const msgs = snap.docs.map(docToMessage).reverse();
+    // oldest doc is the last in desc-ordered snap (= first message chronologically)
+    const oldestDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+    cb(msgs, oldestDoc);
   });
+}
+
+// Load older messages for pagination
+export async function fetchMoreMessages(chatId: string, beforeDoc: any): Promise<{ msgs: Message[]; lastDoc: any }> {
+  const q = query(
+    collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
+    orderBy('createdAt', 'desc'),
+    startAfter(beforeDoc),
+    limit(50),
+  );
+  const snap = await getDocs(q);
+  const msgs = snap.docs.map(docToMessage).reverse();
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+  return { msgs, lastDoc };
 }
 
 export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }): Promise<void> {

@@ -314,7 +314,7 @@ interface Props {
 
 export default function DirectChat({ musician, onClose, onAgreed, onCancelled, fromInvite: fromInviteProp }: Props) {
   const {
-    user, messages, sendMessage, loadMessages, showToast,
+    user, messages, sendMessage, loadMessages, loadMoreMessages, showToast, _chatHasMore,
     updateInviteStatus, receivedInvites,
     createAgreement, hasAgreementWith,
   } = useAppStore();
@@ -520,6 +520,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   };
 
   const scrollRef  = useRef<ScrollView>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const inputRef   = useRef<RNTextInput>(null);
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
   const recRef     = useRef<Audio.Recording | null>(null);
@@ -1003,7 +1004,20 @@ const id = await createOrGetDirectChat(
             contentContainerStyle={s.msgList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            onScroll={async (e) => {
+              if (e.nativeEvent.contentOffset.y < 50 && chatId && _chatHasMore[chatId] && !isLoadingMore) {
+                setIsLoadingMore(true);
+                await loadMoreMessages(chatId);
+                setIsLoadingMore(false);
+              }
+            }}
+            scrollEventThrottle={200}
           >
+            {isLoadingMore && (
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <ActivityIndicator size="small" color={Colors.gold} />
+              </View>
+            )}
             {loading && (
               <View style={{ alignItems: 'center', padding: 30 }}>
                 <ActivityIndicator size="large" color={Colors.gold} />

@@ -47,6 +47,8 @@ interface AppStore {
   chats:       ChatItem[];
   chatIdCache: Record<string, string>;
   messages:    Record<string, Message[]>;
+  _chatCursors: Record<string, any>;
+  _chatHasMore: Record<string, boolean>;
 
   // Realtime unsub refs
   _unsubs:   Array<() => void>;
@@ -63,7 +65,8 @@ interface AppStore {
   applyGig:     (id: string)                    => Promise<void>;
   reactStory:   (storyId: string, reaction: 'laugh' | 'heart' | 'clap') => Promise<void>;
   sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<void>;
-  loadMessages: (chatId: string)                => void;
+  loadMessages:     (chatId: string) => void;
+  loadMoreMessages: (chatId: string) => Promise<void>;
 
   // Invites
   myInvites:       Invite[];          // invites sent by current user
@@ -271,6 +274,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   pendingGroupChatId: null,
   removedFromGroup: null,
   messages:    {},
+  _chatCursors: {},
+  _chatHasMore: {},
   _chatUnsubs: {} as Record<string, () => void>,
 
   myInvites:          [],
@@ -425,13 +430,36 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const uid = get().user?.uid;
     // If already subscribed to this chatId — do nothing
     const existing = get()._chatUnsubs[chatId];
-    console.log('[LM] loadMessages called, chatId:', chatId, 'existing:', !!existing);
     if (existing) return;
-    const unsub = FireStore.subscribeMessages(chatId, (msgs) => {
+    const unsub = FireStore.subscribeMessages(chatId, (msgs, oldestDoc) => {
       const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
-      set(s => ({ messages: { ...s.messages, [chatId]: resolved } }));
+      set(s => ({
+        messages: { ...s.messages, [chatId]: resolved },
+        _chatHasMore: { ...s._chatHasMore, [chatId]: msgs.length >= 50 },
+        _chatCursors: { ...s._chatCursors, [chatId]: oldestDoc },
+      }));
     });
     set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
+  },
+
+  loadMoreMessages: async (chatId) => {
+    const uid = get().user?.uid;
+    const cursor = get()._chatCursors[chatId];
+    const hasMore = get()._chatHasMore[chatId];
+    if (!hasMore) return;
+    try {
+      const { msgs, lastDoc } = await FireStore.fetchMoreMessages(chatId, cursor);
+      if (msgs.length === 0) {
+        set(s => ({ _chatHasMore: { ...s._chatHasMore, [chatId]: false } }));
+        return;
+      }
+      const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
+      set(s => ({
+        messages: { ...s.messages, [chatId]: [...resolved, ...(s.messages[chatId] ?? [])] },
+        _chatCursors: { ...s._chatCursors, [chatId]: lastDoc },
+        _chatHasMore: { ...s._chatHasMore, [chatId]: msgs.length >= 50 },
+      }));
+    } catch { /* ignore */ }
   },
 
   // ── Invites ───────────────────────────────────────────
