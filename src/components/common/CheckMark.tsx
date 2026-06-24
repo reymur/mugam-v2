@@ -22,23 +22,15 @@ export function CheckMark({ isRead, isDelivered }: CheckMarkProps) {
 }
 
 interface GroupCheckMarkProps {
-  msgId: string;
-  msgIndex: number;
-  lastReadMsgId: Record<string, string>;
-  allMsgIds: string[];
+  readBy: string[];
   members: string[];
   senderUid: string;
 }
 
-export function GroupCheckMark({ msgId, msgIndex, lastReadMsgId, allMsgIds, members, senderUid }: GroupCheckMarkProps) {
+export function GroupCheckMark({ readBy, members, senderUid }: GroupCheckMarkProps) {
   const otherMembers = members.filter(uid => uid !== senderUid);
   if (otherMembers.length === 0) return null;
-  const allRead = otherMembers.every(uid => {
-    const lastId = lastReadMsgId[uid];
-    if (!lastId) return false;
-    const lastIdx = allMsgIds.indexOf(lastId);
-    return lastIdx >= msgIndex;
-  });
+  const allRead = otherMembers.every(uid => readBy.includes(uid));
   const color = allRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>

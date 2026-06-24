@@ -1102,11 +1102,8 @@ const id = await createOrGetDirectChat(
                         </Text>
                         {msg.mine && (() => {
                           const mUid = musician.uid ?? musician.id;
-                          const readMsgId = lastReadMsgId[mUid] ?? '';
-                          const allMsgIds = chatMessages.map(m => m.id);
-                          const readIdx = allMsgIds.indexOf(readMsgId);
-                          const msgIdx = allMsgIds.indexOf(msg.id ?? '');
-                          const isRead = readMsgId !== '' && msgIdx !== -1 && msgIdx <= readIdx;
+                          const msgReadBy = msg.readBy ?? [];
+                          const isRead = msgReadBy.includes(mUid);
                           const isDelivered = deliveredTo[mUid] === true || isRead;
                           return <CheckMark isRead={isRead} isDelivered={isDelivered} />;
                         })()}

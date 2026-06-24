@@ -168,6 +168,7 @@ export interface Message {
   replyTo?:       { id: string; text: string; senderName: string };
   senderName?:    string;
   isSystem?:      boolean;
+  readBy?:        string[];
 }
 
 export type Lang = 'az' | 'ru';

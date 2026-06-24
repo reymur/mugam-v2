@@ -259,6 +259,7 @@ export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void)
         replyTo: data.replyTo ?? null,
         senderName: data.senderName ?? '',
         isSystem: data.isSystem ?? false,
+        readBy: data.readBy ?? [],
       } as Message;
     });
     cb(msgs);
@@ -274,7 +275,7 @@ export async function sendMessage(chatId: string, text: string, senderId: string
 
   const batch = writeBatch(fbFirestore);
 
-  const msgData: Record<string, any> = { text, senderId, senderName, createdAt: serverTimestamp() };
+  const msgData: Record<string, any> = { text, senderId, senderName, createdAt: serverTimestamp(), readBy: [senderId] };
   if (replyTo) msgData.replyTo = replyTo;
 
   const msgRef = doc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
@@ -540,6 +541,19 @@ export async function markChatAsReadBy(chatId: string, uid: string, lastMsgId?: 
       update[`lastReadMsgId.${uid}`] = lastMsgId;
     }
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), update);
+
+    // Mark unread messages as read at message level
+    const msgsRef = collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES);
+    const q = query(msgsRef, orderBy('createdAt', 'asc'));
+    const snap = await getDocs(q);
+    const batch = writeBatch(fbFirestore);
+    snap.docs.forEach(d => {
+      const readBy = d.data().readBy ?? [];
+      if (!readBy.includes(uid) && d.data().senderId !== uid) {
+        batch.update(d.ref, { readBy: arrayUnion(uid) });
+      }
+    });
+    await batch.commit();
   } catch { /* ignore */ }
 }
 
