@@ -618,15 +618,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const unsubPush = FireMsg.setupForegroundHandler();
     get()._addUnsub(unsubPush);
     FireMsg.setupBackgroundHandler();
+
+    await get().loadInitialData();
+
     const unsubTap = FireMsg.onNotificationTap((data) => {
       console.log('[PUSH TAP]', JSON.stringify(data));
       if ((data.type === 'group_added' || data.type === 'group_removed') && data.chatId) {
         console.log('[PUSH TAP] setting pendingGroupChatId:', data.chatId);
-        setTimeout(() => get().setPendingGroupChatId(data.chatId), 500);
+        get().setPendingGroupChatId(data.chatId);
       }
     });
     get()._addUnsub(unsubTap);
-
-    await get().loadInitialData();
   },
 }));
