@@ -35,7 +35,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [showInfo, setShowInfo] = useState(false);
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [readBy, setReadBy] = useState<string[]>([]);
+  const [lastReadMsgId, setLastReadMsgId] = useState<Record<string, string>>({});
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
@@ -54,7 +54,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   useEffect(() => {
     const unsub = subscribeChat(chatProp.id, (data) => {
       setLiveMembers(data.members ?? []);
-      setReadBy(data.readBy ?? []);
+      setLastReadMsgId(data.lastReadMsgId ?? {});
       const typing = data.typing ?? {};
       const now = Date.now();
       const activeTypers = Object.entries(typing)
@@ -77,7 +77,6 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   // Load messages
   useEffect(() => {
     loadMessages(chat.id);
-    if (user?.uid) markChatAsReadBy(chat.id, user.uid).catch(() => {});
   }, [chat.id]);
 
   const chatMessages = messages[chat.id] ?? [];
@@ -88,6 +87,13 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
         setReadyToShow(true);
         setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
       }, 100);
+    }
+    // Mark as read with lastMsg id when messages load
+    if (user?.uid && chatMessages.length > 0) {
+      const lastMsg = chatMessages[chatMessages.length - 1];
+      if (lastMsg?.id && !lastMsg.id.startsWith('tmp_')) {
+        markChatAsReadBy(chat.id, user.uid, lastMsg.id).catch(() => {});
+      }
     }
   }, [chatMessages.length]);
 
@@ -207,7 +213,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                         </Text>
                         {msg.mine && (
                           <GroupCheckMark
-                            readBy={msg.readBy ?? []}
+                            lastReadMsgId={lastReadMsgId}
+                            allMsgIds={resolved.map(m => m.id ?? '')}
+                            msgId={msg.id ?? ''}
                             members={liveMembers}
                             senderUid={user?.uid ?? ''}
                           />
