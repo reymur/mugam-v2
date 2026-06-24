@@ -934,6 +934,7 @@ export async function addGroupMember(chatId: string, uid: string, userName: stri
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
   await updateDoc(chatRef, {
     members: arrayUnion(uid),
+    lastMessageAt: serverTimestamp(),
   });
   await addDoc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES), {
     text:      `${addedByName} ${userName} qrupa əlavə etdi`,
@@ -950,6 +951,7 @@ export async function removeGroupMember(chatId: string, uid: string, userName: s
   await updateDoc(chatRef, {
     members: arrayRemove(uid),
     admins: arrayRemove(uid),
+    lastMessageAt: serverTimestamp(),
   });
   await addDoc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES), {
     text:      `${removedByName} ${userName} qrupdan çıxardı`,
