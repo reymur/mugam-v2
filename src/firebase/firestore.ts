@@ -186,6 +186,12 @@ export async function fetchVideos(): Promise<VideoItem[]> {
 }
 
 // ── CHATS ─────────────────────────────────────────────────
+export function subscribeChat(chatId: string, cb: (data: any) => void): () => void {
+  return onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
+    if (snap.exists()) cb({ id: snap.id, ...snap.data() });
+  });
+}
+
 export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): () => void {
   const q = query(
     collection(fbFirestore, COLLECTIONS.CHATS),
