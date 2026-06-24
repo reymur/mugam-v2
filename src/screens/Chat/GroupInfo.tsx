@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto, getUsersByUids } from '../../firebase/firestore';
+import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto, getUsersByUids, subscribeChat } from '../../firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal as RNModal } from 'react-native';
 import { Image } from 'expo-image';
@@ -30,18 +30,26 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
   const [fullPhotoLoading, setFullPhotoLoading] = useState(false);
+  const [liveMembers, setLiveMembers] = useState<string[]>(chat.members ?? []);
   const [usersMap, setUsersMap] = useState<Record<string, { name: string; emoji: string }>>({});
 
   useEffect(() => {
-    if (!chat.members?.length) return;
-    getUsersByUids(chat.members).then(setUsersMap).catch(() => {});
-  }, [JSON.stringify(chat.members)]);
+    const unsub = subscribeChat(chat.id, (data) => {
+      setLiveMembers(data.members ?? []);
+    });
+    return unsub;
+  }, [chat.id]);
+
+  useEffect(() => {
+    if (!liveMembers.length) return;
+    getUsersByUids(liveMembers).then(setUsersMap).catch(() => {});
+  }, [JSON.stringify(liveMembers)]);
 
   const isAdmin = chat.admins?.includes(user?.uid ?? '') || chat.createdBy === user?.uid;
   const isCreator = chat.createdBy === user?.uid;
 
   // Get member details from musicians list
-  const memberDetails = (chat.members ?? []).map(uid => {
+  const memberDetails = liveMembers.map(uid => {
     const isMe = uid === user?.uid;
     const fromMap = usersMap[uid];
     return {
@@ -56,7 +64,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
   // Users not in group
   const nonMembers = musicians.filter(m => {
     const uid = m.uid ?? m.id;
-    return uid !== user?.uid && !chat.members?.includes(uid);
+    return uid !== user?.uid && !liveMembers.includes(uid);
   });
 
   const handleLeave = useCallback(() => {
@@ -197,7 +205,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
           ) : (
             <Text style={s.groupName}>{chat.name}</Text>
           )}
-          <Text style={s.groupSub}>{chat.members?.length ?? 0} iştirakçı</Text>
+          <Text style={s.groupSub}>{liveMembers.length} iştirakçı</Text>
         </View>
 
         {/* Members */}
