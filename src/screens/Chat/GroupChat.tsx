@@ -92,6 +92,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   }, [chat.id]);
 
   const chatMessages = messages[chat.id] ?? [];
+  React.useEffect(() => { console.log('[GC] id:', chat.id, 'msgs:', chatMessages.length); }, [chat.id, chatMessages.length]);
 
   useEffect(() => {
     if (chatMessages.length > 0) {
