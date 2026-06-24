@@ -290,6 +290,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setPendingGroupChatId: (id) => set({ pendingGroupChatId: id }),
   setRemovedFromGroup: (data) => set({ removedFromGroup: data }),
   unsubscribeAll: () => {
+    // Clear chat message subscriptions
+    const chatUnsubs = get()._chatUnsubs;
+    Object.values(chatUnsubs).forEach(fn => fn());
     set({ _chatUnsubs: {} });
     get()._unsubs.forEach(fn => fn());
     set({ _unsubs: [] });
@@ -426,7 +429,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set(s => ({ messages: { ...s.messages, [chatId]: resolved } }));
     });
     set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
-    get()._addUnsub(unsub);
   },
 
   // ── Invites ───────────────────────────────────────────
