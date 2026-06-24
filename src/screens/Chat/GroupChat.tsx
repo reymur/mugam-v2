@@ -36,6 +36,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [readBy, setReadBy] = useState<string[]>([]);
+  const [lastReadMsgId, setLastReadMsgId] = useState<Record<string, string>>({});
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
@@ -55,6 +56,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     const unsub = subscribeChat(chatProp.id, (data) => {
       setLiveMembers(data.members ?? []);
       setReadBy(data.readBy ?? []);
+      setLastReadMsgId(data.lastReadMsgId ?? {});
       const typing = data.typing ?? {};
       const now = Date.now();
       const activeTypers = Object.entries(typing)
@@ -209,7 +211,10 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                         </Text>
                         {msg.mine && (
                           <GroupCheckMark
-                            readBy={readBy}
+                            msgId={msg.id ?? ''}
+                            msgIndex={i}
+                            lastReadMsgId={lastReadMsgId}
+                            allMsgIds={resolved.map(m => m.id ?? '')}
                             members={liveMembers}
                             senderUid={user?.uid ?? ''}
                           />
