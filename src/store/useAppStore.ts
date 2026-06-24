@@ -88,6 +88,8 @@ interface AppStore {
   hasAgreementWith:   (uid: string) => boolean;
 
   initApp: () => Promise<void>;
+  pendingGroupChatId: string | null;
+  setPendingGroupChatId: (id: string | null) => void;
 }
 
 // ── Seed data (fallback when Firestore empty / offline) ───
@@ -264,6 +266,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   videos:      SEED_VIDEOS,
   chats:       [],
   chatIdCache: {},
+  pendingGroupChatId: null,
   messages:    {},
 
   myInvites:          [],
@@ -280,6 +283,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // FIX: _addUnsub uses functional update to avoid stale closure on _unsubs
   _addUnsub: (fn) => set(s => ({ _unsubs: [...s._unsubs, fn] })),
 
+  setPendingGroupChatId: (id) => set({ pendingGroupChatId: id }),
   unsubscribeAll: () => {
     get()._unsubs.forEach(fn => fn());
     set({ _unsubs: [] });
@@ -614,6 +618,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const unsubPush = FireMsg.setupForegroundHandler();
     get()._addUnsub(unsubPush);
     FireMsg.setupBackgroundHandler();
+    const unsubTap = FireMsg.onNotificationTap((data) => {
+      if (data.type === 'group_added' && data.chatId) {
+        get().setPendingGroupChatId(data.chatId);
+      }
+    });
+    get()._addUnsub(unsubTap);
 
     await get().loadInitialData();
   },

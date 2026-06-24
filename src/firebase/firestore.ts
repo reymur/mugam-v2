@@ -6,6 +6,7 @@ import {
   type QuerySnapshot, type DocumentData,
 } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from './config';
+import { sendPushToUser } from './messaging';
 import type {
   Musician, GigItem, BoardItem, MarketItem,
   FunCard, VideoItem, ChatItem, Message, Event, Room, Invite,
@@ -914,7 +915,7 @@ export async function leaveGroup(chatId: string, uid: string, userName: string):
   });
 }
 
-export async function addGroupMember(chatId: string, uid: string, userName: string, addedByName: string): Promise<void> {
+export async function addGroupMember(chatId: string, uid: string, userName: string, addedByName: string, chatName?: string): Promise<void> {
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
   await updateDoc(chatRef, {
     members: arrayUnion(uid),
@@ -926,9 +927,10 @@ export async function addGroupMember(chatId: string, uid: string, userName: stri
     createdAt: serverTimestamp(),
     isSystem:  true,
   });
+  await sendPushToUser(uid, chatName ?? 'Qrup', 'Sizi qrupa əlavə etdilər', { chatId, type: 'group_added' });
 }
 
-export async function removeGroupMember(chatId: string, uid: string, userName: string, removedByName: string): Promise<void> {
+export async function removeGroupMember(chatId: string, uid: string, userName: string, removedByName: string, chatName?: string): Promise<void> {
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
   await updateDoc(chatRef, {
     members: arrayRemove(uid),
@@ -941,6 +943,7 @@ export async function removeGroupMember(chatId: string, uid: string, userName: s
     createdAt: serverTimestamp(),
     isSystem:  true,
   });
+  await sendPushToUser(uid, chatName ?? 'Qrup', 'Sizi qrupdan çıxardılar', { chatId, type: 'group_removed' });
 }
 
 export async function makeGroupAdmin(chatId: string, uid: string, userName: string): Promise<void> {

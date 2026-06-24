@@ -80,7 +80,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
         text: 'Çıxar',
         style: 'destructive',
         onPress: async () => {
-          await removeGroupMember(chat.id, uid, name, user?.displayName ?? '').catch(() => {});
+          await removeGroupMember(chat.id, uid, name, user?.displayName ?? '', chat.name).catch(() => {});
         },
       },
     ]);
@@ -251,7 +251,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
                 key={m.uid ?? m.id}
                 style={s.memberItem}
                 onPress={async () => {
-                  await addGroupMember(chat.id, m.uid ?? m.id, m.name, user?.displayName ?? '').catch(() => {});
+                  await addGroupMember(chat.id, m.uid ?? m.id, m.name, user?.displayName ?? '', chat.name).catch(() => {});
                   setShowAddMember(false);
                 }}
               >

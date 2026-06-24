@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Modal,
@@ -64,12 +64,25 @@ export default function ChatsScreen() {
   const chats = useAppStore(s => s.chats);
   const user = useAppStore(s => s.user);
 
+  const pendingGroupChatId = useAppStore(s => s.pendingGroupChatId);
+  const setPendingGroupChatId = useAppStore(s => s.setPendingGroupChatId);
+
   const [activeMusician, setActiveMusician] = useState<Musician | null>(null);
   const [activeGroup, setActiveGroup] = useState<ChatItem | null>(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const filteredMusicians = musicians.filter(m => (m.uid ?? m.id) !== user?.uid);
   const groups = chats.filter(c => c.isGroup);
+
+  useEffect(() => {
+    if (pendingGroupChatId && chats.length > 0) {
+      const chat = chats.find(c => c.id === pendingGroupChatId);
+      if (chat) {
+        setActiveGroup(chat);
+        setPendingGroupChatId(null);
+      }
+    }
+  }, [pendingGroupChatId, chats]);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
