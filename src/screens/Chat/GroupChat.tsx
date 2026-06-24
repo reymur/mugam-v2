@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, markChatAsDelivered } from '../../firebase/firestore';
+import { markChatAsReadBy, markChatAsDelivered, subscribeChat } from '../../firebase/firestore';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -32,6 +32,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [readyToShow, setReadyToShow] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -45,14 +46,22 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     }).start();
   }, []);
 
+  // Subscribe to live members
+  useEffect(() => {
+    const unsub = subscribeChat(chatProp.id, (data) => {
+      setLiveMembers(data.members ?? []);
+    });
+    return unsub;
+  }, [chatProp.id]);
+
   // Close chat if current user is removed from group
   useEffect(() => {
-    if (!user?.uid || !chat.members) return;
-    if (!chat.members.includes(user.uid)) {
+    if (!user?.uid || liveMembers.length === 0) return;
+    if (!liveMembers.includes(user.uid)) {
       setRemovedFromGroup({ chatName: chat.name, removedByName: '' });
       onClose();
     }
-  }, [chat.members, user?.uid]);
+  }, [liveMembers, user?.uid]);
 
   // Load messages
   useEffect(() => {
