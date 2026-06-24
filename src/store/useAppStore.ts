@@ -290,6 +290,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setPendingGroupChatId: (id) => set({ pendingGroupChatId: id }),
   setRemovedFromGroup: (data) => set({ removedFromGroup: data }),
   unsubscribeAll: () => {
+    set({ _chatUnsubs: {} });
     get()._unsubs.forEach(fn => fn());
     set({ _unsubs: [] });
   },
