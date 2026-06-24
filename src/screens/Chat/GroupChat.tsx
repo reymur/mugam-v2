@@ -42,7 +42,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [inputText, setInputText] = useState('');
   const [replyMsg, setReplyMsg] = useState<Message | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
-  const [readyToShow, setReadyToShow] = useState(false);
+  const readyToShowRef = useRef(false);
+  const [readyToShow, setReadyToShowState] = useState(false);
+  const setReadyToShow = (v: boolean) => { if (v) readyToShowRef.current = true; setReadyToShowState(v); };
   const [showInfo, setShowInfo] = useState(false);
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -109,7 +111,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [chatMessages.length]);
 
-  const resolved = readyToShow || chatMessages.length === 0
+  const resolved = readyToShowRef.current || chatMessages.length === 0
     ? chatMessages
         .filter(m => !m.deletedFor?.includes(user?.uid ?? ''))
         .filter(m => {
