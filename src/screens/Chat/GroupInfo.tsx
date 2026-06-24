@@ -37,10 +37,11 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
   // Get member details from musicians list
   const memberDetails = (chat.members ?? []).map(uid => {
     const musician = musicians.find(m => (m.uid ?? m.id) === uid);
+    const isMe = uid === user?.uid;
     return {
       uid,
-      name: musician?.name ?? (uid === user?.uid ? (user?.displayName ?? 'Siz') : 'İstifadəçi'),
-      emoji: musician?.emoji ?? '👤',
+      name: musician?.name ?? (isMe ? (user?.displayName ?? 'Siz') : 'İstifadəçi'),
+      emoji: musician?.emoji ?? (isMe ? '👤' : '👤'),
       isAdmin: chat.admins?.includes(uid) ?? false,
       isCreator: chat.createdBy === uid,
     };

@@ -619,8 +619,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     get()._addUnsub(unsubPush);
     FireMsg.setupBackgroundHandler();
     const unsubTap = FireMsg.onNotificationTap((data) => {
-      if (data.type === 'group_added' && data.chatId) {
-        get().setPendingGroupChatId(data.chatId);
+      if ((data.type === 'group_added' || data.type === 'group_removed') && data.chatId) {
+        setTimeout(() => get().setPendingGroupChatId(data.chatId), 500);
       }
     });
     get()._addUnsub(unsubTap);
