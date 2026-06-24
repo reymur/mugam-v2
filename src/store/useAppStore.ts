@@ -623,7 +623,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const unsubTap = FireMsg.onNotificationTap((data) => {
       console.log('[PUSH TAP]', JSON.stringify(data));
-      if ((data.type === 'group_added' || data.type === 'group_removed') && data.chatId) {
+      if (data.type === 'group_added' && data.chatId) {
         console.log('[PUSH TAP] setting pendingGroupChatId:', data.chatId);
         get().setPendingGroupChatId(data.chatId);
       }
