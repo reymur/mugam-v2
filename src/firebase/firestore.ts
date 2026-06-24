@@ -24,6 +24,21 @@ function tsToTime(ts: any): string {
   } catch { return ''; }
 }
 
+// ── USERS ─────────────────────────────────────────────────
+export async function getUsersByUids(uids: string[]): Promise<Record<string, { name: string; emoji: string }>> {
+  const result: Record<string, { name: string; emoji: string }> = {};
+  await Promise.all(uids.map(async uid => {
+    try {
+      const snap = await getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        result[uid] = { name: d.displayName ?? d.name ?? 'İstifadəçi', emoji: d.emoji ?? '👤' };
+      }
+    } catch {}
+  }));
+  return result;
+}
+
 // ── MUSICIANS ─────────────────────────────────────────────
 export async function fetchMusicians(): Promise<Musician[]> {
   const q = query(collection(fbFirestore, COLLECTIONS.USERS), where('role', '==', 'musician'), limit(50));

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, Alert, ActivityIndicator, TextInput, Modal,
@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto } from '../../firebase/firestore';
+import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto, getUsersByUids } from '../../firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal as RNModal } from 'react-native';
 import { Image } from 'expo-image';
@@ -30,18 +30,24 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
   const [fullPhotoLoading, setFullPhotoLoading] = useState(false);
+  const [usersMap, setUsersMap] = useState<Record<string, { name: string; emoji: string }>>({});
+
+  useEffect(() => {
+    if (!chat.members?.length) return;
+    getUsersByUids(chat.members).then(setUsersMap).catch(() => {});
+  }, [JSON.stringify(chat.members)]);
 
   const isAdmin = chat.admins?.includes(user?.uid ?? '') || chat.createdBy === user?.uid;
   const isCreator = chat.createdBy === user?.uid;
 
   // Get member details from musicians list
   const memberDetails = (chat.members ?? []).map(uid => {
-    const musician = musicians.find(m => (m.uid ?? m.id) === uid);
     const isMe = uid === user?.uid;
+    const fromMap = usersMap[uid];
     return {
       uid,
-      name: musician?.name ?? (isMe ? (user?.displayName ?? 'Siz') : 'İstifadəçi'),
-      emoji: musician?.emoji ?? (isMe ? '👤' : '👤'),
+      name: isMe ? (user?.displayName ?? 'Siz') : (fromMap?.name ?? 'İstifadəçi'),
+      emoji: fromMap?.emoji ?? '👤',
       isAdmin: chat.admins?.includes(uid) ?? false,
       isCreator: chat.createdBy === uid,
     };
