@@ -15,25 +15,11 @@ import { markChatAsReadBy, markChatAsDelivered, setTyping, subscribeChatMeta, re
 import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
+import { CheckMark } from '../../components/common/CheckMark';
 
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Voice Message Player ──────────────────────────────────
-function CheckMark({ isRead, isDelivered }: { isRead: boolean; isDelivered: boolean }) {
-  const color = isRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
-  if (!isDelivered) {
-    return (
-      <Text style={{ fontSize: 13, color: 'rgba(26,14,0,0.5)', marginLeft: 3, fontWeight: 'bold' }}>✓</Text>
-    );
-  }
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>
-      <Text style={{ fontSize: 13, color, fontWeight: 'bold', marginRight: -5 }}>✓</Text>
-      <Text style={{ fontSize: 13, color, fontWeight: 'bold' }}>✓</Text>
-    </View>
-  );
-}
-
 function SwipeableMessage({ children, onSwipeLeft, onSwipeRight }: { children: React.ReactNode; onSwipeLeft: () => void; onSwipeRight: () => void }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const replyIconScale = useRef(new Animated.Value(0)).current;

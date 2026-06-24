@@ -14,6 +14,7 @@ import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } fro
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
 import { Image } from 'expo-image';
+import { GroupCheckMark } from '../../components/common/CheckMark';
 import GroupInfo from './GroupInfo';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -21,18 +22,6 @@ const SCREEN_W = Dimensions.get('window').width;
 interface Props {
   chat: ChatItem;
   onClose: () => void;
-}
-
-// ── Group CheckMark ──────────────────────────────────────
-function GroupCheckMark({ isRead, membersCount }: { isRead: boolean; membersCount: number }) {
-  if (membersCount <= 1) return null;
-  const color = isRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>
-      <Text style={{ fontSize: 13, color, fontWeight: 'bold', marginRight: -5 }}>✓</Text>
-      <Text style={{ fontSize: 13, color, fontWeight: 'bold' }}>✓</Text>
-    </View>
-  );
 }
 
 export default function GroupChat({ chat: chatProp, onClose }: Props) {
@@ -220,8 +209,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                         </Text>
                         {msg.mine && (
                           <GroupCheckMark
-                            isRead={readBy.length >= (liveMembers.length - 1) && liveMembers.length > 1}
-                            membersCount={liveMembers.length}
+                            readBy={readBy}
+                            members={liveMembers}
+                            senderUid={user?.uid ?? ''}
                           />
                         )}
                       </View>
