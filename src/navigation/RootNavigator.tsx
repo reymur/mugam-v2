@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { Text, View, StyleSheet, ActivityIndicator } from 'react-native';
@@ -59,9 +59,18 @@ export default function RootNavigator() {
   const { t } = useT();
   const isAuthenticated = useAppStore(s => s.isAuthenticated);
   const authLoading     = useAppStore(s => s.authLoading);
+  const pendingGroupChatId = useAppStore(s => s.pendingGroupChatId);
   const totalUnread     = useAppStore(
     s => s.chats.reduce((acc, c) => acc + (c.unread ?? 0), 0)
   );
+  const navRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (pendingGroupChatId && navRef.current) {
+      navRef.current.navigate('Chats');
+    }
+  }, [pendingGroupChatId]);
+
   const agreementsCount = useAppStore(s => {
     const ids = s.readAgreementIds ?? [];
     return s.agreements.filter(a => !ids.includes(a.id)).length;
@@ -89,7 +98,7 @@ export default function RootNavigator() {
     <TabIcon emoji="👤" label="Profil"             focused={focused} />, []);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navRef}>
       {/* Loading state — Firebase auth check */}
       {authLoading ? (
         <LoadingScreen />

@@ -75,14 +75,13 @@ export default function ChatsScreen() {
   const groups = chats.filter(c => c.isGroup);
 
   useEffect(() => {
-    console.log('[CHAT SCREEN] pendingGroupChatId:', pendingGroupChatId, 'chats:', chats.length);
     if (pendingGroupChatId && chats.length > 0) {
       const chat = chats.find(c => c.id === pendingGroupChatId);
-      console.log('[CHAT SCREEN] found chat:', chat?.name);
-      if (chat) {
+      // Only open if user is still a member
+      if (chat && chat.members?.includes(user?.uid ?? '')) {
         setActiveGroup(chat);
-        setPendingGroupChatId(null);
       }
+      setPendingGroupChatId(null);
     }
   }, [pendingGroupChatId, chats]);
 
