@@ -256,27 +256,46 @@ function docToMessage(d: any): Message {
   } as Message;
 }
 
-// Subscribe to latest messages (asc order) + pagination via fetchMoreMessages
-// cb receives msgs and the oldest raw doc for pagination cursor
-export function subscribeMessages(
-  chatId: string,
-  cb: (msgs: Message[], oldestDoc: any | null) => void
-): () => void {
+// STEP 1: Load last 50 messages once (not realtime)
+export async function fetchInitialMessages(chatId: string): Promise<{ msgs: Message[]; oldestDoc: any | null; newestDoc: any | null }> {
   const q = query(
     collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
-    orderBy('createdAt', 'asc'),
+    orderBy('createdAt', 'desc'),
     limit(50),
   );
+  const snap = await getDocs(q);
+  const msgs = snap.docs.map(docToMessage).reverse();
+  const oldestDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+  const newestDoc = snap.docs.length > 0 ? snap.docs[0] : null;
+  return { msgs, oldestDoc, newestDoc };
+}
+
+// STEP 2: Subscribe only to NEW messages after the last known message
+export function subscribeNewMessages(
+  chatId: string,
+  afterDoc: any,
+  cb: (msgs: Message[]) => void
+): () => void {
+  const q = afterDoc
+    ? query(
+        collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
+        orderBy('createdAt', 'asc'),
+        startAfter(afterDoc),
+      )
+    : query(
+        collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
+        orderBy('createdAt', 'asc'),
+        limit(50),
+      );
   return onSnapshot(q, snap => {
+    if (snap.empty) return;
     const msgs = snap.docs.map(docToMessage);
-    // oldest doc is the first in asc-ordered snap
-    const oldestDoc = snap.docs.length > 0 ? snap.docs[0] : null;
-    cb(msgs, oldestDoc);
+    cb(msgs);
   });
 }
 
-// Load older messages for pagination
-export async function fetchMoreMessages(chatId: string, beforeDoc: any): Promise<{ msgs: Message[]; lastDoc: any }> {
+// STEP 3: Load older messages for pagination (scroll up)
+export async function fetchMoreMessages(chatId: string, beforeDoc: any): Promise<{ msgs: Message[]; oldestDoc: any | null }> {
   const q = query(
     collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
     orderBy('createdAt', 'desc'),
@@ -285,8 +304,8 @@ export async function fetchMoreMessages(chatId: string, beforeDoc: any): Promise
   );
   const snap = await getDocs(q);
   const msgs = snap.docs.map(docToMessage).reverse();
-  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
-  return { msgs, lastDoc };
+  const oldestDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+  return { msgs, oldestDoc };
 }
 
 export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }): Promise<void> {

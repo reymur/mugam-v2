@@ -65,7 +65,7 @@ interface AppStore {
   applyGig:     (id: string)                    => Promise<void>;
   reactStory:   (storyId: string, reaction: 'laugh' | 'heart' | 'clap') => Promise<void>;
   sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<void>;
-  loadMessages:     (chatId: string) => void;
+  loadMessages:     (chatId: string) => Promise<void>;
   loadMoreMessages: (chatId: string) => Promise<void>;
 
   // Invites
@@ -426,18 +426,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (e) { console.log('[SM] error:', e); /* keep optimistic */ }
   },
 
-  loadMessages: (chatId) => {
+  loadMessages: async (chatId) => {
     const uid = get().user?.uid;
-    // If already subscribed to this chatId — do nothing
-    const existing = get()._chatUnsubs[chatId];
-    if (existing) return;
-    const unsub = FireStore.subscribeMessages(chatId, (msgs, oldestDoc) => {
-      const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
-      set(s => ({
-        messages: { ...s.messages, [chatId]: resolved },
-        _chatHasMore: { ...s._chatHasMore, [chatId]: msgs.length >= 50 },
-        _chatCursors: { ...s._chatCursors, [chatId]: oldestDoc },
-      }));
+    // If already subscribed — do nothing
+    if (get()._chatUnsubs[chatId]) return;
+
+    // STEP 1: load last 50 messages once
+    const { msgs: initialMsgs, oldestDoc, newestDoc } = await FireStore.fetchInitialMessages(chatId);
+    const resolved = initialMsgs.map(m => ({ ...m, mine: m.senderId === uid }));
+    set(s => ({
+      messages: { ...s.messages, [chatId]: resolved },
+      _chatCursors: { ...s._chatCursors, [chatId]: oldestDoc },
+      _chatHasMore: { ...s._chatHasMore, [chatId]: initialMsgs.length >= 50 },
+    }));
+
+    // STEP 2: subscribe to new messages after the last known
+    const unsub = FireStore.subscribeNewMessages(chatId, newestDoc, (newMsgs) => {
+      const resolvedNew = newMsgs.map(m => ({ ...m, mine: m.senderId === uid }));
+      set(s => {
+        const existing = s.messages[chatId] ?? [];
+        // Merge: avoid duplicates by id
+        const existingIds = new Set(existing.map(m => m.id));
+        const toAdd = resolvedNew.filter(m => !existingIds.has(m.id));
+        if (toAdd.length === 0) return s;
+        return { messages: { ...s.messages, [chatId]: [...existing, ...toAdd] } };
+      });
     });
     set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
   },
@@ -446,9 +459,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const uid = get().user?.uid;
     const cursor = get()._chatCursors[chatId];
     const hasMore = get()._chatHasMore[chatId];
-    if (!hasMore) return;
+    if (!hasMore || !cursor) return;
     try {
-      const { msgs, lastDoc } = await FireStore.fetchMoreMessages(chatId, cursor);
+      const { msgs, oldestDoc } = await FireStore.fetchMoreMessages(chatId, cursor);
       if (msgs.length === 0) {
         set(s => ({ _chatHasMore: { ...s._chatHasMore, [chatId]: false } }));
         return;
@@ -456,7 +469,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
       set(s => ({
         messages: { ...s.messages, [chatId]: [...resolved, ...(s.messages[chatId] ?? [])] },
-        _chatCursors: { ...s._chatCursors, [chatId]: lastDoc },
+        _chatCursors: { ...s._chatCursors, [chatId]: oldestDoc },
         _chatHasMore: { ...s._chatHasMore, [chatId]: msgs.length >= 50 },
       }));
     } catch { /* ignore */ }
