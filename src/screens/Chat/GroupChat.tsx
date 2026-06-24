@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator,
-  Alert, Modal, Keyboard, PanResponder, Pressable, Image,
+  Alert, Modal, Keyboard, PanResponder, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
@@ -13,6 +13,7 @@ import { markChatAsReadBy, markChatAsDelivered } from '../../firebase/firestore'
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
+import { Image } from 'expo-image';
 import GroupInfo from './GroupInfo';
 
 const SCREEN_W = Dimensions.get('window').width;

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Modal, Image,
+  StyleSheet, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
@@ -9,6 +9,7 @@ import { Typography } from '../../theme/typography';
 import { useT } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import type { Musician, ChatItem } from '../../store/useAppStore';
+import { Image } from 'expo-image';
 import DirectChat from './DirectChat';
 import CreateGroup from './CreateGroup';
 import GroupChat from './GroupChat';
