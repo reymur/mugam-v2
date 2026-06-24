@@ -23,7 +23,7 @@ interface Props {
   onClose: () => void;
 }
 
-export default function GroupChat({ chat, onClose }: Props) {
+export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const { user, messages, sendMessage, loadMessages, showToast, chats, setRemovedFromGroup } = useAppStore();
   const chat = chats.find(ch => ch.id === chatProp.id) ?? chatProp;
 
