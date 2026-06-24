@@ -244,6 +244,7 @@ export function subscribeMessages(chatId: string, cb: (msgs: Message[]) => void)
     limit(100),
   );
   return onSnapshot(q, snap => {
+    console.log('[SUB] subscribeMessages fired, chatId:', chatId, 'count:', snap.docs.length);
     const msgs = snap.docs.map(d => {
       const data = d.data();
       return {

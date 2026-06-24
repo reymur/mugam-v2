@@ -415,14 +415,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), tempMsg] },
     }));
     try {
+      console.log('[SM] sending to chatId:', chatId, 'uid:', user.uid);
       await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo);
-    } catch { /* keep optimistic */ }
+      console.log('[SM] sent ok');
+    } catch (e) { console.log('[SM] error:', e); /* keep optimistic */ }
   },
 
   loadMessages: (chatId) => {
     const uid = get().user?.uid;
     // If already subscribed to this chatId — do nothing
     const existing = get()._chatUnsubs[chatId];
+    console.log('[LM] loadMessages called, chatId:', chatId, 'existing:', !!existing);
     if (existing) return;
     const unsub = FireStore.subscribeMessages(chatId, (msgs) => {
       const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
@@ -580,11 +583,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       console.log('Auth state changed:', firebaseUser?.uid ?? 'null');
       if (firebaseUser) {
         const isSameUser = get().user?.uid === firebaseUser.uid;
+        console.log('[AUTH] isSameUser:', isSameUser, 'uid:', firebaseUser.uid);
         if (!isSameUser) {
           get().unsubscribeAll();
           set({ messages: {}, receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [], chats: [] });
         } else {
-          set({ receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [], chats: [] });
+          set({ receivedInvites: [], myInvites: [], invitedMusicianIds: new Set<string>(), acceptedMusicianIds: new Set<string>(), agreements: [], readAgreementIds: [] });
         }
         const profile = await loadUserDoc(firebaseUser.uid);
         set({
