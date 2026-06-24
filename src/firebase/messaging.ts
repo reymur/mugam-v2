@@ -66,15 +66,22 @@ export function onNotificationTap(
   callback: (data: Record<string, string>) => void,
 ): () => void {
   // Handle tap when app is open or in background
+  // actionIdentifier check ensures this only fires on actual tap, not on receive
   const sub = Notifications.addNotificationResponseReceivedListener(response => {
+    if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
     const data = response.notification.request.content.data as Record<string, string>;
-    console.log('[messaging] addNotificationResponseReceivedListener:', data);
+    console.log('[messaging] tap:', data);
     callback(data);
   });
 
   // Handle tap when app was closed (killed)
+  const LAST_NOTIF_KEY = 'lastHandledNotifId';
   Notifications.getLastNotificationResponseAsync().then(response => {
     if (!response) return;
+    const id = response.notification.request.identifier;
+    const lastId = (global as any)[LAST_NOTIF_KEY];
+    if (lastId === id) return;
+    (global as any)[LAST_NOTIF_KEY] = id;
     const data = response.notification.request.content.data as Record<string, string>;
     console.log('[messaging] getLastNotificationResponseAsync:', data);
     callback(data);

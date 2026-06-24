@@ -66,9 +66,15 @@ export default function RootNavigator() {
   const navRef = useRef<any>(null);
 
   useEffect(() => {
-    if (pendingGroupChatId && navRef.current) {
-      navRef.current.navigate('Chats');
-    }
+    if (!pendingGroupChatId) return;
+    const tryNavigate = () => {
+      if (navRef.current?.isReady()) {
+        navRef.current.navigate('Chats');
+      } else {
+        setTimeout(tryNavigate, 100);
+      }
+    };
+    tryNavigate();
   }, [pendingGroupChatId]);
 
   const agreementsCount = useAppStore(s => {
