@@ -164,7 +164,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
             onLongPress={isAdmin ? handlePickPhoto : undefined}
           >
             {photoURL ? (
-              <Image source={{ uri: photoURL }} style={{ width: 110, height: 110, borderRadius: 30 }} />
+              <Image source={{ uri: photoURL }} style={{ width: 110, height: 110, borderRadius: 30 }} cachePolicy="memory-disk" />
             ) : (
               <Text style={{ fontSize: 40 }}>{chat.emoji}</Text>
             )}
