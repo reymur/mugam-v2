@@ -50,7 +50,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     if (!user?.uid || !chat.members) return;
     if (!chat.members.includes(user.uid)) {
       setRemovedFromGroup({ chatName: chat.name, removedByName: '' });
-      handleClose();
+      onClose();
     }
   }, [chat.members, user?.uid]);
 
