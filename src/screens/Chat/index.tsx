@@ -83,7 +83,8 @@ export default function ChatsScreen() {
     } else if (!chat) {
       // chat not found yet, keep waiting
     } else {
-      // user not in members — just clear
+      // user not in members — close any open chat and clear
+      setActiveGroup(null);
       setPendingGroupChatId(null);
     }
   }, [pendingGroupChatId, chats]);
