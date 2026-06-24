@@ -416,17 +416,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   loadMessages: (chatId) => {
     const uid = get().user?.uid;
-    // Unsubscribe previous listener for this chatId if exists
-    const prevUnsub = (get() as any)._msgUnsubs?.[chatId];
-    if (prevUnsub) prevUnsub();
+    // If already subscribed to this chatId, skip
+    if (get().messages[chatId]) return;
     const unsub = FireStore.subscribeMessages(chatId, (msgs) => {
       const resolved = msgs.map(m => ({ ...m, mine: m.senderId === uid }));
       set(s => ({ messages: { ...s.messages, [chatId]: resolved } }));
     });
-    // Store unsub per chatId
-    const msgUnsubs = (get() as any)._msgUnsubs ?? {};
-    msgUnsubs[chatId] = unsub;
-    (get() as any)._msgUnsubs = msgUnsubs;
     get()._addUnsub(unsub);
   },
 
