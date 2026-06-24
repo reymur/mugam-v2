@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, markChatAsDelivered, subscribeChat } from '../../firebase/firestore';
+import { markChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } from '../../firebase/firestore';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -23,6 +23,18 @@ interface Props {
   onClose: () => void;
 }
 
+// ── Group CheckMark ──────────────────────────────────────
+function GroupCheckMark({ isRead, membersCount }: { isRead: boolean; membersCount: number }) {
+  if (membersCount <= 1) return null;
+  const color = isRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>
+      <Text style={{ fontSize: 13, color, fontWeight: 'bold', marginRight: -5 }}>✓</Text>
+      <Text style={{ fontSize: 13, color, fontWeight: 'bold' }}>✓</Text>
+    </View>
+  );
+}
+
 export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const { user, messages, sendMessage, loadMessages, showToast, chats, setRemovedFromGroup } = useAppStore();
   const chat = chats.find(ch => ch.id === chatProp.id) ?? chatProp;
@@ -33,6 +45,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [readyToShow, setReadyToShow] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [readBy, setReadBy] = useState<string[]>([]);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -46,13 +61,20 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     }).start();
   }, []);
 
-  // Subscribe to live members
+  // Subscribe to live members, typing and readBy
   useEffect(() => {
     const unsub = subscribeChat(chatProp.id, (data) => {
       setLiveMembers(data.members ?? []);
+      setReadBy(data.readBy ?? []);
+      const typing = data.typing ?? {};
+      const now = Date.now();
+      const activeTypers = Object.entries(typing)
+        .filter(([uid, ts]) => uid !== user?.uid && typeof ts === 'number' && now - (ts as number) < 5000)
+        .map(([uid]) => uid);
+      setTypingUsers(activeTypers);
     });
     return unsub;
-  }, [chatProp.id]);
+  }, [chatProp.id, user?.uid]);
 
   // Close chat if current user is removed from group
   useEffect(() => {
@@ -192,9 +214,17 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                       <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                         {msg.text}
                       </Text>
-                      <Text style={[s.msgTime, msg.mine ? s.msgTimeMine : s.msgTimeTheirs]}>
-                        {msg.time}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <Text style={[s.msgTime, msg.mine ? s.msgTimeMine : s.msgTimeTheirs]}>
+                          {msg.time}
+                        </Text>
+                        {msg.mine && (
+                          <GroupCheckMark
+                            isRead={readBy.length >= (liveMembers.length - 1) && liveMembers.length > 1}
+                            membersCount={liveMembers.length}
+                          />
+                        )}
+                      </View>
                     </View>
                   </Pressable>
                   </SwipeableMessage>
@@ -202,6 +232,15 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
               );
             })}
           </ScrollView>
+
+          {/* Typing indicator */}
+          {typingUsers.length > 0 && (
+            <View style={s.typingBar}>
+              <Text style={s.typingText}>
+                {typingUsers.length === 1 ? 'Biri yazır...' : `${typingUsers.length} nəfər yazır...`}
+              </Text>
+            </View>
+          )}
 
           {/* Reply preview */}
           {replyMsg && (
@@ -225,7 +264,15 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
               placeholder="Mesaj yaz..."
               placeholderTextColor={Colors.muted}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={(text) => {
+                setInputText(text);
+                if (!user?.uid) return;
+                setTyping(chat.id, user.uid, true).catch(() => {});
+                if (typingTimer.current) clearTimeout(typingTimer.current);
+                typingTimer.current = setTimeout(() => {
+                  setTyping(chat.id, user.uid, false).catch(() => {});
+                }, 3000);
+              }}
               multiline
               maxLength={500}
               returnKeyType="send"
@@ -329,4 +376,6 @@ const s = StyleSheet.create({
   menuItem:      { paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
   menuItemText:  { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
   red:           { color: Colors.red },
+  typingBar:     { paddingHorizontal: 16, paddingVertical: 4 },
+  typingText:    { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400, fontStyle: 'italic' },
 });
