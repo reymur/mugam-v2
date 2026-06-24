@@ -9,7 +9,8 @@ import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto } from '../../firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
-import { Image, Modal as RNModal } from 'react-native';
+import { Modal as RNModal } from 'react-native';
+import { Image } from 'expo-image';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import type { ChatItem } from '../../store/useAppStore';
 
