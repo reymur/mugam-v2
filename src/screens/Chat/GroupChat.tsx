@@ -92,6 +92,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   }, [chat.id]);
 
   const chatMessages = messages[chat.id] ?? [];
+  React.useEffect(() => { console.log('[GroupChat] chatMessages:', chatMessages.length, 'readyToShow:', readyToShow); }, [chatMessages.length, readyToShow]);
 
   useEffect(() => {
     if (chatMessages.length > 0 && !readyToShow) {
@@ -102,11 +103,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     }
   }, [chatMessages.length]);
 
-  // Mark as read when new messages arrive
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (!user?.uid || chatMessages.length === 0) return;
-    const lastMsg = chatMessages[chatMessages.length - 1];
-    markChatAsReadBy(chat.id, user.uid, lastMsg?.id).catch(() => {});
+    if (chatMessages.length === 0) return;
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [chatMessages.length]);
 
