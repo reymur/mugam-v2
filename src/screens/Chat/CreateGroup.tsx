@@ -8,6 +8,8 @@ import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { createGroupChat, fetchAllUsers } from '../../firebase/firestore';
 import type { UserProfile } from '../../types';
+import type { Musician } from '../../store/useAppStore';
+import MusicianProfileScreen from '../Musician/MusicianProfileScreen';
 
 interface Props {
   onClose: () => void;
@@ -23,6 +25,7 @@ export default function CreateGroup({ onClose, onCreated }: Props) {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [searchText, setSearchText] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [profileUser, setProfileUser] = useState<Musician | null>(null);
 
   // Load all users once
   useEffect(() => {
@@ -142,27 +145,31 @@ export default function CreateGroup({ onClose, onCreated }: Props) {
           filteredUsers.map(u => {
             const selected = selectedUids.includes(u.uid);
             return (
-              <TouchableOpacity
-                key={u.uid}
-                style={s.userItem}
-                onPress={() => toggleUser(u.uid)}
-                activeOpacity={0.8}
-              >
-                <View style={[s.userAva, selected && s.userAvaSelected]}>
+              <View key={u.uid} style={s.userItem}>
+                <TouchableOpacity
+                  style={[s.userAva, selected && s.userAvaSelected]}
+                  onPress={() => setProfileUser({ id: u.uid, uid: u.uid, name: u.displayName ?? '', emoji: u.emoji ?? '🎵', instrument: u.instrument ?? '', city: u.city ?? '', rating: u.rating ?? 0, reviews: u.reviews ?? 0 })}
+                  activeOpacity={0.7}
+                >
                   <Text style={{ fontSize: 20 }}>{u.emoji ?? '🎵'}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ flex: 1 }} onPress={() => toggleUser(u.uid)} activeOpacity={0.8}>
                   <Text style={s.userName}>{u.displayName}</Text>
                   <Text style={s.userSub}>{u.instrument} · {u.city}</Text>
-                </View>
-                <View style={[s.checkbox, selected && s.checkboxSelected]}>
-                  {selected && <Text style={{ color: '#1a0e00', fontSize: 14 }}>✓</Text>}
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => toggleUser(u.uid)} activeOpacity={0.8}>
+                  <View style={[s.checkbox, selected && s.checkboxSelected]}>
+                    {selected && <Text style={{ color: '#1a0e00', fontSize: 14 }}>✓</Text>}
+                  </View>
+                </TouchableOpacity>
+              </View>
             );
           })
         )}
       </ScrollView>
+      {profileUser && (
+        <MusicianProfileScreen musician={profileUser} onClose={() => setProfileUser(null)} />
+      )}
     </SafeAreaView>
   );
 }
