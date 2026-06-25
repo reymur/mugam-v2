@@ -13,6 +13,7 @@ import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, u
 import { Audio } from 'expo-av';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import TypingIndicator from '../../components/common/TypingIndicator';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -314,18 +315,11 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
 
           {/* Typing indicator */}
           {typingUsers.length > 0 && (() => {
-            // Build uid→name map from messages
             const memberNames: Record<string, string> = {};
             chatMessages.forEach(m => { if (m.senderId && m.senderName) memberNames[m.senderId] = m.senderName; });
             const names = typingUsers.map(uid => memberNames[uid] ?? 'Biri');
-            const label = names.length === 1
-              ? `${names[0]} yazır...`
-              : `${names.join(', ')} yazır...`;
-            return (
-              <View style={s.typingBar}>
-                <Text style={s.typingText}>{label}</Text>
-              </View>
-            );
+            const label = names.length === 1 ? names[0] : names.join(', ');
+            return <TypingIndicator name={label} />;
           })()}
 
           {/* Reply preview */}

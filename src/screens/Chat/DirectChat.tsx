@@ -10,6 +10,7 @@ import { Audio } from 'expo-av';
 import { Linking } from 'react-native';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import TypingIndicator from '../../components/common/TypingIndicator';
 import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
@@ -1119,6 +1120,9 @@ const id = await createOrGetDirectChat(
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Typing indicator */}
+          {recipientTyping && <TypingIndicator name={musician.name} />}
 
           {/* Input bar */}
           <ChatInput
