@@ -77,7 +77,7 @@ export default function ChatsScreen() {
   const groups = chats.filter(c => c.isGroup);
 
   useEffect(() => {
-    if (!pendingGroupChatId || chats.length === 0) return;
+    if (!pendingGroupChatId) return;
     const chat = chats.find(c => c.id === pendingGroupChatId);
     if (chat && chat.members?.includes(user?.uid ?? '')) {
       setActiveGroup(chat);
