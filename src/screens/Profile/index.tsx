@@ -26,6 +26,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
   const [bio,    setBio]    = useState(user?.bio ?? '');
   const [inst,   setInst]   = useState(user?.instrument ?? '');
   const [city,   setCity]   = useState(user?.city ?? '');
+  const [phone,  setPhone]  = useState(user?.phone ?? '');
   const [avail,  setAvail]  = useState(user?.available ?? false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -53,7 +54,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
         photoURL = await uploadAvatar(user.uid, avatarUri);
         setUploading(false);
       }
-      const updates = { displayName: name.trim(), bio, instrument: inst, city, available: avail, photoURL };
+      const updates = { displayName: name.trim(), bio, instrument: inst, city, available: avail, photoURL, phone: phone.trim() };
       await updateUserProfile(user.uid, updates);
       setUser({ ...user, ...updates });
       showToast('✅ Profil yeniləndi!');
@@ -82,6 +83,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
 
         <Text style={es.lbl}>Ad Soyad</Text>
         <TextInput style={es.inp} value={name} onChangeText={setName} placeholderTextColor={Colors.muted} placeholder="Adınız" />
+        <TextInput style={es.inp} value={phone} onChangeText={setPhone} placeholderTextColor={Colors.muted} placeholder="📞 Telefon nömrəsi (+994...)" keyboardType="phone-pad" />
 
         <Text style={es.lbl}>Haqqında</Text>
         <TextInput style={[es.inp, { height: 80 }]} value={bio} onChangeText={setBio} multiline placeholder="Özünüz haqqında yazın..." placeholderTextColor={Colors.muted} />

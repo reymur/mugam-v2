@@ -20,6 +20,7 @@ export interface UserProfile {
   role?:       UserRole;
   specialty?:  string;
   online?:     boolean;
+  phone?:      string;
 }
 
 export interface Musician {
