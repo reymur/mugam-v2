@@ -1120,8 +1120,11 @@ const id = await createOrGetDirectChat(
                           if (msg.status === 'sending') return <Text style={{ fontSize: 12, marginLeft: 2 }}>⏳</Text>;
                           if (msg.status === 'failed')  return <Text style={{ fontSize: 12, marginLeft: 2 }}>❌</Text>;
                           const mUid = musician.uid ?? musician.id;
-                          const msgReadBy = msg.readBy ?? [];
-                          const isRead = msgReadBy.includes(mUid);
+                          const allMsgIds = chatMessages.map(m => m.id);
+                          const msgIndex = allMsgIds.indexOf(msg.id);
+                          const lastReadId = lastReadMsgId[mUid];
+                          const lastReadIndex = lastReadId ? allMsgIds.indexOf(lastReadId) : -1;
+                          const isRead = lastReadIndex >= msgIndex && msgIndex !== -1;
                           const isDelivered = deliveredTo[mUid] === true || isRead;
                           return <CheckMark isRead={isRead} isDelivered={isDelivered} />;
                         })()}

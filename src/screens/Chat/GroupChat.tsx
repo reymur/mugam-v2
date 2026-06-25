@@ -10,7 +10,6 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } from '../../firebase/firestore';
-import { GroupCheckMark } from '../../components/common/CheckMark';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -229,15 +228,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                             <Text style={{ fontSize: 12, marginLeft: 2 }}>⏳</Text>
                           ) : msg.status === 'failed' ? (
                             <Text style={{ fontSize: 12, marginLeft: 2 }}>❌</Text>
-                          ) : (
-                            <GroupCheckMark
-                              msgId={msg.id}
-                              lastReadMsgId={lastReadMsgId}
-                              allMsgIds={(messages[chatProp.id] ?? []).map(m => m.id)}
-                              members={liveMembers}
-                              senderUid={user?.uid ?? ''}
-                            />
-                          )
+                          ) : null
                         )}
                       </View>
                     </View>
