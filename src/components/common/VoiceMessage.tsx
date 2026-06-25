@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { Colors } from '../../theme/colors';
 
-// ── VoicePlayer ───────────────────────────────────────────
+type PlayState = 'idle' | 'speaker' | 'earpiece';
+
 interface VoicePlayerProps {
   uri:  string;
   mine: boolean;
 }
 
 export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
-  const [sound,   setSound]   = useState<Audio.Sound | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [sound,     setSound]     = useState<Audio.Sound | null>(null);
+  const [playState, setPlayState] = useState<PlayState>('idle');
+  const [loading,   setLoading]   = useState(false);
 
   useEffect(() => {
     return () => { sound?.unloadAsync().catch(() => {}); };
@@ -22,48 +23,67 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
 
   const handlePlay = async () => {
     try {
-      if (playing && sound) {
-        await sound.stopAsync();
-        setPlaying(false);
+      // idle → speaker
+      if (playState === 'idle') {
+        setLoading(true);
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS:      false,
+          playsInSilentModeIOS:    true,
+          playThroughEarpieceAndroid: false,
+        });
+        if (sound) await sound.unloadAsync();
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri },
+          { shouldPlay: true },
+          (status) => { if (status.isLoaded && status.didJustFinish) setPlayState('idle'); }
+        );
+        setSound(newSound);
+        setPlayState('speaker');
         return;
       }
-      setLoading(true);
-      if (sound) await sound.unloadAsync();
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) setPlaying(false);
-        }
-      );
-      setSound(newSound);
-      setPlaying(true);
+
+      // speaker → earpiece
+      if (playState === 'speaker' && sound) {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS:      false,
+          playsInSilentModeIOS:    true,
+          playThroughEarpieceAndroid: true,
+        });
+        setPlayState('earpiece');
+        return;
+      }
+
+      // earpiece → idle (stop)
+      if (playState === 'earpiece' && sound) {
+        await sound.stopAsync();
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS:      false,
+          playsInSilentModeIOS:    true,
+          playThroughEarpieceAndroid: false,
+        });
+        setPlayState('idle');
+        return;
+      }
     } catch { /* ignore */ }
     finally { setLoading(false); }
   };
+
+  const icon = playState === 'idle' ? '▶' : playState === 'speaker' ? '🔊' : '🔉';
 
   return (
     <TouchableOpacity style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]} onPress={handlePlay}>
       {loading
         ? <ActivityIndicator size="small" color={mine ? '#1a0e00' : Colors.gold} />
-        : <Text style={[vs.icon, { color: mine ? '#1a0e00' : Colors.gold }]}>{playing ? '⏹' : '▶'}</Text>
+        : <Text style={[vs.icon, { color: mine ? '#1a0e00' : Colors.gold }]}>{icon}</Text>
       }
       <View style={vs.bars}>
         {Array.from({ length: 16 }).map((_, i) => (
-          <View key={i} style={[vs.bar, { height: 4 + Math.sin(i * 0.8) * 8 + 4 }, playing && { backgroundColor: mine ? '#1a0e00' : Colors.gold }]} />
+          <View key={i} style={[vs.bar, { height: 4 + Math.sin(i * 0.8) * 8 + 4 }, playState !== 'idle' && { backgroundColor: mine ? '#1a0e00' : Colors.gold }]} />
         ))}
       </View>
       <Text style={[vs.label, { color: mine ? '#1a0e00' : Colors.muted }]}>🎤</Text>
     </TouchableOpacity>
   );
-}
-
-// ── VoiceRecorder ─────────────────────────────────────────
-interface VoiceRecorderProps {
-  onStart:  () => void;
-  onStop:   () => void;
-  recording: boolean;
-  duration:  number;
 }
 
 export function VoiceRecorderBar({ recording, duration, onStop }: {
