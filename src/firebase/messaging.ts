@@ -41,12 +41,10 @@ export async function registerFCMToken(uid: string): Promise<() => void> {
 
 export async function sendPushToUser(uid: string, title: string, body: string, data?: Record<string, string>): Promise<void> {
   try {
-    console.log('[PUSH] sendPushToUser called for uid:', uid, 'title:', title, 'type:', data?.type);
     const snap = await getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid));
     if (!snap.exists()) return;
     const token = snap.data()?.expoPushToken;
-    if (!token) { console.log('[PUSH] no token for uid:', uid); return; }
-    console.log('[PUSH] sending to token:', token);
+    if (!token) return;
     await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,6 +52,32 @@ export async function sendPushToUser(uid: string, title: string, body: string, d
     });
   } catch (e) {
     console.warn('sendPushToUser error:', e);
+  }
+}
+
+export async function sendPushToUsers(uids: string[], title: string, body: string, data?: Record<string, string>): Promise<void> {
+  try {
+    // Fetch all tokens
+    const snaps = await Promise.all(uids.map(uid => getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid))));
+    // Deduplicate by token
+    const tokenSet = new Set<string>();
+    snaps.forEach(snap => {
+      if (!snap.exists()) return;
+      const token = snap.data()?.expoPushToken;
+      if (token) tokenSet.add(token);
+    });
+    // Send to unique tokens
+    await Promise.all(
+      [...tokenSet].map(token =>
+        fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: token, title, body, data: data ?? {}, sound: 'default' }),
+        }).catch(() => {})
+      )
+    );
+  } catch (e) {
+    console.warn('sendPushToUsers error:', e);
   }
 }
 

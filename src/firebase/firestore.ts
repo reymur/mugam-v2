@@ -6,7 +6,7 @@ import {
   type QuerySnapshot, type DocumentData,
 } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from './config';
-import { sendPushToUser } from './messaging';
+import { sendPushToUser, sendPushToUsers } from './messaging';
 import type {
   Musician, GigItem, BoardItem, MarketItem,
   FunCard, VideoItem, ChatItem, Message, Event, Room, Invite,
@@ -991,16 +991,9 @@ export async function createGroupChat(
     isSystem:   true,
   });
 
-  // Push notifications to all members except creator (deduplicated)
+  // Push notifications to all members except creator (deduplicated by token)
   const uniqueMemberUids = [...new Set(memberUids.filter(uid => uid !== creatorUid))];
-  await Promise.all(
-    uniqueMemberUids.map(uid => sendPushToUser(
-      uid,
-      groupName,
-      `${creatorName} sizi qrupa əlavə etdi`,
-      { chatId: ref.id, type: 'group_added' }
-    ).catch(() => {}))
-  );
+  await sendPushToUsers(uniqueMemberUids, groupName, `${creatorName} sizi qrupa əlavə etdi`, { chatId: ref.id, type: 'group_added' });
 
   return ref.id;
 }
@@ -1023,13 +1016,9 @@ export async function leaveGroup(chatId: string, uid: string, userName: string):
     createdAt: serverTimestamp(),
     isSystem:  true,
   });
-  // Push to remaining members
+  // Push to remaining members (deduplicated by token)
   const remaining = members.filter(m => m !== uid);
-  await Promise.all(
-    remaining.map(m => sendPushToUser(
-      m, chatName, `${userName} qrupdan çıxdı`, { chatId, type: 'group_left' }
-    ).catch(() => {}))
-  );
+  await sendPushToUsers(remaining, chatName, `${userName} qrupdan çıxdı`, { chatId, type: 'group_left' });
 }
 
 export async function deleteGroup(chatId: string, deletedByName: string): Promise<void> {
@@ -1046,14 +1035,9 @@ export async function deleteGroup(chatId: string, deletedByName: string): Promis
   msgsSnap.docs.forEach(d => batch.delete(d.ref));
   batch.delete(chatRef);
   await batch.commit();
-  // Push to all members except creator
-  await Promise.all(
-    members
-      .filter(m => m !== creatorUid)
-      .map(m => sendPushToUser(
-        m, chatName, `${deletedByName} qrupu sildi`, { chatId, type: 'group_deleted' }
-      ).catch(() => {}))
-  );
+  // Push to all members except creator (deduplicated by token)
+  const membersToNotify = members.filter(m => m !== creatorUid);
+  await sendPushToUsers(membersToNotify, chatName, `${deletedByName} qrupu sildi`, { chatId, type: 'group_deleted' });
 }
 
 export async function addGroupMember(chatId: string, uid: string, userName: string, addedByName: string, chatName?: string): Promise<void> {
