@@ -552,7 +552,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       });
       if (found) {
         unsub();
-        setChatId(found.id);
+        setChatId(prev => prev === found.id ? prev : found.id);
         loadMessages(found.id);
         useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [mUid]: found.id } }));
       }
@@ -575,7 +575,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
           try {
             const chatSnap = await getDoc(doc(fbFirestore, COLLECTIONS.CHATS, cachedId));
             if (chatSnap.exists() && !chatSnap.data().closedBy && !chatSnap.data().completed) {
-              setChatId(cachedId);
+              setChatId(prev => prev === cachedId ? prev : cachedId);
               
               loadMessages(cachedId);
               setInitiatorUid(chatSnap.data().initiatorUid ?? user.uid);
@@ -609,7 +609,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
           const id = existing.id;
           // Save to cache
           useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
-          setChatId(id);
+          setChatId(prev => prev === id ? prev : id);
           
           loadMessages(id);
           await markChatAsRead(id, user.uid).catch(() => {});
@@ -710,7 +710,7 @@ const id = await createOrGetDirectChat(
           user.city,
         );
         activeChatId = id;
-        setChatId(id);
+        setChatId(prev => prev === id ? prev : id);
         loadMessages(id);
         setInitiatorUid(user.uid);
         // Save new chatId to cache
@@ -775,7 +775,7 @@ const id = await createOrGetDirectChat(
           user.displayName, user.city,
         );
         activeChatId = id;
-        setChatId(id);
+        setChatId(prev => prev === id ? prev : id);
         loadMessages(id);
         setInitiatorUid(user.uid);
         // Save new chatId to cache
@@ -1207,7 +1207,7 @@ const id = await createOrGetDirectChat(
                           user.displayName,
                           user.city,
                         );
-                        setChatId(activeChatId);
+                        setChatId(prev => prev === activeChatId ? prev : activeChatId);
                         loadMessages(activeChatId);
                         setInitiatorUid(user.uid);
                         const musicianUid = musician.uid ?? musician.id;
