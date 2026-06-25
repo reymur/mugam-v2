@@ -9,7 +9,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } from '../../firebase/firestore';
+import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, uploadVoiceMessage } from '../../firebase/firestore';
+import { Audio } from 'expo-av';
+import { VoicePlayer } from '../../components/common/VoiceMessage';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -32,6 +34,10 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
 
   const [inputText, setInputText] = useState('');
   const [replyMsg, setReplyMsg] = useState<Message | null>(null);
+  const [recording,   setRecording]   = useState(false);
+  const [recDuration, setRecDuration] = useState(0);
+  const recRef   = useRef<Audio.Recording | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
 
   const [showInfo, setShowInfo] = useState(false);
@@ -134,6 +140,37 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
   }, [inputText, chat.id, user, sendMessage, replyMsg]);
 
+  const startRecording = useCallback(async () => {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') return;
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const rec = new Audio.Recording();
+      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await rec.startAsync();
+      recRef.current = rec;
+      setRecording(true);
+      setRecDuration(0);
+      timerRef.current = setInterval(() => setRecDuration(d => d + 1), 1000);
+    } catch { /* ignore */ }
+  }, []);
+
+  const stopRecording = useCallback(async () => {
+    if (!recRef.current || !user) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    setRecording(false);
+    setRecDuration(0);
+    try {
+      await recRef.current.stopAndUnloadAsync();
+      const uri = recRef.current.getURI();
+      recRef.current = null;
+      if (!uri) return;
+      const voiceUrl = await uploadVoiceMessage(chat.id, uri, user.uid);
+      await sendMessage(chat.id, `🎤 VOICE:${voiceUrl}`);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
+    } catch { /* ignore */ }
+  }, [chat.id, user, sendMessage]);
+
   return (
     <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: Colors.bg, zIndex: 200, transform: [{ translateX: slideAnim }] }]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
@@ -217,9 +254,13 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                           </View>
                         </TouchableOpacity>
                       )}
-                      <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
-                        {msg.text}
-                      </Text>
+                      {msg.text?.startsWith('🎤 VOICE:') ? (
+                        <VoicePlayer uri={msg.text.replace('🎤 VOICE:', '')} mine={msg.mine} />
+                      ) : (
+                        <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
+                          {msg.text}
+                        </Text>
+                      )}
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
                         <Text style={[s.msgTime, msg.mine ? s.msgTimeMine : s.msgTimeTheirs]}>
                           {msg.time}
@@ -270,6 +311,18 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             </View>
           )}
 
+          {/* Recording bar */}
+          {recording && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red }} />
+              <Text style={{ fontSize: 14, color: Colors.red, fontWeight: 'bold' }}>{String(Math.floor(recDuration/60)).padStart(2,'0')}:{String(recDuration%60).padStart(2,'0')}</Text>
+              <Text style={{ flex: 1, fontSize: 13, color: Colors.muted }}>Səs yazılır...</Text>
+              <TouchableOpacity onPress={stopRecording}>
+                <Text style={{ color: Colors.red, fontSize: 13 }}>Ləğv et</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Input */}
           <View style={s.inputRow}>
             <TextInput
@@ -298,6 +351,12 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
               disabled={!inputText.trim()}
             >
               <Text style={s.sendBtnText}>➤</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.sendBtn, { backgroundColor: recording ? 'rgba(192,57,43,0.15)' : Colors.card, borderWidth: 1, borderColor: recording ? Colors.red : Colors.border }]}
+              onPress={recording ? stopRecording : startRecording}
+            >
+              <Text style={{ fontSize: 20 }}>{recording ? '⏹' : '🎤'}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

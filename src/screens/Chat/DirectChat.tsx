@@ -7,11 +7,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Audio } from 'expo-av';
+import { VoicePlayer } from '../../components/common/VoiceMessage';
 import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, markChatAsDelivered, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently, subscribeUserOnline } from '../../firebase/firestore';
+import { markChatAsReadBy, markChatAsDelivered, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently, subscribeUserOnline, uploadVoiceMessage } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -125,52 +126,7 @@ function TypingDots() {
   );
 }
 
-function VoicePlayer({ uri, mine }: { uri: string; mine: boolean }) {
-  const [sound,   setSound]   = useState<Audio.Sound | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    return () => { sound?.unloadAsync().catch(() => {}); };
-  }, [sound]);
-
-  const handlePlay = async () => {
-    try {
-      if (playing && sound) {
-        await sound.stopAsync();
-        setPlaying(false);
-        return;
-      }
-      setLoading(true);
-      if (sound) await sound.unloadAsync();
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) setPlaying(false);
-        }
-      );
-      setSound(newSound);
-      setPlaying(true);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <TouchableOpacity style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]} onPress={handlePlay}>
-      {loading
-        ? <ActivityIndicator size="small" color={mine ? '#1a0e00' : Colors.gold} />
-        : <Text style={[vs.icon, { color: mine ? '#1a0e00' : Colors.gold }]}>{playing ? '⏹' : '▶'}</Text>
-      }
-      <View style={vs.bars}>
-        {Array.from({ length: 16 }).map((_, i) => (
-          <View key={i} style={[vs.bar, { height: 4 + Math.sin(i * 0.8) * 8 + 4 }, playing && { backgroundColor: mine ? '#1a0e00' : Colors.gold }]} />
-        ))}
-      </View>
-      <Text style={[vs.label, { color: mine ? '#1a0e00' : Colors.muted }]}>🎤</Text>
-    </TouchableOpacity>
-  );
-}
 
 
 // ── Custom Date Picker ────────────────────────────────────
@@ -783,7 +739,8 @@ const id = await createOrGetDirectChat(
         useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
 
-      await sendMessage(activeChatId, `🎤 VOICE:${uri}`);
+      const voiceUrl = await uploadVoiceMessage(activeChatId, uri, user.uid);
+      await sendMessage(activeChatId, `🎤 VOICE:${voiceUrl}`);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
     } catch {
       showToast('⚠️ Səs mesajı göndərilmədi');
@@ -1268,15 +1225,7 @@ const id = await createOrGetDirectChat(
   );
 }
 
-const vs = StyleSheet.create({
-  wrap:       { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, maxWidth: '75%' },
-  wrapMine:   { backgroundColor: Colors.gold, borderBottomRightRadius: 4 },
-  wrapTheirs: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
-  icon:       { fontSize: 20 },
-  bars:       { flexDirection: 'row', alignItems: 'center', gap: 2, height: 24 },
-  bar:        { width: 3, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.4)' },
-  label:      { fontSize: 14 },
-});
+
 
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },

@@ -1097,6 +1097,23 @@ export async function updateGroupInfo(chatId: string, name: string, emoji: strin
   });
 }
 
+export async function uploadVoiceMessage(chatId: string, uri: string, senderId: string): Promise<string> {
+  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+  const { fbStorage } = await import('./config');
+  const blob: Blob = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response);
+    xhr.onerror = () => reject(new Error('XHR failed'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+  const fileName = `voice_${senderId}_${Date.now()}.m4a`;
+  const storageRef = ref(fbStorage, `chats/${chatId}/voice/${fileName}`);
+  await uploadBytes(storageRef, blob);
+  return await getDownloadURL(storageRef);
+}
+
 export async function uploadGroupPhoto(chatId: string, uri: string): Promise<string> {
   const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
   const { fbStorage } = await import('./config');
