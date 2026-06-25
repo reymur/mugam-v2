@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, uploadVoiceMessage } from '../../firebase/firestore';
+import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, uploadVoiceMessage, addActiveUser, removeActiveUser } from '../../firebase/firestore';
 import { Audio } from 'expo-av';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
@@ -88,7 +88,10 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   // Load messages
   useEffect(() => {
     loadMessages(chat.id);
-    if (user?.uid) markGroupChatAsReadBy(chat.id, user.uid).catch(() => {});
+    if (user?.uid) {
+      markGroupChatAsReadBy(chat.id, user.uid).catch(() => {});
+      addActiveUser(chat.id, user.uid).catch(() => {});
+    }
   }, [chat.id]);
 
   const chatMessages = messages[chat.id] ?? [];
@@ -125,10 +128,11 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     : [];
 
   const handleClose = useCallback(() => {
+    if (user?.uid) removeActiveUser(chat.id, user.uid).catch(() => {});
     Animated.timing(slideAnim, {
       toValue: SCREEN_W, duration: 250, useNativeDriver: true,
     }).start(onClose);
-  }, [onClose]);
+  }, [onClose, user?.uid, chat.id]);
 
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || !user) return;

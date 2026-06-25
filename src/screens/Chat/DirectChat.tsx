@@ -13,7 +13,7 @@ import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { markChatAsReadBy, markChatAsDelivered, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently, subscribeUserOnline, uploadVoiceMessage } from '../../firebase/firestore';
+import { markChatAsReadBy, markChatAsDelivered, setTyping, subscribeChatMeta, removeReadBy, cancelChat, markChatAsRead, createOrGetDirectChat, completeChat, closeChat, deleteChatWithMessages, saveChatEventDate, setWaitingForDate, setJobOffer, clearChatForUser, deleteMessageForAll, deleteMessageForMe, deleteMessagePermanently, subscribeUserOnline, uploadVoiceMessage, addActiveUser, removeActiveUser } from '../../firebase/firestore';
 import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
@@ -392,6 +392,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     console.log('subscribeChatMeta for chatId:', chatId);
+    addActiveUser(chatId, user.uid).catch(() => {});
     const _lastOther1 = [...(messages[chatId] ?? [])].reverse().find(m => m.senderId !== user.uid);
     if (_lastOther1?.id) markChatAsReadBy(chatId, user.uid, _lastOther1.id).catch(() => {});
     const unsub = subscribeChatMeta(chatId, (data) => {
@@ -637,7 +638,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       });
     }
     // Reset waitingForDate on exit
-    if (chatId) {
+    if (chatId && user?.uid) {
+      removeActiveUser(chatId, user.uid).catch(() => {});
       setWaitingForDate(chatId, false).catch(() => {});
     }
     // Reset ref for next session

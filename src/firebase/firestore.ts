@@ -387,13 +387,13 @@ export async function sendMessage(chatId: string, text: string, senderId: string
   batch.update(chatRef, chatUpdate);
   await batch.commit();
 
-  // Push notifications to all members except sender and those currently in chat (readBy)
+  // Push notifications to all members except sender and those currently in chat
   const chatName = chatSnap.exists() ? (chatSnap.data().name ?? '') : '';
   const isGroup = chatSnap.exists() ? (chatSnap.data().isGroup ?? false) : false;
-  const activeInChat: string[] = chatSnap.exists() ? (chatSnap.data().readBy ?? []) : [];
+  const activeUsers: string[] = chatSnap.exists() ? (chatSnap.data().activeUsers ?? []) : [];
   const pushTitle = isGroup ? `${chatName}` : senderName;
   const pushBody = `${senderName}: ${text.startsWith('🎤 VOICE:') ? '🎤 Səs mesajı' : text.slice(0, 100)}`;
-  const receivers = members.filter(uid => uid !== senderId && !activeInChat.includes(uid));
+  const receivers = members.filter(uid => uid !== senderId && !activeUsers.includes(uid));
   await sendPushToUsers(receivers, pushTitle, pushBody, { chatId, type: 'new_message', senderId });
 }
 
@@ -727,6 +727,22 @@ export async function removeReadBy(chatId: string, uid: string): Promise<void> {
   try {
     await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
       readBy: arrayRemove(uid),
+    });
+  } catch { /* ignore */ }
+}
+
+export async function addActiveUser(chatId: string, uid: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      activeUsers: arrayUnion(uid),
+    });
+  } catch { /* ignore */ }
+}
+
+export async function removeActiveUser(chatId: string, uid: string): Promise<void> {
+  try {
+    await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId), {
+      activeUsers: arrayRemove(uid),
     });
   } catch { /* ignore */ }
 }
