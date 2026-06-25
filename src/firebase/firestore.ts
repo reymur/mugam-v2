@@ -57,7 +57,27 @@ export async function fetchMusicians(): Promise<Musician[]> {
 
 export function subscribeMusicians(cb: (items: Musician[]) => void): () => void {
   const q = query(collection(fbFirestore, COLLECTIONS.USERS), where('role', '==', 'musician'), limit(50));
-  return safeOnSnapshot(q, snap => cb(snapToList<Musician>(snap)));
+  return safeOnSnapshot(q, snap => cb(snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id:         d.id,
+      uid:        d.id,
+      name:       data.name ?? data.displayName ?? 'İstifadəçi',
+      emoji:      data.emoji ?? '🎵',
+      instrument: data.instrument ?? data.specialty ?? '',
+      city:       data.city ?? '',
+      rating:     data.rating ?? 0,
+      reviews:    data.reviews ?? 0,
+      available:  data.available ?? false,
+      goldRing:   data.goldRing ?? false,
+      online:     data.online ?? false,
+      bio:        data.bio ?? '',
+      photoURL:   data.photoURL ?? null,
+      role:       data.role ?? 'musician',
+      specialty:  data.specialty ?? '',
+      phone:      data.phone ?? null,
+    } as Musician;
+  })));
 }
 
 export async function fetchAllUsers(): Promise<UserProfile[]> {
