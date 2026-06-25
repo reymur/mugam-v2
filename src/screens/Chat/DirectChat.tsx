@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput,
+  View, Text, TouchableOpacity, TextInput, Image,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput, PanResponder, Keyboard,
 } from 'react-native';
@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { Linking } from 'react-native';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
+import ChatInput from '../../components/common/ChatInput';
 import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
 import { Typography } from '../../theme/typography';
@@ -1019,6 +1020,8 @@ const id = await createOrGetDirectChat(
             {resolved.map((msg, i) => {
               const isVoice = msg.text?.startsWith('🎤 VOICE:');
               const voiceUri = isVoice ? msg.text.replace('🎤 VOICE:', '') : null;
+              const isImage = msg.text?.startsWith('📷 IMAGE:');
+              const imageUri = isImage ? msg.text.replace('📷 IMAGE:', '') : null;
               const isDeletedForAll = msg.deletedForAll;
               return (
                 <View
@@ -1047,6 +1050,10 @@ const id = await createOrGetDirectChat(
                     </View>
                   ) : isVoice && voiceUri ? (
                     <VoicePlayer uri={voiceUri} mine={msg.mine} />
+                  ) : isImage && imageUri ? (
+                    <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
+                      <Image source={{ uri: imageUri }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
+                    </TouchableOpacity>
                   ) : (
                     <TouchableOpacity style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]} onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)} delayLongPress={400} activeOpacity={1}>
                       {msg.replyTo && (
@@ -1114,37 +1121,20 @@ const id = await createOrGetDirectChat(
           )}
 
           {/* Input bar */}
-          <View style={s.inputRow}>
-            {/* Voice button */}
-            <TouchableOpacity
-              style={[s.voiceBtn, recording && s.voiceBtnActive]}
-              onPressIn={startRecording}
-              onPressOut={stopRecording}
-            >
-              <Text style={{ fontSize: 20 }}>{recording ? '⏹' : '🎤'}</Text>
-            </TouchableOpacity>
-
-            <TextInput
-              ref={inputRef}
-              style={s.input}
-              placeholder="Mesaj yaz..."
-              placeholderTextColor={Colors.muted}
-              value={inputText}
-              onChangeText={handleInputChange}
-              multiline
-              maxLength={500}
-              returnKeyType="send"
-              onSubmitEditing={handleSend}
-            />
-
-            <TouchableOpacity
-              style={[s.sendBtn, !inputText.trim() && s.sendBtnDis]}
-              onPress={handleSend}
-              disabled={!inputText.trim()}
-            >
-              <Text style={s.sendBtnText}>➤</Text>
-            </TouchableOpacity>
-          </View>
+          <ChatInput
+            value={inputText}
+            onChangeText={handleInputChange}
+            onSend={handleSend}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            recording={recording}
+            recDuration={recDuration}
+            inputRef={inputRef}
+            recordingMode="hold"
+            chatId={chatId ?? undefined}
+            senderId={user?.uid}
+            onSendMessage={(text) => sendMessage(chatId!, text)}
+          />
         </KeyboardAvoidingView>
         <EventModal
           visible={showEventModal}

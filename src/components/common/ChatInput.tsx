@@ -1,0 +1,146 @@
+import React from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Colors } from '../../theme/colors';
+import { Typography } from '../../theme/typography';
+import { uploadChatImage } from '../../firebase/firestore';
+
+interface ChatInputProps {
+  value:             string;
+  onChangeText:      (text: string) => void;
+  onSend:            () => void;
+  onStartRecording:  () => void;
+  onStopRecording:   () => void;
+  recording:         boolean;
+  recDuration:       number;
+  inputRef?:         React.RefObject<TextInput>;
+  recordingMode?:    'hold' | 'toggle';
+  chatId?:           string;
+  senderId?:         string;
+  onSendMessage?:    (text: string) => void;
+}
+
+export default function ChatInput({
+  value, onChangeText, onSend,
+  onStartRecording, onStopRecording,
+  recording, recDuration,
+  inputRef,
+  recordingMode = 'hold',
+  chatId, senderId, onSendMessage,
+}: ChatInputProps) {
+  const hasText = value.trim().length > 0;
+  const mins = String(Math.floor(recDuration / 60)).padStart(2, '0');
+  const secs = String(recDuration % 60).padStart(2, '0');
+
+  const handlePickImage = async () => {
+    if (!chatId || !senderId) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert('', 'Qalereya icazəsi lazımdır'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaType.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      const url = await uploadChatImage(chatId, result.assets[0].uri, senderId);
+      onSendMessage?.(`📷 IMAGE:${url}`);
+    } catch {
+      Alert.alert('', 'Şəkil göndərilmədi');
+    }
+  };
+
+  return (
+    <View>
+      {/* Recording bar */}
+      {recording && (
+        <View style={s.recBar}>
+          <View style={s.recDot} />
+          <Text style={s.recTime}>{mins}:{secs}</Text>
+          <Text style={s.recHint}>Səs yazılır...</Text>
+          <TouchableOpacity onPress={onStopRecording}>
+            <Text style={s.recCancel}>Ləğv et</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Input row — WhatsApp style */}
+      <View style={s.row}>
+        {/* + button */}
+        <TouchableOpacity style={s.sideBtn} onPress={() => Alert.alert('', 'Tezliklə')}>
+          <Text style={s.sideBtnText}>＋</Text>
+        </TouchableOpacity>
+
+        {/* Text input bubble */}
+        <View style={s.inputBubble}>
+          <TextInput
+            ref={inputRef}
+            style={s.input}
+            placeholder="Mesaj yaz..."
+            placeholderTextColor={Colors.muted}
+            value={value}
+            onChangeText={onChangeText}
+            multiline
+            maxLength={500}
+            returnKeyType="send"
+            onSubmitEditing={onSend}
+          />
+          <TouchableOpacity style={s.emojiBtn} onPress={() => Alert.alert('', 'Tezliklə')}>
+            <Text style={{ fontSize: 18 }}>🙂</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Send or camera+mic */}
+        {hasText ? (
+          <TouchableOpacity style={s.sendBtn} onPress={onSend}>
+            <Text style={s.sendText}>➤</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={s.rightGroup}>
+            <TouchableOpacity style={s.sideBtn} onPress={handlePickImage}>
+              <Text style={s.sideBtnText}>📷</Text>
+            </TouchableOpacity>
+            {recordingMode === 'hold' ? (
+              <TouchableOpacity
+                style={[s.micBtn, recording && s.micBtnActive]}
+                onPressIn={onStartRecording}
+                onPressOut={onStopRecording}
+              >
+                <Text style={s.micIcon}>🎙</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[s.micBtn, recording && s.micBtnActive]}
+                onPress={recording ? onStopRecording : onStartRecording}
+              >
+                <Text style={s.micIcon}>{recording ? '⏹' : '🎙'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  recBar:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border },
+  recDot:      { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red },
+  recTime:     { fontSize: 14, color: Colors.red, fontWeight: 'bold' },
+  recHint:     { flex: 1, fontSize: 13, color: Colors.muted },
+  recCancel:   { color: Colors.red, fontSize: 13 },
+  row:         { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 8, paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.bg },
+  sideBtn:     { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  sideBtnText: { fontSize: 22, color: Colors.muted },
+  inputBubble: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', backgroundColor: Colors.card, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 14, paddingVertical: 6, minHeight: 40 },
+  input:       { flex: 1, color: Colors.text, fontSize: 15, fontFamily: Typography.nunito400, maxHeight: 120, paddingVertical: 2 },
+  emojiBtn:    { paddingBottom: 4, paddingLeft: 6 },
+  sendBtn:     { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.gold, alignItems: 'center', justifyContent: 'center' },
+  sendText:    { color: '#1a0e00', fontSize: 16, fontFamily: Typography.nunito700 },
+  rightGroup:  { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  micBtn:      { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  micBtnActive:{ opacity: 0.5 },
+  micIcon:     { fontSize: 26 },
+});

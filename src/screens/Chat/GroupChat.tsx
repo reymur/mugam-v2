@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput, AppState,
+  View, Text, TouchableOpacity, TextInput, AppState, Image,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator,
   Alert, Modal, Keyboard, PanResponder, Pressable,
@@ -12,6 +12,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, uploadVoiceMessage, addActiveUser, removeActiveUser } from '../../firebase/firestore';
 import { Audio } from 'expo-av';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
+import ChatInput from '../../components/common/ChatInput';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -148,6 +149,16 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     }).start(onClose);
   }, [onClose, user?.uid, chat.id]);
 
+  const handleGroupInputChange = (text: string) => {
+    setInputText(text);
+    if (!user?.uid) return;
+    setTyping(chat.id, user.uid, true).catch(() => {});
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      setTyping(chat.id, user.uid, false).catch(() => {});
+    }, 3000);
+  };
+
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || !user) return;
     const text = inputText.trim();
@@ -274,6 +285,8 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                       )}
                       {msg.text?.startsWith('🎤 VOICE:') ? (
                         <VoicePlayer uri={msg.text.replace('🎤 VOICE:', '')} mine={msg.mine} />
+                      ) : msg.text?.startsWith('📷 IMAGE:') ? (
+                        <Image source={{ uri: msg.text.replace('📷 IMAGE:', '') }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
                       ) : (
                         <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                           {msg.text}
@@ -329,54 +342,21 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             </View>
           )}
 
-          {/* Recording bar */}
-          {recording && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border }}>
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red }} />
-              <Text style={{ fontSize: 14, color: Colors.red, fontWeight: 'bold' }}>{String(Math.floor(recDuration/60)).padStart(2,'0')}:{String(recDuration%60).padStart(2,'0')}</Text>
-              <Text style={{ flex: 1, fontSize: 13, color: Colors.muted }}>Səs yazılır...</Text>
-              <TouchableOpacity onPress={stopRecording}>
-                <Text style={{ color: Colors.red, fontSize: 13 }}>Ləğv et</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Input */}
-          <View style={s.inputRow}>
-            <TextInput
-              ref={inputRef}
-              style={s.input}
-              placeholder="Mesaj yaz..."
-              placeholderTextColor={Colors.muted}
-              value={inputText}
-              onChangeText={(text) => {
-                setInputText(text);
-                if (!user?.uid) return;
-                setTyping(chat.id, user.uid, true).catch(() => {});
-                if (typingTimer.current) clearTimeout(typingTimer.current);
-                typingTimer.current = setTimeout(() => {
-                  setTyping(chat.id, user.uid, false).catch(() => {});
-                }, 3000);
-              }}
-              multiline
-              maxLength={500}
-              returnKeyType="send"
-              onSubmitEditing={handleSend}
-            />
-            <TouchableOpacity
-              style={[s.sendBtn, !inputText.trim() && s.sendBtnDis]}
-              onPress={handleSend}
-              disabled={!inputText.trim()}
-            >
-              <Text style={s.sendBtnText}>➤</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.sendBtn, { backgroundColor: recording ? 'rgba(192,57,43,0.15)' : Colors.card, borderWidth: 1, borderColor: recording ? Colors.red : Colors.border }]}
-              onPress={recording ? stopRecording : startRecording}
-            >
-              <Text style={{ fontSize: 20 }}>{recording ? '⏹' : '🎤'}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Input bar */}
+          <ChatInput
+            value={inputText}
+            onChangeText={handleGroupInputChange}
+            onSend={handleSend}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            recording={recording}
+            recDuration={recDuration}
+            inputRef={inputRef}
+            recordingMode="toggle"
+            chatId={chat.id}
+            senderId={user?.uid}
+            onSendMessage={(text) => sendMessage(chat.id, text)}
+          />
         </KeyboardAvoidingView>
 
         {/* Delete message modal */}
