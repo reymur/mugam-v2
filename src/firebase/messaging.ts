@@ -1,8 +1,17 @@
 // src/firebase/messaging.ts
 import * as Notifications from 'expo-notifications';
+import * as Application from 'expo-application';
 import { Platform } from 'react-native';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { fbFirestore, COLLECTIONS } from './config';
+
+async function getDeviceId(): Promise<string> {
+  if (Platform.OS === 'android') {
+    return Application.getAndroidId() ?? 'unknown-android';
+  } else {
+    return (await Application.getIosIdForVendorAsync()) ?? 'unknown-ios';
+  }
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -26,31 +35,43 @@ export async function registerFCMToken(uid: string): Promise<() => void> {
       projectId: '02a64c17-1949-4284-ab8a-12d07e4cf235',
     });
     const expoPushToken = tokenData.data;
-    await updateDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), { expoPushToken });
+    const deviceId = await getDeviceId();
+    // Save token under users/{uid}/pushTokens/{deviceId}
+    await setDoc(
+      doc(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens', deviceId),
+      { token: expoPushToken, updatedAt: new Date().toISOString() }
+    );
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
       });
     }
-    return () => {};
+    // Return cleanup — remove token on logout
+    return async () => {
+      await deleteDoc(doc(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens', deviceId)).catch(() => {});
+    };
   } catch (e) {
     console.warn('registerFCMToken error:', e);
     return () => {};
   }
 }
 
+async function getTokensForUid(uid: string): Promise<string[]> {
+  const snap = await getDocs(collection(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens'));
+  return snap.docs.map(d => d.data().token).filter(Boolean);
+}
+
 export async function sendPushToUser(uid: string, title: string, body: string, data?: Record<string, string>): Promise<void> {
   try {
-    const snap = await getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid));
-    if (!snap.exists()) return;
-    const token = snap.data()?.expoPushToken;
-    if (!token) return;
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: token, title, body, data: data ?? {}, sound: 'default' }),
-    });
+    const tokens = await getTokensForUid(uid);
+    await Promise.all(tokens.map(token =>
+      fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: token, title, body, data: data ?? {}, sound: 'default' }),
+      }).catch(() => {})
+    ));
   } catch (e) {
     console.warn('sendPushToUser error:', e);
   }
@@ -58,15 +79,10 @@ export async function sendPushToUser(uid: string, title: string, body: string, d
 
 export async function sendPushToUsers(uids: string[], title: string, body: string, data?: Record<string, string>): Promise<void> {
   try {
-    // Fetch all tokens
-    const snaps = await Promise.all(uids.map(uid => getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid))));
+    // Fetch all tokens for all uids
+    const tokenArrays = await Promise.all(uids.map(uid => getTokensForUid(uid)));
     // Deduplicate by token
-    const tokenSet = new Set<string>();
-    snaps.forEach(snap => {
-      if (!snap.exists()) return;
-      const token = snap.data()?.expoPushToken;
-      if (token) tokenSet.add(token);
-    });
+    const tokenSet = new Set<string>(tokenArrays.flat());
     // Send to unique tokens
     await Promise.all(
       [...tokenSet].map(token =>
