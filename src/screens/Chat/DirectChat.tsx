@@ -16,6 +16,7 @@ import { getDocs, query, collection, where, getDoc, doc, onSnapshot } from 'fire
 import { fbFirestore, COLLECTIONS } from '../../firebase/config';
 import type { Musician, Invite } from '../../store/useAppStore';
 import { CheckMark } from '../../components/common/CheckMark';
+import { useScrollToMessage } from './hooks/useScrollToMessage';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -364,8 +365,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [replyMsg,    setReplyMsg]    = useState<Message | null>(null);
   const msgPositions = useRef<Record<string, number>>({});
-  const msgRefs = useRef<Record<string, any>>({});
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const { msgRefs, highlightId, scrollToMessage } = useScrollToMessage();
 
   const musicianUid = musician.uid ?? musician.id;
 
@@ -1072,38 +1072,7 @@ const id = await createOrGetDirectChat(
                       {msg.replyTo && (
                         <TouchableOpacity
                           style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}
-                          onPress={() => {
-                            const id = msg.replyTo!.id;
-                            const ref = msgRefs.current[id];
-                            if (ref && scrollRef.current) {
-                              const doScroll = () => {
-
-                                ref.measureLayout(
-                                  scrollRef.current,
-                                  (_x: number, y: number) => {
-                                    scrollRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
-                                    setHighlightId(id);
-                                    setTimeout(() => setHighlightId(null), 1500);
-                                  },
-                                  () => {}
-                                );
-                              };
-                              inputRef.current?.blur();
-                              let done = false;
-                              const sub = Keyboard.addListener('keyboardDidHide', () => {
-                                if (done) return;
-                                done = true;
-                                sub.remove();
-                                doScroll();
-                              });
-                              setTimeout(() => {
-                                if (done) return;
-                                done = true;
-                                sub.remove();
-                                doScroll();
-                              }, 600);
-                            }
-                          }}
+                          onPress={() => { if (msg.replyTo?.id) scrollToMessage(msg.replyTo.id, scrollRef, inputRef); }}
                           activeOpacity={0.7}
                         >
                           <View style={{ padding: 10 }}>

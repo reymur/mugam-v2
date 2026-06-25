@@ -13,6 +13,7 @@ import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } 
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
+import { useScrollToMessage } from './hooks/useScrollToMessage';
 import { Image } from 'expo-image';
 import GroupInfo from './GroupInfo';
 
@@ -44,7 +45,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const slideAnim = useRef(new Animated.Value(SCREEN_W)).current;
-  const msgRefs = useRef<Record<string, any>>({});
+  const { msgRefs, highlightId, scrollToMessage } = useScrollToMessage();
 
   // Slide in
   useEffect(() => {
@@ -187,7 +188,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                 );
               }
               return (
-                <View key={msg.id ?? i} ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}>
+                <View key={msg.id ?? i} ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }} style={highlightId === msg.id ? s.msgHighlight : undefined}>
                   <SwipeableMessage
                     onSwipeLeft={async () => {
                       if (!msg.id) return;
@@ -209,7 +210,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                     )}
                     <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
                       {msg.replyTo && (
-                        <TouchableOpacity style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}>
+                        <TouchableOpacity style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]} onPress={() => { if (msg.replyTo?.id) scrollToMessage(msg.replyTo.id, scrollRef, inputRef); }} activeOpacity={0.7}>
                           <View style={{ padding: 8 }}>
                             <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
                             <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
@@ -390,5 +391,6 @@ const s = StyleSheet.create({
   menuItemText:  { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
   red:           { color: Colors.red },
   typingBar:     { paddingHorizontal: 16, paddingVertical: 4 },
+  msgHighlight:  { backgroundColor: 'rgba(212,160,60,0.15)', borderRadius: 12 },
   typingText:    { fontSize: 13, color: Colors.gold, fontFamily: Typography.nunito500, fontStyle: 'italic' },
 });
