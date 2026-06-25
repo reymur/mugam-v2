@@ -817,7 +817,7 @@ const id = await createOrGetDirectChat(
       StyleSheet.absoluteFillObject,
       { backgroundColor: Colors.bg, zIndex: 200, transform: [{ translateX: slideAnim }] },
     ]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
 
         {/* Header */}
         <View style={s.header}>

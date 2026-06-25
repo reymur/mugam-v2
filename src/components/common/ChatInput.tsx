@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { uploadChatImage } from '../../firebase/firestore';
@@ -30,6 +31,7 @@ export default function ChatInput({
   recordingMode = 'hold',
   chatId, senderId, onSendMessage,
 }: ChatInputProps) {
+  const insets = useSafeAreaInsets();
   const hasText = value.trim().length > 0;
   const mins = String(Math.floor(recDuration / 60)).padStart(2, '0');
   const secs = String(recDuration % 60).padStart(2, '0');
@@ -67,7 +69,7 @@ export default function ChatInput({
       )}
 
       {/* Input row — WhatsApp style */}
-      <View style={s.row}>
+      <View style={[s.row, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
         {/* + button */}
         <TouchableOpacity style={s.sideBtn} onPress={() => Alert.alert('', 'Tezliklə')}>
           <Text style={s.sideBtnText}>＋</Text>
@@ -131,7 +133,7 @@ const s = StyleSheet.create({
   recTime:     { fontSize: 14, color: Colors.red, fontWeight: 'bold' },
   recHint:     { flex: 1, fontSize: 13, color: Colors.muted },
   recCancel:   { color: Colors.red, fontSize: 13 },
-  row:         { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 8, paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.bg },
+  row:         { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.bg },
   sideBtn:     { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   sideBtnText: { fontSize: 22, color: Colors.muted },
   inputBubble: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', backgroundColor: Colors.card, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 14, paddingVertical: 6, minHeight: 40 },
