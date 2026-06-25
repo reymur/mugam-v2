@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput, AppState, Image,
+  View, Text, TouchableOpacity, TextInput, AppState,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator,
   Alert, Modal, Keyboard, PanResponder, Pressable,
