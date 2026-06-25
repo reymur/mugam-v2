@@ -65,7 +65,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
     } finally {
       setSaving(false);
     }
-  }, [user, name, bio, inst, city, avail, avatarUri, setUser, showToast, onClose]);
+  }, [user, name, bio, inst, city, avail, avatarUri, phone, setUser, showToast, onClose]);
 
   return (
     <View style={es.sheet}>
