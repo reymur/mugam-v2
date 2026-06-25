@@ -16,6 +16,16 @@ function snapToList<T>(snap: QuerySnapshot<DocumentData>): T[] {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as T));
 }
 
+function safeOnSnapshot(
+  ref: any,
+  cb: (snap: any) => void,
+): () => void {
+  return onSnapshot(ref, cb, (error: any) => {
+    if (error?.code === 'permission-denied') return;
+    console.warn('[Firestore] snapshot error:', error?.code, error?.message);
+  });
+}
+
 function tsToTime(ts: any): string {
   if (!ts) return '';
   try {
@@ -47,7 +57,7 @@ export async function fetchMusicians(): Promise<Musician[]> {
 
 export function subscribeMusicians(cb: (items: Musician[]) => void): () => void {
   const q = query(collection(fbFirestore, COLLECTIONS.USERS), where('role', '==', 'musician'), limit(50));
-  return onSnapshot(q, snap => cb(snapToList<Musician>(snap)));
+  return safeOnSnapshot(q, snap => cb(snapToList<Musician>(snap)));
 }
 
 export async function fetchAllUsers(): Promise<UserProfile[]> {
@@ -112,7 +122,7 @@ export async function fetchGigs(): Promise<GigItem[]> {
 
 export function subscribeGigs(cb: (items: GigItem[]) => void): () => void {
   const q = query(collection(fbFirestore, COLLECTIONS.GIGS), orderBy('createdAt', 'desc'), limit(30));
-  return onSnapshot(q, snap => cb(snapToList<GigItem>(snap)));
+  return safeOnSnapshot(q, snap => cb(snapToList<GigItem>(snap)));
 }
 
 export async function addGig(data: Omit<GigItem, 'id'> & { authorUid?: string }): Promise<string> {
@@ -137,7 +147,7 @@ export async function fetchBoardItems(): Promise<BoardItem[]> {
 
 export function subscribeBoardItems(cb: (items: BoardItem[]) => void): () => void {
   const q = query(collection(fbFirestore, COLLECTIONS.BOARD), orderBy('createdAt', 'desc'), limit(30));
-  return onSnapshot(q, snap => cb(snapToList<BoardItem>(snap)));
+  return safeOnSnapshot(q, snap => cb(snapToList<BoardItem>(snap)));
 }
 
 export async function addBoardItem(data: Omit<BoardItem, 'id'> & { authorUid?: string }): Promise<string> {
@@ -155,7 +165,7 @@ export async function fetchMarketItems(): Promise<MarketItem[]> {
 
 export function subscribeMarketItems(cb: (items: MarketItem[]) => void): () => void {
   const q = query(collection(fbFirestore, COLLECTIONS.MARKET), orderBy('createdAt', 'desc'), limit(40));
-  return onSnapshot(q, snap => cb(snapToList<MarketItem>(snap)));
+  return safeOnSnapshot(q, snap => cb(snapToList<MarketItem>(snap)));
 }
 
 export async function addMarketItem(data: Omit<MarketItem, 'id'> & { authorUid?: string }): Promise<string> {
@@ -193,7 +203,7 @@ export async function fetchVideos(): Promise<VideoItem[]> {
 
 // ── CHATS ─────────────────────────────────────────────────
 export function subscribeChat(chatId: string, cb: (data: any) => void): () => void {
-  return onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
+  return safeOnSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) cb({ id: snap.id, ...snap.data() });
   });
 }
@@ -204,7 +214,7 @@ export function subscribeChats(uid: string, cb: (chats: ChatItem[]) => void): ()
     where('members', 'array-contains', uid),
     orderBy('lastMessageAt', 'desc'),
   );
-  return onSnapshot(q, snap => {
+  return safeOnSnapshot(q, snap => {
     const chats = snap.docs
       .map(d => {
         const data = d.data();
@@ -294,7 +304,7 @@ export function subscribeNewMessages(
       );
   // Skip first snapshot — it contains already-loaded messages
   let initialized = false;
-  return onSnapshot(q, snap => {
+  return safeOnSnapshot(q, snap => {
     if (!initialized) {
       initialized = true;
       // For empty chats (no afterDoc) — first snapshot IS the initial data, pass it
@@ -401,7 +411,7 @@ export function subscribeMyInvites(fromUid: string, cb: (invites: Invite[]) => v
     collection(fbFirestore, COLLECTIONS.INVITES),
     where('fromUid', '==', fromUid),
   );
-  return onSnapshot(q, snap => {
+  return safeOnSnapshot(q, snap => {
     cb(snapToList<Invite>(snap));
   }, err => {
     console.log('subscribeMyInvites error:', err.message);
@@ -414,7 +424,7 @@ export function subscribeReceivedInvites(musicianUid: string, cb: (invites: Invi
     where('musicianId', '==', musicianUid),
     where('status', '==', 'pending'),
   );
-  return onSnapshot(q, snap => cb(snapToList<Invite>(snap)));
+  return safeOnSnapshot(q, snap => cb(snapToList<Invite>(snap)));
 }
 
 export async function updateInviteStatus(inviteId: string, status: 'accepted' | 'declined'): Promise<void> {
@@ -533,8 +543,8 @@ export function subscribeAgreements(
     cb(unique);
   };
 
-  const unsub1 = onSnapshot(q1, snap => { list1 = snapToList<Agreement>(snap); merge(); });
-  const unsub2 = onSnapshot(q2, snap => { list2 = snapToList<Agreement>(snap); merge(); });
+  const unsub1 = safeOnSnapshot(q1, snap => { list1 = snapToList<Agreement>(snap); merge(); });
+  const unsub2 = safeOnSnapshot(q2, snap => { list2 = snapToList<Agreement>(snap); merge(); });
 
   return () => { unsub1(); unsub2(); };
 }
@@ -629,7 +639,7 @@ export function subscribeChatMeta(
   chatId: string,
   cb: (data: { readBy: string[]; typing: Record<string, number>; cancelledBy: string | null; closedBy: string | null; eventDate: string | null; eventType: string; eventLocation: string; eventNotes: string; waitingForDate: boolean; jobOfferBy: string | null; clearedBy: Record<string, string>; lastReadAt: Record<string, string>; lastReadMsgId: Record<string, string>; deliveredTo: Record<string, boolean> }) => void
 ): () => void {
-  const unsub = onSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
+  const unsub = safeOnSnapshot(doc(fbFirestore, COLLECTIONS.CHATS, chatId), snap => {
     if (snap.exists()) {
       cb({
         readBy:        snap.data().readBy        ?? [],
@@ -789,7 +799,7 @@ export function subscribePersonalEvents(
     collection(fbFirestore, 'personalEvents'),
     where('ownerUid', '==', uid)
   );
-  return onSnapshot(q,
+  return safeOnSnapshot(q,
     (snap) => {
       const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       console.log('personalEvents loaded:', events.length, 'for uid:', uid);
@@ -808,7 +818,7 @@ export function subscribeEventsAsMusician(
     collection(fbFirestore, 'personalEvents'),
     where('musicians', 'array-contains', uid)
   );
-  return onSnapshot(q,
+  return safeOnSnapshot(q,
     (snap) => {
       const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       cb(events);
@@ -935,7 +945,7 @@ export async function deleteMessagePermanently(chatId: string, messageId: string
 }
 
 export function subscribeUserOnline(uid: string, cb: (online: boolean) => void): () => void {
-  return onSnapshot(doc(fbFirestore, COLLECTIONS.USERS, uid), snap => {
+  return safeOnSnapshot(doc(fbFirestore, COLLECTIONS.USERS, uid), snap => {
     if (snap.exists()) cb(snap.data().online ?? false);
   });
 }
