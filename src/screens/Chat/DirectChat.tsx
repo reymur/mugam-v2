@@ -325,7 +325,6 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const { msgRefs, highlightId, scrollToMessage } = useScrollToMessage();
 
   const musicianUid = musician.uid ?? musician.id;
-  const [musicianPhone, setMusicianPhone] = React.useState<string | null>(null);
 
   // Already agreed before opening chat?
   const agreedBefore = hasAgreementWith(musicianUid);
@@ -752,14 +751,7 @@ const id = await createOrGetDirectChat(
   const chatMessages = chatId ? (messages[chatId] ?? []) : [];
   React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
 
-  // Load musician phone
-  React.useEffect(() => {
-    const uid = musician.uid ?? musician.id;
-    if (!uid) return;
-    getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid)).then(snap => {
-      if (snap.exists()) setMusicianPhone(snap.data()?.phone ?? null);
-    }).catch(() => {});
-  }, [musician.uid, musician.id]);
+
 
   // Mark as read when new messages arrive and chat is open
   React.useEffect(() => {
@@ -834,9 +826,9 @@ const id = await createOrGetDirectChat(
               <Text style={s.headerSub}>{musician.instrument}</Text>
             </View>
           </View>
-          {musicianPhone && (
+          {musician.phone && (
             <TouchableOpacity
-              onPress={() => Linking.openURL(`tel:${musicianPhone}`)}
+              onPress={() => Linking.openURL(`tel:${musician.phone}`)}
               hitSlop={{ top:10, bottom:10, left:10, right:10 }}
               style={{ marginRight: 8 }}
             >

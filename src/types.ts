@@ -40,6 +40,7 @@ export interface Musician {
   uid?:        string;
   role?:       UserRole;
   specialty?:  string;
+  phone?:      string;
 }
 
 export interface Event {
