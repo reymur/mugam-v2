@@ -394,7 +394,6 @@ export async function sendMessage(chatId: string, text: string, senderId: string
   const pushTitle = isGroup ? `${chatName}` : senderName;
   const pushBody = `${senderName}: ${text.startsWith('🎤 VOICE:') ? '🎤 Səs mesajı' : text.slice(0, 100)}`;
   const receivers = members.filter(uid => uid !== senderId && !activeUsers.includes(uid));
-  console.log('[PUSH] members:', members, 'activeUsers:', activeUsers, 'receivers:', receivers);
   await sendPushToUsers(receivers, pushTitle, pushBody, { chatId, type: 'new_message', senderId });
 }
 
