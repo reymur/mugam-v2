@@ -175,7 +175,7 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
         <View style={s.groupTop}>
           <TouchableOpacity
             style={s.groupAva}
-            onPress={() => { if (photoURL) { setFullPhotoLoading(true); setShowFullPhoto(true); } else handlePickPhoto(); }}
+            onPress={() => { if (photoURL) { setFullPhotoLoading(true); setShowFullPhoto(true); } else if (isAdmin) handlePickPhoto(); }}
             onLongPress={isAdmin ? handlePickPhoto : undefined}
           >
             {photoURL ? (
