@@ -435,7 +435,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     console.log('subscribeChatMeta for chatId:', chatId);
-    markChatAsReadBy(chatId, user.uid).catch(() => {});
+    const _lastMsg1 = (messages[chatId] ?? []).slice(-1)[0];
+    markChatAsReadBy(chatId, user.uid, _lastMsg1?.id).catch(() => {});
     const unsub = subscribeChatMeta(chatId, (data) => {
       const { readBy, typing, cancelledBy: cb, closedBy, eventDate: ed, eventType: et, eventLocation: el, eventNotes: en } = data;
       const otherUid = musicianUid;
@@ -502,7 +503,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
     const sub = AppState.addEventListener('change', state => {
       if (!chatId || !user?.uid) return;
       if (state === 'active') {
-        markChatAsReadBy(chatId, user.uid).catch(() => {});
+        const _lastMsg2 = (messages[chatId] ?? []).slice(-1)[0];
+        markChatAsReadBy(chatId, user.uid, _lastMsg2?.id).catch(() => {});
       } else {
         removeReadBy(chatId, user.uid).catch(() => {});
       }

@@ -10,6 +10,7 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping } from '../../firebase/firestore';
+import { GroupCheckMark } from '../../components/common/CheckMark';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
 import SwipeableMessage from '../../components/common/SwipeableMessage';
@@ -23,17 +24,7 @@ interface Props {
   onClose: () => void;
 }
 
-// ── Group CheckMark ──────────────────────────────────────
-function GroupCheckMark({ isRead, membersCount }: { isRead: boolean; membersCount: number }) {
-  if (membersCount <= 1) return null;
-  const color = isRead ? '#1a6b9e' : 'rgba(26,14,0,0.5)';
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 3 }}>
-      <Text style={{ fontSize: 13, color, fontWeight: 'bold', marginRight: -5 }}>✓</Text>
-      <Text style={{ fontSize: 13, color, fontWeight: 'bold' }}>✓</Text>
-    </View>
-  );
-}
+
 
 export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const { user, messages, sendMessage, loadMessages, loadMoreMessages, showToast, chats, setRemovedFromGroup, _chatHasMore } = useAppStore();
@@ -47,6 +38,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const [liveMembers, setLiveMembers] = useState<string[]>(chatProp.members ?? []);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [readBy, setReadBy] = useState<string[]>([]);
+  const [lastReadMsgId, setLastReadMsgId] = useState<Record<string, string>>({});
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -67,6 +59,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     const unsub = subscribeChat(chatProp.id, (data) => {
       setLiveMembers(data.members ?? []);
       setReadBy(data.readBy ?? []);
+      setLastReadMsgId(data.lastReadMsgId ?? {});
       const typing = data.typing ?? {};
       const now = Date.now();
       const activeTypers = Object.entries(typing)
@@ -94,6 +87,13 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
 
   const chatMessages = messages[chat.id] ?? [];
   React.useEffect(() => { console.log('[GC] id:', chat.id, 'msgs:', chatMessages.length); }, [chat.id, chatMessages.length]);
+
+  // Mark as read when new messages arrive
+  useEffect(() => {
+    if (!user?.uid || chatMessages.length === 0) return;
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    if (lastMsg?.id) markGroupChatAsReadBy(chat.id, user.uid, lastMsg.id).catch(() => {});
+  }, [chatMessages.length, chat.id, user?.uid]);
 
   useEffect(() => {
     if (chatMessages.length > 0) {
@@ -231,8 +231,11 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                             <Text style={{ fontSize: 12, marginLeft: 2 }}>❌</Text>
                           ) : (
                             <GroupCheckMark
-                              isRead={readBy.length >= (liveMembers.length - 1) && liveMembers.length > 1}
-                              membersCount={liveMembers.length}
+                              msgId={msg.id}
+                              lastReadMsgId={lastReadMsgId}
+                              allMsgIds={(messages[chatProp.id] ?? []).map(m => m.id)}
+                              members={liveMembers}
+                              senderUid={user?.uid ?? ''}
                             />
                           )
                         )}
