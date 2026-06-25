@@ -67,7 +67,7 @@ export default function RootNavigator() {
   const navRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!pendingGroupChatId) return;
+    if (!pendingGroupChatId || !isAuthenticated || authLoading) return;
     const tryNavigate = () => {
       if (navRef.current?.isReady()) {
         navRef.current.navigate('Chats');
@@ -76,7 +76,7 @@ export default function RootNavigator() {
       }
     };
     tryNavigate();
-  }, [pendingGroupChatId]);
+  }, [pendingGroupChatId, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!removedFromGroup) return;
