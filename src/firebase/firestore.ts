@@ -991,16 +991,15 @@ export async function createGroupChat(
     isSystem:   true,
   });
 
-  // Push notifications to all members except creator
+  // Push notifications to all members except creator (deduplicated)
+  const uniqueMemberUids = [...new Set(memberUids.filter(uid => uid !== creatorUid))];
   await Promise.all(
-    memberUids
-      .filter(uid => uid !== creatorUid)
-      .map(uid => sendPushToUser(
-        uid,
-        groupName,
-        `${creatorName} sizi qrupa əlavə etdi`,
-        { chatId: ref.id, type: 'group_added' }
-      ).catch(() => {}))
+    uniqueMemberUids.map(uid => sendPushToUser(
+      uid,
+      groupName,
+      `${creatorName} sizi qrupa əlavə etdi`,
+      { chatId: ref.id, type: 'group_added' }
+    ).catch(() => {}))
   );
 
   return ref.id;
