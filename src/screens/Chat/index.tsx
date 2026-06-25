@@ -78,16 +78,14 @@ export default function ChatsScreen() {
 
   useEffect(() => {
     if (!pendingGroupChatId) return;
-    console.log('[PENDING] pendingGroupChatId:', pendingGroupChatId, 'chats.length:', chats.length, 'uid:', user?.uid);
     const chat = chats.find(c => c.id === pendingGroupChatId);
-    console.log('[PENDING] chat found:', !!chat, 'members:', chat?.members);
     if (chat && chat.members?.includes(user?.uid ?? '')) {
-      setActiveGroup(chat);
       setPendingGroupChatId(null);
+      setActiveGroup(chat);
     } else if (!chat) {
-      console.log('[PENDING] chat not found yet, waiting...');
+      // chat not found yet, keep waiting
     } else {
-      console.log('[PENDING] user not in members — clearing');
+      // user not in members — clear
       setActiveGroup(null);
       setPendingGroupChatId(null);
     }
