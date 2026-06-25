@@ -9,6 +9,7 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useT } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
+import PhoneInput from '../../components/common/PhoneInput';
 import { updateUserProfile } from '../../firebase/auth';
 import { uploadAvatar } from '../../firebase/storage';
 import InvitesScreen from './InvitesScreen';
@@ -83,7 +84,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
 
         <Text style={es.lbl}>Ad Soyad</Text>
         <TextInput style={es.inp} value={name} onChangeText={setName} placeholderTextColor={Colors.muted} placeholder="Adınız" />
-        <TextInput style={es.inp} value={phone} onChangeText={setPhone} placeholderTextColor={Colors.muted} placeholder="📞 Telefon nömrəsi (+994...)" keyboardType="phone-pad" />
+        <PhoneInput value={phone} onChange={setPhone} />
 
         <Text style={es.lbl}>Haqqında</Text>
         <TextInput style={[es.inp, { height: 80 }]} value={bio} onChangeText={setBio} multiline placeholder="Özünüz haqqında yazın..." placeholderTextColor={Colors.muted} />
