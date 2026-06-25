@@ -829,7 +829,10 @@ const id = await createOrGetDirectChat(
           <TouchableOpacity
               onPress={() => {
                 if (musician.phone) {
-                  Linking.openURL(`tel:${musician.phone}`);
+                  const phone = musician.phone.replace(/[^0-9]/g, '');
+                  Linking.openURL(`whatsapp://send?phone=${phone}`).catch(() => {
+                    Alert.alert('', 'WhatsApp quraşdırılmayıb');
+                  });
                 } else {
                   Alert.alert('', 'Bu istifadəçinin telefon nömrəsi yoxdur');
                 }
