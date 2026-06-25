@@ -55,7 +55,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
         photoURL = await uploadAvatar(user.uid, avatarUri);
         setUploading(false);
       }
-      const updates = { displayName: name.trim(), bio, instrument: inst, city, available: avail, photoURL, phone: phone.trim() };
+      const updates = { displayName: name.trim(), bio, instrument: inst, city, available: avail, photoURL: photoURL ?? null, phone: phone.trim() || null };
       await updateUserProfile(user.uid, updates);
       setUser({ ...user, ...updates });
       showToast('✅ Profil yeniləndi!');
