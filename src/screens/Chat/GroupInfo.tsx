@@ -8,6 +8,8 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto, getUsersByUids, subscribeChat } from '../../firebase/firestore';
+import UserPicker from '../../components/common/UserPicker';
+import type { UserProfile } from '../../types';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal as RNModal } from 'react-native';
 import { Image } from 'expo-image';
@@ -26,6 +28,8 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [groupName, setGroupName] = useState(chat.name);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [selectedNewUids, setSelectedNewUids] = useState<string[]>([]);
+  const [selectedNewUsers, setSelectedNewUsers] = useState<UserProfile[]>([]);
   const [photoURL, setPhotoURL] = useState(chat.photoURL ?? null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
@@ -254,33 +258,31 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
       <Modal visible={showAddMember} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={s.screen}>
           <View style={s.header}>
-            <TouchableOpacity onPress={() => setShowAddMember(false)}>
+            <TouchableOpacity onPress={() => { setShowAddMember(false); setSelectedNewUids([]); setSelectedNewUsers([]); }}>
               <Text style={s.back}>←</Text>
             </TouchableOpacity>
             <Text style={s.title}>İştirakçı əlavə et</Text>
-            <View style={{ width: 40 }} />
+            <TouchableOpacity
+              disabled={selectedNewUids.length === 0}
+              onPress={async () => {
+                for (const u of selectedNewUsers) {
+                  await addGroupMember(chat.id, u.uid, u.displayName ?? '', user?.displayName ?? '', chat.name).catch(() => {});
+                }
+                setSelectedNewUids([]);
+                setSelectedNewUsers([]);
+                setShowAddMember(false);
+              }}
+            >
+              <Text style={[{ fontSize: 14, color: Colors.gold, fontFamily: Typography.nunito700 }, selectedNewUids.length === 0 && { opacity: 0.4 }]}>
+                Əlavə et ({selectedNewUids.length})
+              </Text>
+            </TouchableOpacity>
           </View>
-          <ScrollView>
-            {nonMembers.map(m => (
-              <TouchableOpacity
-                key={m.uid ?? m.id}
-                style={s.memberItem}
-                onPress={async () => {
-                  await addGroupMember(chat.id, m.uid ?? m.id, m.name, user?.displayName ?? '', chat.name).catch(() => {});
-                  setShowAddMember(false);
-                }}
-              >
-                <View style={s.memberAva}>
-                  <Text style={{ fontSize: 20 }}>{m.emoji}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.memberName}>{m.name}</Text>
-                  <Text style={s.memberRole}>{m.instrument} · {m.city}</Text>
-                </View>
-                <Text style={{ color: Colors.gold, fontSize: 20 }}>＋</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <UserPicker
+            selectedUids={selectedNewUids}
+            onSelectionChange={(uids, users) => { setSelectedNewUids(uids); setSelectedNewUsers(users); }}
+            excludeUids={liveMembers}
+          />
         </SafeAreaView>
       </Modal>
       <RNModal visible={showFullPhoto} transparent animationType="fade">
