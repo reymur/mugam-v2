@@ -60,6 +60,7 @@ export default function RootNavigator() {
   const isAuthenticated = useAppStore(s => s.isAuthenticated);
   const authLoading     = useAppStore(s => s.authLoading);
   const pendingGroupChatId = useAppStore(s => s.pendingGroupChatId);
+  const pendingDirectChatId = useAppStore(s => s.pendingDirectChatId);
   const removedFromGroup = useAppStore(s => s.removedFromGroup);
   const totalUnread     = useAppStore(
     s => s.chats.reduce((acc, c) => acc + (c.unread ?? 0), 0)
@@ -77,6 +78,18 @@ export default function RootNavigator() {
     };
     tryNavigate();
   }, [pendingGroupChatId, isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!pendingDirectChatId || !isAuthenticated || authLoading) return;
+    const tryNavigate = () => {
+      if (navRef.current?.isReady()) {
+        navRef.current.navigate('Chats');
+      } else {
+        setTimeout(tryNavigate, 100);
+      }
+    };
+    tryNavigate();
+  }, [pendingDirectChatId, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!removedFromGroup) return;
