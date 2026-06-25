@@ -366,6 +366,14 @@ export async function sendMessage(chatId: string, text: string, senderId: string
 
   batch.update(chatRef, chatUpdate);
   await batch.commit();
+
+  // Push notifications to all members except sender
+  const chatName = chatSnap.exists() ? (chatSnap.data().name ?? '') : '';
+  const isGroup = chatSnap.exists() ? (chatSnap.data().isGroup ?? false) : false;
+  const pushTitle = isGroup ? `${chatName}` : senderName;
+  const pushBody = `${senderName}: ${text.startsWith('🎤 VOICE:') ? '🎤 Səs mesajı' : text.slice(0, 100)}`;
+  const receivers = members.filter(uid => uid !== senderId);
+  await sendPushToUsers(receivers, pushTitle, pushBody, { chatId, type: 'new_message', senderId });
 }
 
 export async function markChatAsRead(chatId: string, uid: string): Promise<void> {
