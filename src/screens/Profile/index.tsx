@@ -29,6 +29,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
   const [city,   setCity]   = useState(user?.city ?? '');
   const [phone,  setPhone]  = useState(user?.phone ?? '');
   const [avail,  setAvail]  = useState(user?.available ?? false);
+  const [role,   setRole]   = useState<string>(user?.role ?? 'user');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -55,7 +56,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
         photoURL = await uploadAvatar(user.uid, avatarUri);
         setUploading(false);
       }
-      const updates = { displayName: name.trim(), bio, instrument: inst, city, available: avail, photoURL: photoURL ?? null, phone: phone.trim() || null };
+      const updates = { displayName: name.trim(), bio, instrument: inst, city, available: avail, photoURL: photoURL ?? null, phone: phone.trim() || null, role };
       await updateUserProfile(user.uid, updates);
       setUser({ ...user, ...updates });
       showToast('✅ Profil yeniləndi!');
@@ -65,7 +66,7 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
     } finally {
       setSaving(false);
     }
-  }, [user, name, bio, inst, city, avail, avatarUri, phone, setUser, showToast, onClose]);
+  }, [user, name, bio, inst, city, avail, avatarUri, phone, role, setUser, showToast, onClose]);
 
   return (
     <View style={es.sheet}>
@@ -85,6 +86,19 @@ function EditProfileSheet({ onClose }: { onClose: () => void }) {
         <Text style={es.lbl}>Ad Soyad</Text>
         <TextInput style={es.inp} value={name} onChangeText={setName} placeholderTextColor={Colors.muted} placeholder="Adınız" />
         <PhoneInput value={phone} onChange={setPhone} />
+
+        <Text style={es.lbl}>Rol</Text>
+        <View style={es.grid}>
+          {([
+            { value: 'user',          label: '👤 İstifadəçi' },
+            { value: 'musician',      label: '🎵 Musiqiçi' },
+            { value: 'concertmaster', label: '🎼 Konsertmeyster' },
+          ] as const).map(r => (
+            <TouchableOpacity key={r.value} style={[es.chip, role === r.value && es.chipSel]} onPress={() => setRole(r.value)}>
+              <Text style={[es.chipText, role === r.value && es.chipTextSel]}>{r.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Text style={es.lbl}>Haqqında</Text>
         <TextInput style={[es.inp, { height: 80 }]} value={bio} onChangeText={setBio} multiline placeholder="Özünüz haqqında yazın..." placeholderTextColor={Colors.muted} />

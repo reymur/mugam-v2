@@ -95,6 +95,7 @@ export async function updateUserProfile(
     fcmToken: string;
     photoURL: string;
     phone: string;
+    role: string;
   }>,
 ): Promise<void> {
   await updateDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
