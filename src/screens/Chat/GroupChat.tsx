@@ -240,13 +240,20 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
           </ScrollView>
 
           {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <View style={s.typingBar}>
-              <Text style={s.typingText}>
-                {typingUsers.length === 1 ? 'Biri yazır...' : `${typingUsers.length} nəfər yazır...`}
-              </Text>
-            </View>
-          )}
+          {typingUsers.length > 0 && (() => {
+            // Build uid→name map from messages
+            const memberNames: Record<string, string> = {};
+            chatMessages.forEach(m => { if (m.senderId && m.senderName) memberNames[m.senderId] = m.senderName; });
+            const names = typingUsers.map(uid => memberNames[uid] ?? 'Biri');
+            const label = names.length === 1
+              ? `${names[0]} yazır...`
+              : `${names.join(', ')} yazır...`;
+            return (
+              <View style={s.typingBar}>
+                <Text style={s.typingText}>{label}</Text>
+              </View>
+            );
+          })()}
 
           {/* Reply preview */}
           {replyMsg && (
