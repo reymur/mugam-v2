@@ -826,15 +826,19 @@ const id = await createOrGetDirectChat(
               <Text style={s.headerSub}>{musician.instrument}</Text>
             </View>
           </View>
-          {musician.phone && (
-            <TouchableOpacity
-              onPress={() => Linking.openURL(`tel:${musician.phone}`)}
+          <TouchableOpacity
+              onPress={() => {
+                if (musician.phone) {
+                  Linking.openURL(`tel:${musician.phone}`);
+                } else {
+                  Alert.alert('', 'Bu istifadəçinin telefon nömrəsi yoxdur');
+                }
+              }}
               hitSlop={{ top:10, bottom:10, left:10, right:10 }}
               style={{ marginRight: 8 }}
             >
               <Text style={{ fontSize: 20 }}>📞</Text>
             </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={s.closeChatBtn}
             onPress={() => setShowMenu(true)}
