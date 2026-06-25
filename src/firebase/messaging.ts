@@ -41,10 +41,12 @@ export async function registerFCMToken(uid: string): Promise<() => void> {
 
 export async function sendPushToUser(uid: string, title: string, body: string, data?: Record<string, string>): Promise<void> {
   try {
+    console.log('[PUSH] sendPushToUser called for uid:', uid, 'title:', title, 'type:', data?.type);
     const snap = await getDoc(doc(fbFirestore, COLLECTIONS.USERS, uid));
     if (!snap.exists()) return;
     const token = snap.data()?.expoPushToken;
-    if (!token) return;
+    if (!token) { console.log('[PUSH] no token for uid:', uid); return; }
+    console.log('[PUSH] sending to token:', token);
     await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
