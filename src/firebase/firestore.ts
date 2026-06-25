@@ -50,6 +50,12 @@ export function subscribeMusicians(cb: (items: Musician[]) => void): () => void 
   return onSnapshot(q, snap => cb(snapToList<Musician>(snap)));
 }
 
+export async function fetchAllUsers(): Promise<UserProfile[]> {
+  const q = query(collection(fbFirestore, COLLECTIONS.USERS), limit(500));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+}
+
 export async function saveUserAsMusician(uid: string, data: Partial<Musician>): Promise<void> {
   // Save to users collection with role = musician
   await setDoc(doc(fbFirestore, COLLECTIONS.USERS, uid), {
