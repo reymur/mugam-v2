@@ -390,5 +390,5 @@ const s = StyleSheet.create({
   menuItemText:  { color: Colors.text, fontSize: 15, fontFamily: Typography.nunito500 },
   red:           { color: Colors.red },
   typingBar:     { paddingHorizontal: 16, paddingVertical: 4 },
-  typingText:    { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400, fontStyle: 'italic' },
+  typingText:    { fontSize: 13, color: Colors.gold, fontFamily: Typography.nunito500, fontStyle: 'italic' },
 });
