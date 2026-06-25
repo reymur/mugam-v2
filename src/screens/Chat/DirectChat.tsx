@@ -435,8 +435,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   useEffect(() => {
     if (!chatId || !user?.uid) return;
     console.log('subscribeChatMeta for chatId:', chatId);
-    const _lastMsg1 = (messages[chatId] ?? []).slice(-1)[0];
-    markChatAsReadBy(chatId, user.uid, _lastMsg1?.id).catch(() => {});
+    const _lastOther1 = [...(messages[chatId] ?? [])].reverse().find(m => m.senderId !== user.uid);
+    if (_lastOther1?.id) markChatAsReadBy(chatId, user.uid, _lastOther1.id).catch(() => {});
     const unsub = subscribeChatMeta(chatId, (data) => {
       const { readBy, typing, cancelledBy: cb, closedBy, eventDate: ed, eventType: et, eventLocation: el, eventNotes: en } = data;
       const otherUid = musicianUid;
@@ -503,8 +503,8 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
     const sub = AppState.addEventListener('change', state => {
       if (!chatId || !user?.uid) return;
       if (state === 'active') {
-        const _lastMsg2 = (messages[chatId] ?? []).slice(-1)[0];
-        markChatAsReadBy(chatId, user.uid, _lastMsg2?.id).catch(() => {});
+        const _lastOther2 = [...(messages[chatId] ?? [])].reverse().find(m => m.senderId !== user.uid);
+        if (_lastOther2?.id) markChatAsReadBy(chatId, user.uid, _lastOther2.id).catch(() => {});
       } else {
         removeReadBy(chatId, user.uid).catch(() => {});
       }
@@ -796,8 +796,11 @@ const id = await createOrGetDirectChat(
   // Mark as read when new messages arrive and chat is open
   React.useEffect(() => {
     if (!chatId || !user?.uid || chatMessages.length === 0) return;
-    const lastMsg = chatMessages[chatMessages.length - 1];
-    markChatAsReadBy(chatId, user.uid, lastMsg?.id).catch(() => {});
+    // Only mark as read up to the last message from OTHER person — not our own
+    const lastOtherMsg = [...chatMessages].reverse().find(m => m.senderId !== user.uid);
+    if (lastOtherMsg?.id) {
+      markChatAsReadBy(chatId, user.uid, lastOtherMsg.id).catch(() => {});
+    }
     // Auto scroll to bottom when new message arrives
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [chatMessages.length, chatId, user?.uid]);
