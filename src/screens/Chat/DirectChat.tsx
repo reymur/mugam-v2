@@ -463,8 +463,10 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       if (state === 'active') {
         const _lastOther2 = [...(messages[chatId] ?? [])].reverse().find(m => m.senderId !== user.uid);
         if (_lastOther2?.id) markChatAsReadBy(chatId, user.uid, _lastOther2.id).catch(() => {});
+        addActiveUser(chatId, user.uid).catch(() => {});
       } else {
         removeReadBy(chatId, user.uid).catch(() => {});
+        removeActiveUser(chatId, user.uid).catch(() => {});
       }
     });
     return () => sub.remove();

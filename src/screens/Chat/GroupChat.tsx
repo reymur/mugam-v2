@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput,
+  View, Text, TouchableOpacity, TextInput, AppState,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator,
   Alert, Modal, Keyboard, PanResponder, Pressable,
@@ -103,6 +103,20 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     const lastMsg = chatMessages[chatMessages.length - 1];
     if (lastMsg?.id) markGroupChatAsReadBy(chat.id, user.uid, lastMsg.id).catch(() => {});
   }, [chatMessages.length, chat.id, user?.uid]);
+
+  // AppState — add/remove activeUser when app goes background/foreground
+  useEffect(() => {
+    if (!user?.uid) return;
+    const sub = AppState.addEventListener('change', state => {
+      if (!user?.uid) return;
+      if (state === 'active') {
+        addActiveUser(chat.id, user.uid).catch(() => {});
+      } else {
+        removeActiveUser(chat.id, user.uid).catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, [chat.id, user?.uid]);
 
   useEffect(() => {
     if (chatMessages.length > 0) {
