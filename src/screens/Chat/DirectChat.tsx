@@ -1115,6 +1115,8 @@ const id = await createOrGetDirectChat(
                           {msg.time}
                         </Text>
                         {msg.mine && (() => {
+                          if (msg.status === 'sending') return <Text style={{ fontSize: 12, marginLeft: 2 }}>⏳</Text>;
+                          if (msg.status === 'failed')  return <Text style={{ fontSize: 12, marginLeft: 2 }}>❌</Text>;
                           const mUid = musician.uid ?? musician.id;
                           const msgReadBy = msg.readBy ?? [];
                           const isRead = msgReadBy.includes(mUid);

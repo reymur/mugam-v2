@@ -225,10 +225,16 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                           {msg.time}
                         </Text>
                         {msg.mine && (
-                          <GroupCheckMark
-                            isRead={readBy.length >= (liveMembers.length - 1) && liveMembers.length > 1}
-                            membersCount={liveMembers.length}
-                          />
+                          msg.status === 'sending' ? (
+                            <Text style={{ fontSize: 12, marginLeft: 2 }}>⏳</Text>
+                          ) : msg.status === 'failed' ? (
+                            <Text style={{ fontSize: 12, marginLeft: 2 }}>❌</Text>
+                          ) : (
+                            <GroupCheckMark
+                              isRead={readBy.length >= (liveMembers.length - 1) && liveMembers.length > 1}
+                              membersCount={liveMembers.length}
+                            />
+                          )
                         )}
                       </View>
                     </View>

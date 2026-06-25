@@ -169,6 +169,7 @@ export interface Message {
   senderName?:    string;
   isSystem?:      boolean;
   readBy?:        string[];
+  status?:        'sending' | 'sent' | 'failed';
 }
 
 export type Lang = 'az' | 'ru';

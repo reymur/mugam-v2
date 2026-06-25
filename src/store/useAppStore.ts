@@ -414,16 +414,35 @@ export const useAppStore = create<AppStore>((set, get) => ({
   sendMessage: async (chatId, text, replyTo) => {
     const user = get().user;
     if (!user) return;
+    const tempId = `tmp_${user.uid}_${Date.now()}`;
     const time = new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-    const tempMsg: Message = { id: `tmp_${Date.now()}`, text, mine: true, time, senderId: user.uid };
+    const tempMsg: Message = {
+      id:         tempId,
+      text,
+      mine:       true,
+      time,
+      senderId:   user.uid,
+      senderName: user.displayName,
+      status:     'sending',
+      createdAt:  new Date(),
+      readBy:     [],
+      replyTo:    replyTo ?? undefined,
+    };
     set(s => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), tempMsg] },
     }));
     try {
-      console.log('[SM] sending to chatId:', chatId, 'uid:', user.uid);
       await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo);
-      console.log('[SM] sent ok');
-    } catch (e) { console.log('[SM] error:', e); /* keep optimistic */ }
+    } catch {
+      set(s => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).map(m =>
+            m.id === tempId ? { ...m, status: 'failed' as const } : m
+          ),
+        },
+      }));
+    }
   },
 
   loadMessages: async (chatId) => {
@@ -442,20 +461,25 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     // STEP 2: subscribe to new messages after the last known
     const unsub = FireStore.subscribeNewMessages(chatId, newestDoc, (newMsgs) => {
-      const resolvedNew = newMsgs.map(m => ({ ...m, mine: m.senderId === uid }));
+      const resolvedNew = newMsgs.map(m => ({ ...m, mine: m.senderId === uid, status: 'sent' as const }));
       set(s => {
-        const existing = s.messages[chatId] ?? [];
-        // Remove temp messages from sender that are now confirmed by Firestore
-        const senderIds = new Set(resolvedNew.map(m => m.senderId));
-        const withoutTemps = existing.filter(m => {
-          if (m.id?.startsWith('tmp_') && senderIds.has(m.senderId)) return false;
-          return true;
-        });
-        // Merge: avoid duplicates by id
-        const existingIds = new Set(withoutTemps.map(m => m.id));
-        const toAdd = resolvedNew.filter(m => !existingIds.has(m.id));
-        if (toAdd.length === 0) return s;
-        return { messages: { ...s.messages, [chatId]: [...withoutTemps, ...toAdd] } };
+        let current = [...(s.messages[chatId] ?? [])];
+        for (const realMsg of resolvedNew) {
+          // Check if already in list by real id
+          if (current.some(m => m.id === realMsg.id)) continue;
+          // Find temp message with same senderId (first one)
+          const tempIdx = current.findIndex(
+            m => m.id?.startsWith('tmp_') && m.senderId === realMsg.senderId
+          );
+          if (tempIdx !== -1) {
+            // Replace temp with real
+            current[tempIdx] = realMsg;
+          } else {
+            // No temp found — just append
+            current = [...current, realMsg];
+          }
+        }
+        return { messages: { ...s.messages, [chatId]: current } };
       });
     });
     set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
