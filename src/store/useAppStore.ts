@@ -93,6 +93,8 @@ interface AppStore {
   initApp: () => Promise<void>;
   pendingGroupChatId: string | null;
   setPendingGroupChatId: (id: string | null) => void;
+  pendingDirectChatId: string | null;
+  setPendingDirectChatId: (id: string | null) => void;
   removedFromGroup: { chatName: string; removedByName: string } | null;
   setRemovedFromGroup: (data: { chatName: string; removedByName: string } | null) => void;
 }
@@ -272,6 +274,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   chats:       [],
   chatIdCache: {},
   pendingGroupChatId: null,
+  pendingDirectChatId: null,
   removedFromGroup: null,
   messages:    {},
   _chatCursors: {},
@@ -293,6 +296,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   _addUnsub: (fn) => set(s => ({ _unsubs: [...s._unsubs, fn] })),
 
   setPendingGroupChatId: (id) => set({ pendingGroupChatId: id }),
+  setPendingDirectChatId: (id) => set({ pendingDirectChatId: id }),
   setRemovedFromGroup: (data) => set({ removedFromGroup: data }),
   unsubscribeAll: () => {
     // Clear chat message subscriptions
@@ -718,6 +722,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
         get().setPendingGroupChatId(data.chatId);
       } else if (data.type === 'group_removed') {
         get().setRemovedFromGroup({ chatName: data.chatName ?? 'Qrup', removedByName: data.removedByName ?? '' });
+      } else if (data.type === 'new_message' && data.chatId) {
+        const chat = get().chats.find(c => c.id === data.chatId);
+        if (chat?.isGroup) {
+          get().setPendingGroupChatId(data.chatId);
+        } else {
+          get().setPendingDirectChatId(data.chatId);
+        }
       }
     });
     get()._addUnsub(unsubTap);

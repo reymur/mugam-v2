@@ -66,6 +66,8 @@ export default function ChatsScreen() {
 
   const pendingGroupChatId = useAppStore(s => s.pendingGroupChatId);
   const setPendingGroupChatId = useAppStore(s => s.setPendingGroupChatId);
+  const pendingDirectChatId = useAppStore(s => s.pendingDirectChatId);
+  const setPendingDirectChatId = useAppStore(s => s.setPendingDirectChatId);
   const removedFromGroup = useAppStore(s => s.removedFromGroup);
   const setRemovedFromGroup = useAppStore(s => s.setRemovedFromGroup);
 
@@ -75,6 +77,18 @@ export default function ChatsScreen() {
 
   const filteredMusicians = musicians.filter(m => (m.uid ?? m.id) !== user?.uid);
   const groups = chats.filter(c => c.isGroup);
+
+  useEffect(() => {
+    if (!pendingDirectChatId) return;
+    const chat = chats.find(c => c.id === pendingDirectChatId && !c.isGroup);
+    if (chat) {
+      setPendingDirectChatId(null);
+      // Find musician from chat members
+      const otherUid = chat.members?.find(uid => uid !== user?.uid);
+      const musician = musicians.find(m => (m.uid ?? m.id) === otherUid);
+      if (musician) setActiveMusician(musician);
+    }
+  }, [pendingDirectChatId, chats, musicians, user?.uid]);
 
   useEffect(() => {
     if (!pendingGroupChatId) return;
