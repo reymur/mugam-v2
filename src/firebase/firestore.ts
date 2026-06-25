@@ -1007,6 +1007,10 @@ export async function createGroupChat(
 
 export async function leaveGroup(chatId: string, uid: string, userName: string): Promise<void> {
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+  // Get members before removing
+  const chatSnap = await getDoc(chatRef);
+  const members: string[] = chatSnap.exists() ? (chatSnap.data().members ?? []) : [];
+  const chatName: string = chatSnap.exists() ? (chatSnap.data().name ?? 'Qrup') : 'Qrup';
   await updateDoc(chatRef, {
     members: arrayRemove(uid),
     admins: arrayRemove(uid),
@@ -1019,6 +1023,37 @@ export async function leaveGroup(chatId: string, uid: string, userName: string):
     createdAt: serverTimestamp(),
     isSystem:  true,
   });
+  // Push to remaining members
+  const remaining = members.filter(m => m !== uid);
+  await Promise.all(
+    remaining.map(m => sendPushToUser(
+      m, chatName, `${userName} qrupdan çıxdı`, { chatId, type: 'group_left' }
+    ).catch(() => {}))
+  );
+}
+
+export async function deleteGroup(chatId: string, deletedByName: string): Promise<void> {
+  // Get members before deleting
+  const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
+  const chatSnap = await getDoc(chatRef);
+  if (!chatSnap.exists()) return;
+  const members: string[] = chatSnap.data().members ?? [];
+  const chatName: string = chatSnap.data().name ?? 'Qrup';
+  const creatorUid: string = chatSnap.data().createdBy ?? '';
+  // Delete all messages
+  const msgsSnap = await getDocs(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
+  const batch = writeBatch(fbFirestore);
+  msgsSnap.docs.forEach(d => batch.delete(d.ref));
+  batch.delete(chatRef);
+  await batch.commit();
+  // Push to all members except creator
+  await Promise.all(
+    members
+      .filter(m => m !== creatorUid)
+      .map(m => sendPushToUser(
+        m, chatName, `${deletedByName} qrupu sildi`, { chatId, type: 'group_deleted' }
+      ).catch(() => {}))
+  );
 }
 
 export async function addGroupMember(chatId: string, uid: string, userName: string, addedByName: string, chatName?: string): Promise<void> {

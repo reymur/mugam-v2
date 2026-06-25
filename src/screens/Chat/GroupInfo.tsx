@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
-import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto, getUsersByUids, subscribeChat } from '../../firebase/firestore';
+import { leaveGroup, removeGroupMember, makeGroupAdmin, updateGroupInfo, addGroupMember, uploadGroupPhoto, getUsersByUids, subscribeChat, deleteGroup } from '../../firebase/firestore';
 import UserPicker from '../../components/common/UserPicker';
 import type { UserProfile } from '../../types';
 import * as ImagePicker from 'expo-image-picker';
@@ -81,6 +81,27 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
           setLoading(true);
           try {
             await leaveGroup(chat.id, user?.uid ?? '', user?.displayName ?? 'İstifadəçi');
+            onLeft();
+          } catch {
+            Alert.alert('', 'Xəta baş verdi');
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  }, [chat.id, user]);
+
+  const handleDelete = useCallback(() => {
+    Alert.alert('Qrupu sil', 'Qrup bütün iştirakçılar üçün silinəcək. Əminsiniz?', [
+      { text: 'Ləğv et', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          setLoading(true);
+          try {
+            await deleteGroup(chat.id, user?.displayName ?? 'Admin');
             onLeft();
           } catch {
             Alert.alert('', 'Xəta baş verdi');
@@ -245,6 +266,13 @@ export default function GroupInfo({ chat, onClose, onLeft }: Props) {
         {isAdmin && nonMembers.length > 0 && (
           <TouchableOpacity style={s.addMemberBtn} onPress={() => setShowAddMember(true)}>
             <Text style={s.addMemberText}>＋ İştirakçı əlavə et</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Delete group — only creator */}
+        {isCreator && (
+          <TouchableOpacity style={[s.leaveBtn, { borderColor: '#c0392b', marginBottom: 8 }]} onPress={handleDelete}>
+            <Text style={[s.leaveBtnText, { color: '#c0392b' }]}>🗑 Qrupu sil</Text>
           </TouchableOpacity>
         )}
 
