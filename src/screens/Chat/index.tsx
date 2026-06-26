@@ -9,53 +9,14 @@ import { Typography } from '../../theme/typography';
 import { useT } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import type { Musician, ChatItem } from '../../store/useAppStore';
-import { Image } from 'expo-image';
+import ChatListItem from '../../components/common/ChatListItem';
 import DirectChat from './DirectChat';
 import CreateGroup from './CreateGroup';
 import GroupChat from './GroupChat';
 
-// ── Musician List Item ────────────────────────────────────
-const MusicianItem = React.memo(function MusicianItem({
-  musician, onPress,
-}: { musician: Musician; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.cliItem} onPress={onPress} activeOpacity={0.8}>
-      <View style={styles.cliAva}>
-        <Text style={{ fontSize: 21 }}>{musician.emoji}</Text>
-        {musician.online && <View style={styles.cliOnline} />}
-      </View>
-      <View style={styles.cliInfo}>
-        <Text style={styles.cliName} numberOfLines={1}>{musician.name}</Text>
-        <Text style={styles.cliPreview} numberOfLines={1}>{musician.instrument} · {musician.city}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-});
 
-// ── Group List Item ───────────────────────────────────────
-const GroupItem = React.memo(function GroupItem({
-  chat, onPress,
-}: { chat: ChatItem; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.cliItem} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.cliAva, { borderRadius: 14 }]}>
-        {chat.photoURL
-          ? <Image source={{ uri: chat.photoURL }} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
-          : <Text style={{ fontSize: 21 }}>{chat.emoji}</Text>
-        }
-      </View>
-      <View style={styles.cliInfo}>
-        <Text style={styles.cliName} numberOfLines={1}>{chat.name}</Text>
-        <Text style={styles.cliPreview} numberOfLines={1}>{chat.preview || 'Qrup çatı'}</Text>
-      </View>
-      {(chat.unread ?? 0) > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{chat.unread}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-});
+
+
 
 // ── Chats Screen ──────────────────────────────────────────
 export default function ChatsScreen() {
@@ -122,7 +83,16 @@ export default function ChatsScreen() {
           <>
             <Text style={styles.sectionLbl}>Qruplar</Text>
             {groups.map(c => (
-              <GroupItem key={c.id} chat={c} onPress={() => setActiveGroup(c)} />
+              <ChatListItem
+                key={c.id}
+                name={c.name}
+                emoji={c.emoji}
+                preview={c.preview}
+                unread={c.unread}
+                photoURL={c.photoURL}
+                isGroup
+                onPress={() => setActiveGroup(c)}
+              />
             ))}
           </>
         )}
@@ -132,7 +102,15 @@ export default function ChatsScreen() {
           <Text style={styles.emptyText}>Musiqiçi tapılmadı</Text>
         )}
         {filteredMusicians.map(m => (
-          <MusicianItem key={m.uid ?? m.id} musician={m} onPress={() => setActiveMusician(m)} />
+          <ChatListItem
+            key={m.uid ?? m.id}
+            name={m.name}
+            emoji={m.emoji}
+            online={m.online}
+            preview={chats.find(c => !c.isGroup && c.members?.includes(m.uid ?? m.id))?.preview}
+            unread={chats.find(c => !c.isGroup && c.members?.includes(m.uid ?? m.id))?.unread}
+            onPress={() => setActiveMusician(m)}
+          />
         ))}
       </ScrollView>
 
