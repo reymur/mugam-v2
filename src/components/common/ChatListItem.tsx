@@ -14,12 +14,12 @@ interface ChatListItemProps {
   online?:     boolean;
   photoURL?:   string;
   isGroup?:    boolean;
-  instrument?: string;
+  specialty?: string;
   onPress:     () => void;
 }
 
 export default function ChatListItem({
-  name, emoji, preview, unread, online, photoURL, isGroup, instrument, onPress,
+  name, emoji, preview, unread, online, photoURL, isGroup, specialty, onPress,
 }: ChatListItemProps) {
   return (
     <TouchableOpacity style={s.item} onPress={onPress} activeOpacity={0.8}>
@@ -34,10 +34,8 @@ export default function ChatListItem({
       <View style={s.info}>
         <View style={s.nameRow}>
           <Text style={s.name} numberOfLines={1}>{name}</Text>
-          {!isGroup && !!instrument && (
-            <View style={s.specBadge}>
-              <Text style={s.specText}>{instrument}</Text>
-            </View>
+          {!isGroup && !!specialty && (
+            <Text style={s.specText}>{specialty}</Text>
           )}
         </View>
         {!!preview && (
@@ -61,8 +59,7 @@ const s = StyleSheet.create({
   info:        { flex: 1, minWidth: 0 },
   nameRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
   name:        { fontFamily: Typography.playfair700, fontSize: 14, color: Colors.text, flexShrink: 1 },
-  specBadge:   { borderWidth: 1, borderColor: Colors.gold, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
-  specText:    { fontSize: 10, color: Colors.gold, fontFamily: Typography.nunito700 },
+  specText:    { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
   preview:     { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
   unreadBadge: { backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, minWidth: 20, alignItems: 'center' },
   unreadText:  { color: '#1a0e00', fontSize: 11, fontFamily: Typography.nunito700 },

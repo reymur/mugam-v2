@@ -109,7 +109,7 @@ export default function ChatsScreen() {
             online={m.online}
             preview={chats.find(c => !c.isGroup && c.members?.includes(m.uid ?? m.id))?.preview}
             unread={chats.find(c => !c.isGroup && c.members?.includes(m.uid ?? m.id))?.unread}
-            instrument={m.instrument}
+            specialty={m.specialty}
             onPress={() => setActiveMusician(m)}
           />
         ))}
