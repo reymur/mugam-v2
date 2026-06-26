@@ -35,7 +35,9 @@ export default function ChatListItem({
         <View style={s.nameRow}>
           <Text style={s.name} numberOfLines={1}>{name}</Text>
           {!isGroup && !!specialty && (
-            <Text style={s.specText}>{specialty}</Text>
+            <View style={s.specBadge}>
+              <Text style={s.specText}>{specialty}</Text>
+            </View>
           )}
         </View>
         {!!preview && (
@@ -59,7 +61,8 @@ const s = StyleSheet.create({
   info:        { flex: 1, minWidth: 0 },
   nameRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
   name:        { fontFamily: Typography.playfair700, fontSize: 14, color: Colors.text, flexShrink: 1 },
-  specText:    { fontSize: 11, color: Colors.muted, fontFamily: Typography.nunito400 },
+  specBadge:   { backgroundColor: Colors.goldDim, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  specText:    { fontSize: 10, color: Colors.gold, fontFamily: Typography.nunito700 },
   preview:     { fontSize: 12, color: Colors.muted, fontFamily: Typography.nunito400 },
   unreadBadge: { backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, minWidth: 20, alignItems: 'center' },
   unreadText:  { color: '#1a0e00', fontSize: 11, fontFamily: Typography.nunito700 },
