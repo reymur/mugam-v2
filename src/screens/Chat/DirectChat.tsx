@@ -313,6 +313,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
   const [recording,   setRecording]   = useState(false);
+  const [voiceUploading, setVoiceUploading] = useState(false);
   const [recDuration, setRecDuration] = useState(0);
   const [accepting,   setAccepting]   = useState(false);
   const [justAgreed,  setJustAgreed]  = useState(false);
@@ -746,38 +747,13 @@ const id = await createOrGetDirectChat(
         useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
 
-      // Add placeholder before upload
-      const tempVoiceId = `tmp_voice_${Date.now()}`;
-      const tempTime = new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-      useAppStore.setState(s => ({
-        messages: {
-          ...s.messages,
-          [activeChatId]: [...(s.messages[activeChatId] ?? []), {
-            id: tempVoiceId,
-            text: '🎤 VOICE:loading',
-            mine: true,
-            time: tempTime,
-            senderId: user.uid,
-            senderName: user.displayName,
-            status: 'sending' as const,
-            createdAt: new Date(),
-            readBy: [],
-          }],
-        },
-      }));
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-
+      setVoiceUploading(true);
       const voiceUrl = await uploadVoiceMessage(activeChatId, uri, user.uid);
-      // Remove placeholder
-      useAppStore.setState(s => ({
-        messages: {
-          ...s.messages,
-          [activeChatId]: (s.messages[activeChatId] ?? []).filter(m => m.id !== tempVoiceId),
-        },
-      }));
+      setVoiceUploading(false);
       await sendMessage(activeChatId, `🎤 VOICE:${voiceUrl}`);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
     } catch {
+      setVoiceUploading(false);
       showToast('⚠️ Səs mesajı göndərilmədi');
     }
   }, [chatId, user, sendMessage]);
@@ -1152,6 +1128,17 @@ const id = await createOrGetDirectChat(
               <TouchableOpacity onPress={() => setReplyMsg(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: 18, color: Colors.muted }}>✕</Text>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Voice uploading placeholder */}
+          {voiceUploading && (
+            <View style={[s.msgWrap, s.msgWrapMine]}>
+              <View style={[s.msgBubble, s.msgBubbleMine, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }]}>
+                <Text style={{ fontSize: 16 }}>🎤</Text>
+                <ActivityIndicator size="small" color="#1a0e00" />
+                <Text style={{ fontSize: 12, color: '#1a0e00' }}>Yüklənir...</Text>
+              </View>
             </View>
           )}
 
