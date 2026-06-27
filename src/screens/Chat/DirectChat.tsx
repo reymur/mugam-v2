@@ -1074,7 +1074,7 @@ const id = await createOrGetDirectChat(
                       <Text style={{ fontSize: 12, color: msg.mine ? '#1a0e00' : Colors.muted }}>Yüklənir...</Text>
                     </View>
                   ) : isVoice && voiceUri ? (
-                    <View>
+                    <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs, { padding: 0, overflow: 'hidden' }]}>
                       {msg.replyTo && (
                         <TouchableOpacity
                           style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}
