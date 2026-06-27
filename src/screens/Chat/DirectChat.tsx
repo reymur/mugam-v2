@@ -746,7 +746,35 @@ const id = await createOrGetDirectChat(
         useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
 
+      // Add placeholder before upload
+      const tempVoiceId = `tmp_voice_${Date.now()}`;
+      const tempTime = new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
+      useAppStore.setState(s => ({
+        messages: {
+          ...s.messages,
+          [activeChatId]: [...(s.messages[activeChatId] ?? []), {
+            id: tempVoiceId,
+            text: '🎤 VOICE:loading',
+            mine: true,
+            time: tempTime,
+            senderId: user.uid,
+            senderName: user.displayName,
+            status: 'sending' as const,
+            createdAt: new Date(),
+            readBy: [],
+          }],
+        },
+      }));
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
       const voiceUrl = await uploadVoiceMessage(activeChatId, uri, user.uid);
+      // Remove placeholder
+      useAppStore.setState(s => ({
+        messages: {
+          ...s.messages,
+          [activeChatId]: (s.messages[activeChatId] ?? []).filter(m => m.id !== tempVoiceId),
+        },
+      }));
       await sendMessage(activeChatId, `🎤 VOICE:${voiceUrl}`);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
     } catch {
@@ -1048,6 +1076,12 @@ const id = await createOrGetDirectChat(
                   {isDeletedForAll ? (
                     <View style={[s.msgBubble, s.msgBubbleDeleted]}>
                       <Text style={s.msgTextDeleted}>🚫 Bu mesaj silindi</Text>
+                    </View>
+                  ) : isVoice && voiceUri === 'loading' ? (
+                    <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }]}>
+                      <Text style={{ fontSize: 16 }}>🎤</Text>
+                      <ActivityIndicator size="small" color={msg.mine ? '#1a0e00' : Colors.gold} />
+                      <Text style={{ fontSize: 12, color: msg.mine ? '#1a0e00' : Colors.muted }}>Yüklənir...</Text>
                     </View>
                   ) : isVoice && voiceUri ? (
                     <VoicePlayer uri={voiceUri} mine={msg.mine} />
