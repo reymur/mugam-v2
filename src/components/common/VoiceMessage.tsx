@@ -113,8 +113,9 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
       isSeeking.current = true;
       didMove.current = false;
       pageXRef.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
-      const x = e.nativeEvent.locationX;
-      seekTo(widthRef.current > 0 ? x / widthRef.current : 0);
+      longPressTimer.current = setTimeout(() => {
+        if (!didMove.current) onLongPress?.();
+      }, 500);
     },
     onPanResponderMove: (e) => {
       didMove.current = true;
