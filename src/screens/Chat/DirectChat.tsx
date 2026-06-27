@@ -490,6 +490,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const slideAnim  = useRef(new Animated.Value(SCREEN_W)).current;
   const recRef     = useRef<Audio.Recording | null>(null);
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const durationRef = useRef(0);
 
   // Slide in
   useEffect(() => {
@@ -711,7 +712,9 @@ const id = await createOrGetDirectChat(
       recRef.current = rec;
       setRecording(true);
       setRecDuration(0);
+      durationRef.current = 0;
       timerRef.current = setInterval(() => {
+        durationRef.current += 1;
         setRecDuration(d => d + 1);
       }, 1000);
     } catch {
@@ -723,7 +726,7 @@ const id = await createOrGetDirectChat(
   const stopRecording = useCallback(async () => {
     if (!recRef.current || !user) return;
     if (timerRef.current) clearInterval(timerRef.current);
-    const duration = recDuration;
+    const duration = durationRef.current;
     setRecording(false);
     setRecDuration(0);
     if (duration < 1) {
