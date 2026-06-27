@@ -770,7 +770,7 @@ const id = await createOrGetDirectChat(
       setVoiceUploading(false);
       showToast('⚠️ Səs mesajı göndərilmədi');
     }
-  }, [chatId, user, sendMessage]);
+  }, [chatId, user, sendMessage, replyMsg, setReplyMsg]);
 
   const chatMessages = chatId ? (messages[chatId] ?? []) : [];
   React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
