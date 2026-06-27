@@ -99,7 +99,9 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
     }
   }, []);
 
-  const pageXRef = useRef(0);
+  const pageXRef      = useRef(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didMove        = useRef(false);
 
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -108,17 +110,24 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
     onMoveShouldSetPanResponderCapture: () => true,
     onPanResponderGrant: (e) => {
       isSeeking.current = true;
+      didMove.current = false;
       pageXRef.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
       const x = e.nativeEvent.locationX;
       seekTo(widthRef.current > 0 ? x / widthRef.current : 0);
+      longPressTimer.current = setTimeout(() => {
+        if (!didMove.current) onLongPress?.();
+      }, 500);
     },
     onPanResponderMove: (e) => {
+      didMove.current = true;
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
       const x = e.nativeEvent.pageX - pageXRef.current;
       const clamped = Math.max(0, Math.min(x, widthRef.current));
       seekTo(widthRef.current > 0 ? clamped / widthRef.current : 0);
     },
     onPanResponderRelease: () => {
       isSeeking.current = false;
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
     },
   })).current;
 
@@ -152,7 +161,7 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
   const thumbColor  = mine ? '#1a0e00' : Colors.gold;
 
   return (
-    <TouchableOpacity onLongPress={onLongPress} delayLongPress={500} activeOpacity={1} style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
+    <View style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
       <TouchableOpacity style={vs.playBtn} onPress={handlePress} activeOpacity={0.7}>
         {loading
           ? <ActivityIndicator size="small" color={thumbColor} />
@@ -195,7 +204,7 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
       <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]}>
         {timeLabel}
       </Text>
-    </TouchableOpacity>
+    </View>
   );
 }
 
