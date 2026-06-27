@@ -1074,7 +1074,21 @@ const id = await createOrGetDirectChat(
                       <Text style={{ fontSize: 12, color: msg.mine ? '#1a0e00' : Colors.muted }}>Yüklənir...</Text>
                     </View>
                   ) : isVoice && voiceUri ? (
-                    <VoicePlayer uri={voiceUri} mine={msg.mine} onLongPress={() => setSelectedMsg(msg)} />
+                    <View>
+                      {msg.replyTo && (
+                        <TouchableOpacity
+                          style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]}
+                          onPress={() => { if (msg.replyTo?.id) scrollToMessage(msg.replyTo.id, scrollRef, inputRef); }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={{ padding: 10 }}>
+                            <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
+                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : msg.replyTo.text?.startsWith('📷 IMAGE:') ? '📷 Sekil' : msg.replyTo.text}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                      <VoicePlayer uri={voiceUri} mine={msg.mine} onLongPress={() => setSelectedMsg(msg)} />
+                    </View>
                   ) : isImage && imageUri ? (
                     <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
                       <Image source={{ uri: imageUri }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
