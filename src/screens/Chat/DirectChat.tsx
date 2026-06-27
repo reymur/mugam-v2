@@ -723,8 +723,15 @@ const id = await createOrGetDirectChat(
   const stopRecording = useCallback(async () => {
     if (!recRef.current || !user) return;
     if (timerRef.current) clearInterval(timerRef.current);
+    const duration = recDuration;
     setRecording(false);
     setRecDuration(0);
+    if (duration < 1) {
+      await recRef.current.stopAndUnloadAsync().catch(() => {});
+      recRef.current = null;
+      showToast('⚠️ Səs mesajı çox qısadır');
+      return;
+    }
     try {
       await recRef.current.stopAndUnloadAsync();
       const uri = recRef.current.getURI();
