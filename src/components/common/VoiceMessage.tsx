@@ -114,9 +114,6 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
       pageXRef.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
       const x = e.nativeEvent.locationX;
       seekTo(widthRef.current > 0 ? x / widthRef.current : 0);
-      longPressTimer.current = setTimeout(() => {
-        if (!didMove.current) onLongPress?.();
-      }, 500);
     },
     onPanResponderMove: (e) => {
       didMove.current = true;
@@ -162,7 +159,7 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
 
   return (
     <View style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
-      <TouchableOpacity style={vs.playBtn} onPress={handlePress} activeOpacity={0.7}>
+      <TouchableOpacity style={vs.playBtn} onPress={handlePress} onLongPress={onLongPress} delayLongPress={500} activeOpacity={0.7}>
         {loading
           ? <ActivityIndicator size="small" color={thumbColor} />
           : <Text style={[vs.playIcon, { color: thumbColor }]}>
@@ -201,7 +198,7 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
         </View>
       </View>
 
-      <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]}>
+      <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]} onLongPress={onLongPress}>
         {timeLabel}
       </Text>
     </View>
