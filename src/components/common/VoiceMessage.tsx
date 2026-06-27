@@ -108,6 +108,7 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
     onStartShouldSetPanResponderCapture: () => true,
     onMoveShouldSetPanResponder:  () => true,
     onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: (e) => {
       isSeeking.current = true;
       didMove.current = false;
