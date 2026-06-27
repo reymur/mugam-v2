@@ -18,16 +18,17 @@ const BAR_HEIGHTS = Array.from({ length: BARS }, (_, i) =>
 );
 
 function formatTime(ms: number): string {
+  if (!ms || ms <= 0) return '0:00';
   const total = Math.floor(ms / 1000);
-  const m = Math.floor(total / 60).toString().padStart(2, '0');
+  const m = Math.floor(total / 60);
   const s = (total % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
 
 export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
-  const soundRef   = useRef<Audio.Sound | null>(null);
-  const widthRef   = useRef(0);
-  const isSeeking  = useRef(false);
+  const soundRef    = useRef<Audio.Sound | null>(null);
+  const widthRef    = useRef(0);
+  const isSeeking   = useRef(false);
   const progressRef = useRef(0);
 
   const [playing,  setPlaying]  = useState(false);
@@ -36,12 +37,40 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
 
+  // Load duration on mount
+  useEffect(() => {
+    let snd: Audio.Sound | null = null;
+    const load = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS:         false,
+          playsInSilentModeIOS:       true,
+          playThroughEarpieceAndroid: false,
+        });
+        const { sound, status } = await Audio.Sound.createAsync(
+          { uri },
+          { shouldPlay: false },
+          onPlaybackStatus,
+        );
+        snd = sound;
+        soundRef.current = sound;
+        if (status.isLoaded && status.durationMillis) {
+          setDuration(status.durationMillis);
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    return () => {
+      snd?.unloadAsync().catch(() => {});
+    };
+  }, [uri]);
+
   const onPlaybackStatus = useCallback((status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     const dur = status.durationMillis ?? 0;
     const pos = status.positionMillis ?? 0;
+    if (dur > 0) setDuration(dur);
     if (!isSeeking.current) {
-      setDuration(dur);
       setPosition(pos);
       const p = dur > 0 ? pos / dur : 0;
       progressRef.current = p;
@@ -53,10 +82,6 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
       setProgress(0);
       setPosition(0);
     }
-  }, []);
-
-  useEffect(() => {
-    return () => { soundRef.current?.unloadAsync().catch(() => {}); };
   }, []);
 
   const seekTo = useCallback(async (value: number) => {
@@ -93,23 +118,11 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
         return;
       }
       if (soundRef.current) {
+        setLoading(true);
         await soundRef.current.playAsync();
         setPlaying(true);
         return;
       }
-      setLoading(true);
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS:         false,
-        playsInSilentModeIOS:       true,
-        playThroughEarpieceAndroid: false,
-      });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true },
-        onPlaybackStatus,
-      );
-      soundRef.current = sound;
-      setPlaying(true);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   };
@@ -118,9 +131,9 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
     widthRef.current = e.nativeEvent.layout.width;
   };
 
-  const thumbPos = progress * 100;
-  const timeLabel = formatTime(playing || progress > 0 ? position : duration);
-  const colorFilled = mine ? 'rgba(26,14,0,0.75)' : Colors.gold;
+  const thumbPos    = progress * 100;
+  const timeLabel   = formatTime(playing || progress > 0 ? position : duration);
+  const colorFilled = mine ? 'rgba(26,14,0,0.8)' : Colors.gold;
   const colorEmpty  = mine ? 'rgba(26,14,0,0.25)' : 'rgba(180,180,180,0.35)';
   const thumbColor  = mine ? '#1a0e00' : Colors.gold;
 
@@ -149,7 +162,7 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
                 style={[
                   vs.bar,
                   {
-                    height: Math.round(h * 24),
+                    height: Math.round(h * 26),
                     backgroundColor: filled ? colorFilled : colorEmpty,
                   },
                 ]}
@@ -159,10 +172,7 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
           <View
             style={[
               vs.thumb,
-              {
-                left: `${thumbPos}%`,
-                backgroundColor: thumbColor,
-              },
+              { left: `${thumbPos}%`, backgroundColor: thumbColor },
             ]}
           />
         </View>
@@ -196,15 +206,15 @@ export function VoiceRecorderBar({ recording, duration, onStop }: {
 }
 
 const vs = StyleSheet.create({
-  wrap:       { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20, maxWidth: '80%' },
+  wrap:       { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 22, minWidth: 220, maxWidth: '80%' },
   wrapMine:   { backgroundColor: Colors.gold, borderBottomRightRadius: 4 },
   wrapTheirs: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
-  playBtn:    { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  playBtn:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   playIcon:   { fontSize: 18 },
   middle:     { flex: 1, justifyContent: 'center' },
-  waveform:   { flexDirection: 'row', alignItems: 'center', gap: 2, height: 32, position: 'relative' },
+  waveform:   { flexDirection: 'row', alignItems: 'center', gap: 2, height: 34, position: 'relative' },
   bar:        { width: 3, borderRadius: 2 },
-  thumb:      { position: 'absolute', width: 12, height: 12, borderRadius: 6, top: '50%', marginTop: -6, marginLeft: -6 },
+  thumb:      { position: 'absolute', width: 14, height: 14, borderRadius: 7, top: '50%', marginTop: -7, marginLeft: -7 },
   time:       { fontSize: 11, fontFamily: Typography.nunito700, minWidth: 36, textAlign: 'right', flexShrink: 0 },
   recBar:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border },
   recDot:     { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red },
