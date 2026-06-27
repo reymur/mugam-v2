@@ -25,7 +25,7 @@ import { useScrollToMessage } from './hooks/useScrollToMessage';
 const SCREEN_W = Dimensions.get('window').width;
 
 // ── Voice Message Player ──────────────────────────────────
-function SwipeableMessage({ children, onSwipeLeft, onSwipeRight }: { children: React.ReactNode; onSwipeLeft: () => void; onSwipeRight: () => void }) {
+function SwipeableMessage({ children, onSwipeLeft, onSwipeRight, disabled }: { children: React.ReactNode; onSwipeLeft: () => void; onSwipeRight: () => void; disabled?: boolean }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const replyIconScale = useRef(new Animated.Value(0)).current;
   const replyIconOpacity = useRef(new Animated.Value(0)).current;
@@ -73,6 +73,8 @@ function SwipeableMessage({ children, onSwipeLeft, onSwipeRight }: { children: R
       }
     },
   })).current;
+
+  if (disabled) return <View>{children}</View>;
 
   return (
     <View style={{ position: 'relative' }}>
@@ -1044,6 +1046,7 @@ const id = await createOrGetDirectChat(
                   ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}
                 >
                 <SwipeableMessage
+                  disabled={isVoice}
                   onSwipeLeft={async () => {
                     if (!chatId || !msg.id) return;
                     await deleteMessagePermanently(chatId, msg.id).catch(() => {});
