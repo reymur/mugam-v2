@@ -762,7 +762,9 @@ const id = await createOrGetDirectChat(
       setVoiceUploading(true);
       const voiceUrl = await uploadVoiceMessage(activeChatId, uri, user.uid);
       setVoiceUploading(false);
-      await sendMessage(activeChatId, `🎤 VOICE:${voiceUrl}`);
+      const voiceReplyData = replyMsg ? { id: replyMsg.id ?? '', text: replyMsg.text, senderName: replyMsg.mine ? (user.displayName ?? '') : musician.name } : undefined;
+      await sendMessage(activeChatId, `🎤 VOICE:${voiceUrl}`, voiceReplyData);
+      if (replyMsg) setReplyMsg(null);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
     } catch {
       setVoiceUploading(false);
