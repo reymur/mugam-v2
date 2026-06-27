@@ -1087,7 +1087,7 @@ const id = await createOrGetDirectChat(
                         >
                           <View style={{ padding: 10 }}>
                             <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
-                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text}</Text>
+                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : msg.replyTo.text?.startsWith('📷 IMAGE:') ? '📷 Sekil' : msg.replyTo.text}</Text>
                           </View>
                         </TouchableOpacity>
                       )}
@@ -1135,7 +1135,7 @@ const id = await createOrGetDirectChat(
               <View style={s.replyBarLine} />
               <View style={{ flex: 1 }}>
                 <Text style={s.replyBarName}>{replyMsg.mine ? 'Siz' : musician.name}</Text>
-                <Text style={s.replyBarText} numberOfLines={1}>{replyMsg.text}</Text>
+                <Text style={s.replyBarText} numberOfLines={1}>{replyMsg.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : replyMsg.text?.startsWith('📷 IMAGE:') ? '📷 Sekil' : replyMsg.text}</Text>
               </View>
               <TouchableOpacity onPress={() => setReplyMsg(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: 18, color: Colors.muted }}>✕</Text>
