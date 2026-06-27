@@ -30,6 +30,7 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
   const widthRef    = useRef(0);
   const isSeeking   = useRef(false);
   const progressRef = useRef(0);
+  const durationRef = useRef(0);
 
   const [playing,  setPlaying]  = useState(false);
   const [loading,  setLoading]  = useState(false);
@@ -37,39 +38,15 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
 
-  // Load duration on mount
-  useEffect(() => {
-    let snd: Audio.Sound | null = null;
-    const load = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS:         false,
-          playsInSilentModeIOS:       true,
-          playThroughEarpieceAndroid: false,
-        });
-        const { sound, status } = await Audio.Sound.createAsync(
-          { uri },
-          { shouldPlay: false },
-          onPlaybackStatus,
-        );
-        snd = sound;
-        soundRef.current = sound;
-        if (status.isLoaded && status.durationMillis) {
-          setDuration(status.durationMillis);
-        }
-      } catch { /* ignore */ }
-    };
-    load();
-    return () => {
-      snd?.unloadAsync().catch(() => {});
-    };
-  }, [uri]);
-
+  // 1. onPlaybackStatus — объявляем ПЕРВЫМ
   const onPlaybackStatus = useCallback((status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     const dur = status.durationMillis ?? 0;
     const pos = status.positionMillis ?? 0;
-    if (dur > 0) setDuration(dur);
+    if (dur > 0) {
+      durationRef.current = dur;
+      setDuration(dur);
+    }
     if (!isSeeking.current) {
       setPosition(pos);
       const p = dur > 0 ? pos / dur : 0;
@@ -84,14 +61,42 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
     }
   }, []);
 
+  // 2. useEffect — ПОСЛЕ onPlaybackStatus
+  useEffect(() => {
+    const load = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS:         false,
+          playsInSilentModeIOS:       true,
+          playThroughEarpieceAndroid: false,
+        });
+        const { sound, status } = await Audio.Sound.createAsync(
+          { uri },
+          { shouldPlay: false },
+          onPlaybackStatus,
+        );
+        soundRef.current = sound;
+        if (status.isLoaded && status.durationMillis) {
+          durationRef.current = status.durationMillis;
+          setDuration(status.durationMillis);
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    return () => {
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    };
+  }, [uri, onPlaybackStatus]);
+
   const seekTo = useCallback(async (value: number) => {
     const clamped = Math.max(0, Math.min(1, value));
     progressRef.current = clamped;
     setProgress(clamped);
-    if (soundRef.current && duration > 0) {
-      await soundRef.current.setPositionAsync(Math.round(clamped * duration));
+    if (soundRef.current && durationRef.current > 0) {
+      await soundRef.current.setPositionAsync(Math.round(clamped * durationRef.current));
     }
-  }, [duration]);
+  }, []);
 
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -112,13 +117,13 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
 
   const handlePress = async () => {
     try {
+      setLoading(true);
       if (playing) {
         await soundRef.current?.pauseAsync();
         setPlaying(false);
         return;
       }
       if (soundRef.current) {
-        setLoading(true);
         await soundRef.current.playAsync();
         setPlaying(true);
         return;
