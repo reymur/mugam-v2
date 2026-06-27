@@ -1046,7 +1046,6 @@ const id = await createOrGetDirectChat(
                   ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}
                 >
                 <SwipeableMessage
-                  disabled={isVoice}
                   onSwipeLeft={async () => {
                     if (!chatId || !msg.id) return;
                     await deleteMessagePermanently(chatId, msg.id).catch(() => {});
