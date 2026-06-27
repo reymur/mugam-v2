@@ -1072,9 +1072,7 @@ const id = await createOrGetDirectChat(
                       <Text style={{ fontSize: 12, color: msg.mine ? '#1a0e00' : Colors.muted }}>Yüklənir...</Text>
                     </View>
                   ) : isVoice && voiceUri ? (
-                    <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={500} activeOpacity={1}>
-                      <VoicePlayer uri={voiceUri} mine={msg.mine} />
-                    </TouchableOpacity>
+                    <VoicePlayer uri={voiceUri} mine={msg.mine} onLongPress={() => setSelectedMsg(msg)} />
                   ) : isImage && imageUri ? (
                     <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
                       <Image source={{ uri: imageUri }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />

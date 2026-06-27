@@ -8,8 +8,9 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 
 interface VoicePlayerProps {
-  uri:  string;
-  mine: boolean;
+  uri:       string;
+  mine:      boolean;
+  onLongPress?: () => void;
 }
 
 const BARS = 40;
@@ -25,7 +26,7 @@ function formatTime(ms: number): string {
   return `${m}:${s}`;
 }
 
-export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
+export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
   const soundRef    = useRef<Audio.Sound | null>(null);
   const widthRef    = useRef(0);
   const isSeeking   = useRef(false);
@@ -151,7 +152,7 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
   const thumbColor  = mine ? '#1a0e00' : Colors.gold;
 
   return (
-    <View style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
+    <TouchableOpacity onLongPress={onLongPress} delayLongPress={500} activeOpacity={1} style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
       <TouchableOpacity style={vs.playBtn} onPress={handlePress} activeOpacity={0.7}>
         {loading
           ? <ActivityIndicator size="small" color={thumbColor} />
@@ -194,7 +195,7 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
       <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]}>
         {timeLabel}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
