@@ -58,6 +58,7 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
       progressRef.current = 0;
       setProgress(0);
       setPosition(0);
+      soundRef.current?.setStatusAsync({ shouldPlay: false, positionMillis: 0 }).catch(() => {});
     }
   }, []);
 
@@ -70,11 +71,9 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
           playsInSilentModeIOS:       true,
           playThroughEarpieceAndroid: false,
         });
-        const { sound, status } = await Audio.Sound.createAsync(
-          { uri },
-          { shouldPlay: false },
-          onPlaybackStatus,
-        );
+        const sound = new Audio.Sound();
+        sound.setOnPlaybackStatusUpdate(onPlaybackStatus);
+        const status = await sound.loadAsync({ uri }, { shouldPlay: false, progressUpdateIntervalMillis: 100 });
         soundRef.current = sound;
         if (status.isLoaded && status.durationMillis) {
           durationRef.current = status.durationMillis;
@@ -87,28 +86,35 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
       soundRef.current?.unloadAsync().catch(() => {});
       soundRef.current = null;
     };
-  }, [uri, onPlaybackStatus]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uri]);
 
   const seekTo = useCallback(async (value: number) => {
     const clamped = Math.max(0, Math.min(1, value));
     progressRef.current = clamped;
     setProgress(clamped);
     if (soundRef.current && durationRef.current > 0) {
-      await soundRef.current.setPositionAsync(Math.round(clamped * durationRef.current));
+      await soundRef.current.setStatusAsync({ positionMillis: Math.round(clamped * durationRef.current) });
     }
   }, []);
 
+  const pageXRef = useRef(0);
+
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
     onMoveShouldSetPanResponder:  () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
     onPanResponderGrant: (e) => {
       isSeeking.current = true;
+      pageXRef.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
       const x = e.nativeEvent.locationX;
       seekTo(widthRef.current > 0 ? x / widthRef.current : 0);
     },
     onPanResponderMove: (e) => {
-      const x = e.nativeEvent.locationX;
-      seekTo(widthRef.current > 0 ? x / widthRef.current : 0);
+      const x = e.nativeEvent.pageX - pageXRef.current;
+      const clamped = Math.max(0, Math.min(x, widthRef.current));
+      seekTo(widthRef.current > 0 ? clamped / widthRef.current : 0);
     },
     onPanResponderRelease: () => {
       isSeeking.current = false;
@@ -118,17 +124,19 @@ export function VoicePlayer({ uri, mine }: VoicePlayerProps) {
   const handlePress = async () => {
     try {
       setLoading(true);
+      console.log('[Voice] handlePress, playing:', playing, 'soundRef:', !!soundRef.current);
       if (playing) {
-        await soundRef.current?.pauseAsync();
+        await soundRef.current?.setStatusAsync({ shouldPlay: false });
         setPlaying(false);
         return;
       }
       if (soundRef.current) {
-        await soundRef.current.playAsync();
+        await soundRef.current.setStatusAsync({ shouldPlay: true });
         setPlaying(true);
         return;
       }
-    } catch { /* ignore */ }
+      console.warn('[Voice] soundRef is null - sound not loaded');
+    } catch (e) { console.warn('[Voice] error:', e); }
     finally { setLoading(false); }
   };
 
