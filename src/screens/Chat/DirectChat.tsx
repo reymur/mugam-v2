@@ -41,7 +41,7 @@ function SwipeableMessage({ children, onSwipeLeft, onSwipeRight, disabled, disab
     },
     onPanResponderTerminationRequest: () => false,
     onPanResponderMove: (_, g) => {
-      if (g.dx < 0) {
+      if (g.dx < 0 && !disableSwipeLeftRef.current) {
         translateX.setValue(g.dx);
         replyIconOpacity.setValue(0);
       } else if (g.dx > 0) {
