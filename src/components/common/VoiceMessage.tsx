@@ -198,11 +198,10 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
             ]}
           />
         </View>
+        <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]} onLongPress={onLongPress}>
+          {timeLabel}
+        </Text>
       </View>
-
-      <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]} onLongPress={onLongPress}>
-        {timeLabel}
-      </Text>
     </View>
   );
 }
@@ -233,11 +232,11 @@ const vs = StyleSheet.create({
   wrapTheirs: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
   playBtn:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   playIcon:   { fontSize: 18 },
-  middle:     { flex: 1, justifyContent: 'center' },
+  middle:     { flex: 1, justifyContent: 'center', flexDirection: 'column' },
   waveform:   { flexDirection: 'row', alignItems: 'center', gap: 2, height: 34, position: 'relative' },
   bar:        { width: 3, borderRadius: 2 },
   thumb:      { position: 'absolute', width: 14, height: 14, borderRadius: 7, top: '50%', marginTop: -7, marginLeft: -7 },
-  time:       { fontSize: 11, fontFamily: Typography.nunito700, minWidth: 36, textAlign: 'right', flexShrink: 0 },
+  time:       { fontSize: 10, fontFamily: Typography.nunito700, textAlign: 'right', color: 'inherit' },
   recBar:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border },
   recDot:     { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red },
   recTime:    { fontSize: 14, color: Colors.red, fontWeight: 'bold' },
