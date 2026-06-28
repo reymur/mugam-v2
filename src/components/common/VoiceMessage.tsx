@@ -325,7 +325,7 @@ const vs = StyleSheet.create({
     alignItems: 'center',
     gap: 0,
     height: 28,
-    position: 'relative', transform: [{ translateY: 7 }, { translateX: 6 }],
+    position: 'relative', transform: [{ translateY: 6 }, { translateX: 6 }],
   },
   bar: {
     width: 2.5,
