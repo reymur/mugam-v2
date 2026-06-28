@@ -30,6 +30,8 @@ function SwipeableMessage({ children, onSwipeLeft, onSwipeRight, disabled, disab
   const replyIconScale = useRef(new Animated.Value(0)).current;
   const replyIconOpacity = useRef(new Animated.Value(0)).current;
   const replyTriggered = useRef(false);
+  const disableSwipeLeftRef = useRef(disableSwipeLeft);
+  disableSwipeLeftRef.current = disableSwipeLeft;
 
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -58,7 +60,7 @@ function SwipeableMessage({ children, onSwipeLeft, onSwipeRight, disabled, disab
     },
     onPanResponderRelease: (_, g) => {
       replyTriggered.current = false;
-      if (g.dx < -60 && !disableSwipeLeft) {
+      if (g.dx < -60 && !disableSwipeLeftRef.current) {
         Animated.timing(translateX, { toValue: -SCREEN_W, duration: 200, useNativeDriver: true }).start(() => {
           onSwipeLeft();
           translateX.setValue(0);
