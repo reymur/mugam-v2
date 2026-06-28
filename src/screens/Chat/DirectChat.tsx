@@ -1048,6 +1048,7 @@ const id = await createOrGetDirectChat(
                   ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}
                 >
                 <SwipeableMessage
+                  key={`sw-${msg.id}-${msg.deletedForAll}`}
                   disableSwipeLeft={!msg.deletedForAll}
                   onSwipeLeft={msg.deletedForAll ? async () => {
                     if (!chatId || !msg.id) return;
