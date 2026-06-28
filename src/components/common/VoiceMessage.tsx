@@ -227,12 +227,12 @@ export function VoiceRecorderBar({ recording, duration, onStop }: {
 }
 
 const vs = StyleSheet.create({
-  wrap:       { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 22, minWidth: 220, maxWidth: '80%' },
+  wrap:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 22, minWidth: 220, maxWidth: '80%' },
   wrapMine:   { backgroundColor: Colors.gold, borderBottomRightRadius: 4 },
   wrapTheirs: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
   playBtn:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   playIcon:   { fontSize: 18 },
-  middle:     { flex: 1, justifyContent: 'center', flexDirection: 'column' },
+  middle:     { flex: 1, flexDirection: 'column', gap: 3 },
   waveform:   { flexDirection: 'row', alignItems: 'center', gap: 2, height: 34, position: 'relative' },
   bar:        { width: 3, borderRadius: 2 },
   thumb:      { position: 'absolute', width: 14, height: 14, borderRadius: 7, top: '50%', marginTop: -7, marginLeft: -7 },
