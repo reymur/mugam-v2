@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
+import { Modal as RNModal,
   View, Text, TouchableOpacity, TextInput, Image,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator, AppState, Alert, Modal, TextInput as RNTextInput, PanResponder, Keyboard,
@@ -10,6 +10,7 @@ import { Audio } from 'expo-av';
 import { Linking } from 'react-native';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import ZoomableImage from '../../components/common/ZoomableImage';
 import GalleryPicker from '../../components/common/GalleryPicker';
 import { uploadChatImage } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
@@ -287,6 +288,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
 
   const [chatId,      setChatId]      = useState<string | null>(null);
   const [showGallery, setShowGallery] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
 
   const handleGallerySelect = async (uri: string) => {
     if (!user?.uid) return;
@@ -1153,7 +1155,11 @@ const id = await createOrGetDirectChat(
                       />
                     </View>
                   ) : isImage && imageUri ? (
-                    <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
+                    <TouchableOpacity
+                      onPress={() => setSelectedImage(imageUri)}
+                      onLongPress={() => setSelectedMsg(msg)}
+                      delayLongPress={400}
+                    >
                       <Image source={{ uri: imageUri }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
                     </TouchableOpacity>
                   ) : (
@@ -1261,6 +1267,18 @@ const id = await createOrGetDirectChat(
             onOpenGallery={() => setShowGallery(true)}
           />
         </KeyboardAvoidingView>
+        <RNModal visible={!!selectedImage} transparent animationType="fade" onRequestClose={() => setSelectedImage(null)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+            <TouchableOpacity
+              onPress={() => setSelectedImage(null)}
+              style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 8 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 28 }}>✕</Text>
+            </TouchableOpacity>
+            {selectedImage && <ZoomableImage uri={selectedImage} />}
+          </View>
+        </RNModal>
+
         <GalleryPicker
           visible={showGallery}
           onClose={() => setShowGallery(false)}
