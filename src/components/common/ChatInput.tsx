@@ -40,6 +40,7 @@ export default function ChatInput({
 }: ChatInputProps) {
   const insets = useSafeAreaInsets();
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [pendingGallery, setPendingGallery]   = useState(false);
   const [recentPhotos, setRecentPhotos]     = useState<MediaLibrary.Asset[]>([]);
   const hasText = value.trim().length > 0;
 
@@ -111,8 +112,8 @@ export default function ChatInput({
   };
 
   const handleOpenGallery = () => {
+    setPendingGallery(true);
     setShowAttachMenu(false);
-    setTimeout(() => onOpenGallery?.(), 300);
   };
 
   const ATTACH_ITEMS = [
@@ -189,7 +190,11 @@ export default function ChatInput({
         )}
       </View>
 
-      <BottomSheet visible={showAttachMenu} onClose={() => setShowAttachMenu(false)}>
+      <BottomSheet
+        visible={showAttachMenu}
+        onClose={() => setShowAttachMenu(false)}
+        onDismiss={() => { if (pendingGallery) { setPendingGallery(false); onOpenGallery?.(); } }}
+      >
         {/* 2 ряда иконок */}
         <View style={s.menuGrid}>
           {ATTACH_ITEMS.map((item) => (

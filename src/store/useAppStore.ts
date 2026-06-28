@@ -64,7 +64,8 @@ interface AppStore {
   addStory:     (s: Omit<FunCard, 'id'>)        => Promise<void>;
   applyGig:     (id: string)                    => Promise<void>;
   reactStory:   (storyId: string, reaction: 'laugh' | 'heart' | 'clap') => Promise<void>;
-  sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<void>;
+  sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<string>;
+  updateMessage:(chatId: string, tempId: string, newText: string) => void;
   loadMessages:     (chatId: string) => Promise<void>;
   loadMoreMessages: (chatId: string) => Promise<void>;
 
@@ -415,9 +416,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch { /* keep optimistic */ }
   },
 
+  updateMessage: (chatId, tempId, newText) => {
+    set(s => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).map(m =>
+          m.id === tempId ? { ...m, text: newText } : m
+        ),
+      },
+    }));
+  },
+
   sendMessage: async (chatId, text, replyTo) => {
     const user = get().user;
-    if (!user) return;
+    if (!user) return '';
     const tempId = `tmp_${user.uid}_${Date.now()}`;
     const time = new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
     const tempMsg: Message = {
@@ -447,6 +459,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         },
       }));
     }
+    return tempId;
   },
 
   loadMessages: async (chatId) => {

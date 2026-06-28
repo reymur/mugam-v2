@@ -289,10 +289,27 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [showGallery, setShowGallery] = React.useState(false);
 
   const handleGallerySelect = async (uri: string) => {
-    if (!chatId || !user?.uid) return;
+    if (!user?.uid) return;
     try {
-      const url = await uploadChatImage(chatId, uri, user.uid);
-      sendMessage(chatId, `📷 IMAGE:${url}`);
+      let activeChatId = chatId;
+      if (!activeChatId) {
+        activeChatId = await createOrGetDirectChat(
+          user.uid,
+          musician.uid ?? musician.id,
+          musician.name,
+          musician.emoji,
+          user.displayName,
+          user.city,
+        );
+        setChatId(activeChatId);
+        loadMessages(activeChatId);
+      }
+      // Optimistic: показываем фото сразу с локальным URI
+      const tempId = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
+      // Загружаем на Firebase в фоне
+      const url = await uploadChatImage(activeChatId, uri, user.uid);
+      // Обновляем tempMsg с реальным Firebase URL
+      updateMessage(activeChatId, tempId, `📷 IMAGE:${url}`);
     } catch {
       // silent
     }

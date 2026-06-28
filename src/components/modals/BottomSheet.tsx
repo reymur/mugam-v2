@@ -11,10 +11,11 @@ const SCREEN_H = Dimensions.get('window').height;
 interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
+  onDismiss?: () => void;
   children: React.ReactNode;
 }
 
-export default function BottomSheet({ visible, onClose, children }: BottomSheetProps) {
+export default function BottomSheet({ visible, onClose, onDismiss, children }: BottomSheetProps) {
   const anim = useRef(new Animated.Value(0)).current;
   // FIX: mounted flag — не размонтируем сразу, ждём анимацию
   const [mounted, setMounted] = useState(visible);
@@ -33,7 +34,7 @@ export default function BottomSheet({ visible, onClose, children }: BottomSheetP
         toValue: 0,
         duration: 240,
         useNativeDriver: true,
-      }).start(() => setMounted(false));
+      }).start(() => { setMounted(false); onDismiss?.(); });
     }
   }, [visible]);
 
@@ -65,7 +66,7 @@ export default function BottomSheet({ visible, onClose, children }: BottomSheetP
             <View style={styles.handle} />
             <ScrollView
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
               bounces={false}
             >
               {children}

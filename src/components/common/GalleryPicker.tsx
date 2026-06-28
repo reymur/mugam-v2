@@ -40,6 +40,7 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    console.log('[GALLERY] visible changed:', visible);
     if (!visible) return;
     setTab('photos');
     loadPhotos();
@@ -52,18 +53,27 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
   };
 
   const loadPhotos = async (album?: MediaLibrary.Album) => {
+    console.log('[GALLERY] loadPhotos started');
     setLoading(true);
+    setPhotos([]);
     const { assets } = await MediaLibrary.getAssetsAsync({
       ...(album ? { album } : {}),
       mediaType: MediaLibrary.MediaType.photo,
-      first: 60,
+      first: 40,
       sortBy: MediaLibrary.SortBy.creationTime,
     });
-    const items: PhotoItem[] = await Promise.all(
-      assets.map(async (a) => ({ id: a.id, uri: await resolveLocalUri(a) }))
-    );
-    setPhotos(items);
-    setLoading(false);
+
+    // Загружаем localUri батчами по 5 — только file:// URI
+    const BATCH = 5;
+    const resolved: PhotoItem[] = [];
+    for (let i = 0; i < assets.length; i += BATCH) {
+      const batch = assets.slice(i, i + BATCH);
+      const uris = await Promise.all(batch.map((a) => resolveLocalUri(a)));
+      batch.forEach((a, j) => { resolved.push({ id: a.id, uri: uris[j] }); });
+      setPhotos([...resolved]);
+      if (i === 0) setLoading(false);
+    }
+    if (resolved.length === 0) setLoading(false);
   };
 
   const loadAlbums = async () => {
