@@ -1261,10 +1261,18 @@ const id = await createOrGetDirectChat(
                 <TouchableOpacity
                   style={s.menuItem}
                   onPress={async () => {
-                    console.log('[Delete] chatId:', chatId, 'msgId:', selectedMsg?.id);
                     if (!chatId || !selectedMsg?.id) return;
+                    const msgId = selectedMsg.id;
                     setSelectedMsg(null);
-                    await deleteMessageForAll(chatId, selectedMsg.id).catch((e) => console.warn('[Delete] error:', e));
+                    useAppStore.setState(s => ({
+                      messages: {
+                        ...s.messages,
+                        [chatId]: (s.messages[chatId] ?? []).map(m =>
+                          m.id === msgId ? { ...m, deletedForAll: true, text: '' } : m
+                        ),
+                      },
+                    }));
+                    await deleteMessageForAll(chatId, msgId).catch(() => {});
                   }}
                 >
                   <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Hamıdan sil</Text>
@@ -1274,8 +1282,16 @@ const id = await createOrGetDirectChat(
                 style={s.menuItem}
                 onPress={async () => {
                   if (!chatId || !selectedMsg?.id || !user?.uid) return;
+                  const msgIdMe = selectedMsg.id;
+                  const myUid = user.uid;
                   setSelectedMsg(null);
-                  await deleteMessageForMe(chatId, selectedMsg.id, user.uid).catch(() => {});
+                  useAppStore.setState(s => ({
+                    messages: {
+                      ...s.messages,
+                      [chatId]: (s.messages[chatId] ?? []).filter(m => m.id !== msgIdMe),
+                    },
+                  }));
+                  await deleteMessageForMe(chatId, msgIdMe, myUid).catch(() => {});
                 }}
               >
                 <Text style={s.menuItemText}>🗑 Yalnız məndən sil</Text>
