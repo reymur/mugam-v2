@@ -318,6 +318,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   const [loading,     setLoading]     = useState(true);
   const [recording,   setRecording]   = useState(false);
   const [voiceUploading, setVoiceUploading] = useState(false);
+  const [localDeletedIds, setLocalDeletedIds] = useState<Set<string>>(new Set());
   const [recDuration, setRecDuration] = useState(0);
   const [accepting,   setAccepting]   = useState(false);
   const [justAgreed,  setJustAgreed]  = useState(false);
@@ -774,7 +775,8 @@ const id = await createOrGetDirectChat(
     }
   }, [chatId, user, sendMessage, replyMsg, setReplyMsg]);
 
-  const chatMessages = chatId ? (messages[chatId] ?? []) : [];
+  const rawMessages = chatId ? (messages[chatId] ?? []) : [];
+  const chatMessages = rawMessages.map(m => localDeletedIds.has(m.id ?? '') ? { ...m, deletedForAll: true, text: '', deletedAt: new Date().toISOString() } : m);
   React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
 
 
@@ -1270,14 +1272,7 @@ const id = await createOrGetDirectChat(
                     if (!chatId || !selectedMsg?.id) return;
                     const msgId = selectedMsg.id;
                     setSelectedMsg(null);
-                    useAppStore.setState(s => ({
-                      messages: {
-                        ...s.messages,
-                        [chatId]: (s.messages[chatId] ?? []).map(m =>
-                          m.id === msgId ? { ...m, deletedForAll: true, text: '', deletedAt: new Date().toISOString() } : m
-                        ),
-                      },
-                    }));
+                    setLocalDeletedIds(prev => new Set([...prev, msgId]));
                     await deleteMessageForAll(chatId, msgId).catch(() => {});
                   }}
                 >
