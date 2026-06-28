@@ -1140,7 +1140,14 @@ const id = await createOrGetDirectChat(
                         >
                           <View style={{ padding: 10 }}>
                             <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
-                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : msg.replyTo.text?.startsWith('📷 IMAGE:') ? '📷 Sekil' : msg.replyTo.text}</Text>
+                            {msg.replyTo.text?.startsWith('📷 IMAGE:') ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Image source={{ uri: msg.replyTo.text.replace('📷 IMAGE:', '') }} style={{ width: 36, height: 36, borderRadius: 4 }} resizeMode="cover" />
+                                <Text style={s.replyQuoteText}>📷 Şəkil</Text>
+                              </View>
+                            ) : (
+                              <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : msg.replyTo.text}</Text>
+                            )}
                           </View>
                         </TouchableOpacity>
                       )}
@@ -1172,7 +1179,14 @@ const id = await createOrGetDirectChat(
                         >
                           <View style={{ padding: 10 }}>
                             <Text style={s.replyQuoteName}>{msg.replyTo.senderName}</Text>
-                            <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : msg.replyTo.text?.startsWith('📷 IMAGE:') ? '📷 Sekil' : msg.replyTo.text}</Text>
+                            {msg.replyTo.text?.startsWith('📷 IMAGE:') ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Image source={{ uri: msg.replyTo.text.replace('📷 IMAGE:', '') }} style={{ width: 36, height: 36, borderRadius: 4 }} resizeMode="cover" />
+                                <Text style={s.replyQuoteText}>📷 Şəkil</Text>
+                              </View>
+                            ) : (
+                              <Text style={s.replyQuoteText} numberOfLines={1}>{msg.replyTo.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : msg.replyTo.text}</Text>
+                            )}
                           </View>
                         </TouchableOpacity>
                       )}
@@ -1218,9 +1232,14 @@ const id = await createOrGetDirectChat(
           {replyMsg && (
             <View style={s.replyBar}>
               <View style={s.replyBarLine} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.replyBarName}>{replyMsg.mine ? 'Siz' : musician.name}</Text>
-                <Text style={s.replyBarText} numberOfLines={1}>{replyMsg.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : replyMsg.text?.startsWith('📷 IMAGE:') ? '📷 Sekil' : replyMsg.text}</Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {replyMsg.text?.startsWith('📷 IMAGE:') && (
+                  <Image source={{ uri: replyMsg.text.replace('📷 IMAGE:', '') }} style={{ width: 40, height: 40, borderRadius: 4 }} resizeMode="cover" />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.replyBarName}>{replyMsg.mine ? 'Siz' : musician.name}</Text>
+                  <Text style={s.replyBarText} numberOfLines={1}>{replyMsg.text?.startsWith('🎤 VOICE:') ? '🎤 Ses mesaji' : replyMsg.text?.startsWith('📷 IMAGE:') ? '📷 Şəkil' : replyMsg.text}</Text>
+                </View>
               </View>
               <TouchableOpacity onPress={() => setReplyMsg(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: 18, color: Colors.muted }}>✕</Text>
