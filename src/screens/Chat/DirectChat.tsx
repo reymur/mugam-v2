@@ -777,6 +777,22 @@ const id = await createOrGetDirectChat(
 
   const rawMessages = chatId ? (messages[chatId] ?? []) : [];
   const chatMessages = rawMessages.map(m => localDeletedIds.has(m.id ?? '') ? { ...m, deletedForAll: true, text: '', deletedAt: new Date().toISOString() } : m);
+
+  // Auto-remove deleted messages after 5 minutes
+  useEffect(() => {
+    const deletedMsgs = chatMessages.filter(m => m.deletedForAll && m.deletedAt);
+    if (deletedMsgs.length === 0) return;
+    const timers = deletedMsgs.map(m => {
+      const deletedAt = new Date(m.deletedAt!).getTime();
+      const remaining = Math.max(0, deletedAt + 5 * 60 * 1000 - Date.now());
+      return setTimeout(async () => {
+        if (!chatId || !m.id) return;
+        setLocalDeletedIds(prev => { const n = new Set(prev); n.delete(m.id!); return n; });
+        await deleteMessagePermanently(chatId, m.id).catch(() => {});
+      }, remaining);
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [chatMessages.filter(m => m.deletedForAll).length, chatId]);
   React.useEffect(() => { if (chatMessages.length >= 0 && msgsLoading) setMsgsLoading(false); }, [chatMessages]);
 
 
