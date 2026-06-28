@@ -1284,6 +1284,8 @@ const id = await createOrGetDirectChat(
             senderId={user?.uid}
             onSendMessage={(text) => sendMessage(chatId!, text)}
             onOpenGallery={() => setShowGallery(true)}
+            onSendOptimistic={(text) => sendMessage(chatId!, text)}
+            onUpdateMessage={(tempId, newText) => updateMessage(chatId!, tempId, newText)}
           />
         </KeyboardAvoidingView>
         <RNModal visible={!!selectedImage} transparent animationType="fade" onRequestClose={() => setSelectedImage(null)}>

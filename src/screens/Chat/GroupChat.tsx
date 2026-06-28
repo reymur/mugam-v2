@@ -369,6 +369,8 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             senderId={user?.uid}
             onSendMessage={(text) => sendMessage(chat.id, text)}
             onOpenGallery={() => setShowGallery(true)}
+            onSendOptimistic={(text) => sendMessage(chat.id, text)}
+            onUpdateMessage={(tempId, newText) => updateMessage(chat.id, tempId, newText)}
           />
         </KeyboardAvoidingView>
 
