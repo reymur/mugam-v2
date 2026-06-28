@@ -1278,7 +1278,7 @@ const id = await createOrGetDirectChat(
                       messages: {
                         ...s.messages,
                         [chatId]: (s.messages[chatId] ?? []).map(m =>
-                          m.id === msgId ? { ...m, deletedForAll: true, text: '' } : m
+                          m.id === msgId ? { ...m, deletedForAll: true, text: '', deletedAt: new Date().toISOString() } : m
                         ),
                       },
                     }));
