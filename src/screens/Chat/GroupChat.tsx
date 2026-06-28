@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
+import { Modal as RNModal,
   View, Text, TouchableOpacity, TextInput, AppState,
   StyleSheet, Animated, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions, ActivityIndicator,
@@ -13,6 +13,7 @@ import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, u
 import { Audio } from 'expo-av';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import ZoomableImage from '../../components/common/ZoomableImage';
 import GalleryPicker from '../../components/common/GalleryPicker';
 import { uploadChatImage } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
@@ -204,6 +205,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   }, [chat.id, user, sendMessage]);
 
   const [showGallery, setShowGallery] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
 
   const handleGallerySelect = async (uri: string) => {
     if (!chat?.id || !user?.uid) return;
@@ -301,7 +303,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                       {msg.text?.startsWith('🎤 VOICE:') ? (
                         <VoicePlayer uri={msg.text.replace('🎤 VOICE:', '')} mine={msg.mine} />
                       ) : msg.text?.startsWith('📷 IMAGE:') ? (
-                        <Image source={{ uri: msg.text.replace('📷 IMAGE:', '') }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
+                        <TouchableOpacity onPress={() => setSelectedImage(msg.text!.replace('📷 IMAGE:', ''))}>
+                          <Image source={{ uri: msg.text.replace('📷 IMAGE:', '') }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
+                        </TouchableOpacity>
                       ) : (
                         <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                           {msg.text}
@@ -367,6 +371,18 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             onOpenGallery={() => setShowGallery(true)}
           />
         </KeyboardAvoidingView>
+
+        <RNModal visible={!!selectedImage} transparent animationType="fade" onRequestClose={() => setSelectedImage(null)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+            <TouchableOpacity
+              onPress={() => setSelectedImage(null)}
+              style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 8 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 28 }}>✕</Text>
+            </TouchableOpacity>
+            {selectedImage && <ZoomableImage uri={selectedImage} />}
+          </View>
+        </RNModal>
 
         <GalleryPicker
           visible={showGallery}

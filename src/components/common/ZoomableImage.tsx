@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Animated, Dimensions, PanResponder, Pressable, View } from 'react-native';
+import { Animated, Dimensions, PanResponder, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
 const { width, height } = Dimensions.get('window');
@@ -9,119 +9,140 @@ interface Props {
 }
 
 export default function ZoomableImage({ uri }: Props) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale      = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
 
-  const scaleValue = useRef(1);
-  const txValue = useRef(0);
-  const tyValue = useRef(0);
-  const initialDistance = useRef(0);
+  const scaleValue   = useRef(1);
+  const txValue      = useRef(0);
+  const tyValue      = useRef(0);
+  const initialDist  = useRef(0);
   const initialScale = useRef(1);
-  const isPinching = useRef(false);
-
-  const tapCount = useRef(0);
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPinching   = useRef(false);
+  const lastTapTime  = useRef(0);
+  const pinchStarted = useRef(false);
 
   const getDistance = (touches: any[]) =>
-    Math.hypot(touches[1].pageX - touches[0].pageX, touches[1].pageY - touches[0].pageY);
+    Math.hypot(
+      touches[1].pageX - touches[0].pageX,
+      touches[1].pageY - touches[0].pageY
+    );
 
   const resetZoom = () => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
-      Animated.spring(translateX, { toValue: 0, useNativeDriver: true }),
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+      Animated.spring(scale,      { toValue: 1, useNativeDriver: true, tension: 100, friction: 8 }),
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 100, friction: 8 }),
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 100, friction: 8 }),
     ]).start();
     scaleValue.current = 1;
-    txValue.current = 0;
-    tyValue.current = 0;
-  };
-
-  const handlePress = (e: any) => {
-    tapCount.current += 1;
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-
-    if (tapCount.current >= 2) {
-      tapCount.current = 0;
-      if (scaleValue.current > 1) {
-        resetZoom();
-      } else {
-        const { locationX, locationY } = e.nativeEvent;
-        const cx = locationX - width / 2;
-        const cy = locationY - height / 2;
-        const ns = 2.5;
-        Animated.parallel([
-          Animated.spring(scale, { toValue: ns, useNativeDriver: true }),
-          Animated.spring(translateX, { toValue: (-cx * (ns - 1)) / ns, useNativeDriver: true }),
-          Animated.spring(translateY, { toValue: (-cy * (ns - 1)) / ns, useNativeDriver: true }),
-        ]).start();
-        scaleValue.current = ns;
-        txValue.current = (-cx * (ns - 1)) / ns;
-        tyValue.current = (-cy * (ns - 1)) / ns;
-      }
-    } else {
-      tapTimer.current = setTimeout(() => { tapCount.current = 0; }, 300);
-    }
+    txValue.current    = 0;
+    tyValue.current    = 0;
   };
 
   const panResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: (e) => e.nativeEvent.touches.length >= 2,
-    onStartShouldSetPanResponderCapture: (e) => e.nativeEvent.touches.length >= 2,
-    onMoveShouldSetPanResponder: (e, g) =>
-      e.nativeEvent.touches.length >= 2 ||
-      (scaleValue.current > 1 && (Math.abs(g.dx) > 3 || Math.abs(g.dy) > 3)),
-    onMoveShouldSetPanResponderCapture: (e) => e.nativeEvent.touches.length >= 2,
+    onStartShouldSetPanResponder:        () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponder:         () => true,
+    onMoveShouldSetPanResponderCapture:  () => true,
+    onPanResponderTerminationRequest:    () => false,
 
     onPanResponderGrant: (e) => {
       const touches = e.nativeEvent.touches;
-      if (touches.length === 2) {
-        isPinching.current = true;
-        initialDistance.current = getDistance(touches);
-        initialScale.current = scaleValue.current;
+      if (touches.length === 1) {
+        pinchStarted.current = false;
       }
     },
 
     onPanResponderMove: (e, g) => {
       const touches = e.nativeEvent.touches;
-      if (touches.length === 2 && initialDistance.current > 0) {
-        isPinching.current = true;
-        const newScale = Math.max(1, Math.min(5, initialScale.current * (getDistance(touches) / initialDistance.current)));
-        scale.setValue(newScale);
-        scaleValue.current = newScale;
+
+      if (touches.length === 2) {
+        const dist = getDistance(touches);
+        // Инициализируем pinch при первом движении двумя пальцами
+        if (!pinchStarted.current) {
+          pinchStarted.current = true;
+          isPinching.current   = true;
+          initialDist.current  = dist;
+          initialScale.current = scaleValue.current;
+          return;
+        }
+        if (initialDist.current > 0) {
+          const newScale = Math.max(1, Math.min(5,
+            initialScale.current * (dist / initialDist.current)
+          ));
+          scale.setValue(newScale);
+          scaleValue.current = newScale;
+        }
       } else if (touches.length === 1 && !isPinching.current && scaleValue.current > 1) {
         translateX.setValue(txValue.current + g.dx);
         translateY.setValue(tyValue.current + g.dy);
       }
     },
 
-    onPanResponderRelease: () => {
-      isPinching.current = false;
+    onPanResponderRelease: (e, g) => {
+      const remaining = e.nativeEvent.touches.length;
+
+      if (remaining === 0) {
+        isPinching.current   = false;
+        pinchStarted.current = false;
+        initialDist.current  = 0;
+      } else if (remaining === 1) {
+        pinchStarted.current = false;
+        isPinching.current   = false;
+        initialDist.current  = 0;
+      }
       scaleValue.current = (scale as any)._value;
-      txValue.current = (translateX as any)._value;
-      tyValue.current = (translateY as any)._value;
+      txValue.current    = (translateX as any)._value;
+      tyValue.current    = (translateY as any)._value;
       if (scaleValue.current <= 1) resetZoom();
-      initialDistance.current = 0;
     },
 
     onPanResponderTerminate: () => {
-      isPinching.current = false;
-      initialDistance.current = 0;
+      isPinching.current   = false;
+      pinchStarted.current = false;
+      initialDist.current  = 0;
     },
   })).current;
 
+  const handleDoubleTap = (e: any) => {
+    const now = Date.now();
+    if (now - lastTapTime.current < 300) {
+      lastTapTime.current = 0;
+      if (scaleValue.current > 1) {
+        resetZoom();
+      } else {
+        const cx = e.nativeEvent.locationX - width / 2;
+        const cy = e.nativeEvent.locationY - height / 2;
+        const ns = 2.5;
+        Animated.parallel([
+          Animated.spring(scale,      { toValue: ns, useNativeDriver: true }),
+          Animated.spring(translateX, { toValue: (-cx * (ns - 1)) / ns, useNativeDriver: true }),
+          Animated.spring(translateY, { toValue: (-cy * (ns - 1)) / ns, useNativeDriver: true }),
+        ]).start();
+        scaleValue.current = ns;
+        txValue.current    = (-cx * (ns - 1)) / ns;
+        tyValue.current    = (-cy * (ns - 1)) / ns;
+      }
+    } else {
+      lastTapTime.current = now;
+    }
+  };
+
   return (
-    <Pressable onPress={handlePress} style={{ flex: 1 }}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <Animated.View {...panResponder.panHandlers} style={{ transform: [{ scale }, { translateX }, { translateY }] }}>
-          <ExpoImage
-            source={{ uri }}
-            style={{ width, height: height * 0.75 }}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            transition={200}
-          />
-        </Animated.View>
-      </View>
-    </Pressable>
+    <View
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+      {...panResponder.panHandlers}
+    >
+      <Animated.View style={{ transform: [{ scale }, { translateX }, { translateY }] }}>
+        <ExpoImage
+          source={{ uri }}
+          style={{ width, height: height * 0.75 }}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          transition={200}
+          onTouchEnd={handleDoubleTap}
+        />
+      </Animated.View>
+    </View>
   );
 }
