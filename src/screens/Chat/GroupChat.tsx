@@ -13,6 +13,7 @@ import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, u
 import { Audio } from 'expo-av';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import GalleryPicker from '../../components/common/GalleryPicker';
 import { uploadChatImage } from '../../firebase/firestore';
@@ -39,10 +40,9 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
 
   const [inputText, setInputText] = useState('');
   const [replyMsg, setReplyMsg] = useState<Message | null>(null);
-  const [recording,   setRecording]   = useState(false);
-  const [recDuration, setRecDuration] = useState(0);
-  const recRef   = useRef<Audio.Recording | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { recording, recDuration, startRecording, stopAndGetUri } = useVoiceRecorder(
+    () => showToast?.('⚠️ Mikrofon icazəsi lazımdır')
+  );
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
 
   const [showInfo, setShowInfo] = useState(false);
@@ -173,36 +173,18 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
   }, [inputText, chat.id, user, sendMessage, replyMsg]);
 
-  const startRecording = useCallback(async () => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') return;
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await rec.startAsync();
-      recRef.current = rec;
-      setRecording(true);
-      setRecDuration(0);
-      timerRef.current = setInterval(() => setRecDuration(d => d + 1), 1000);
-    } catch { /* ignore */ }
-  }, []);
-
   const stopRecording = useCallback(async () => {
-    if (!recRef.current || !user) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    setRecording(false);
-    setRecDuration(0);
+    if (!user) return;
+    const uri = await stopAndGetUri();
+    if (!uri) { showToast?.('⚠️ Səs mesajı çox qısadır'); return; }
     try {
-      await recRef.current.stopAndUnloadAsync();
-      const uri = recRef.current.getURI();
-      recRef.current = null;
-      if (!uri) return;
       const voiceUrl = await uploadVoiceMessage(chat.id, uri, user.uid);
       await sendMessage(chat.id, `🎤 VOICE:${voiceUrl}`);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
-    } catch { /* ignore */ }
-  }, [chat.id, user, sendMessage]);
+    } catch {
+      showToast?.('⚠️ Səs mesajı göndərilmədi');
+    }
+  }, [chat.id, user, sendMessage, stopAndGetUri]);
 
   const [showGallery, setShowGallery] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);

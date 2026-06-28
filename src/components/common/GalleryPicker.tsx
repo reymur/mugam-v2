@@ -40,7 +40,6 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log('[GALLERY] visible changed:', visible);
     if (!visible) return;
     setTab('photos');
     loadPhotos();
@@ -53,7 +52,6 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
   };
 
   const loadPhotos = async (album?: MediaLibrary.Album) => {
-    console.log('[GALLERY] loadPhotos started');
     setLoading(true);
     setPhotos([]);
     const { assets } = await MediaLibrary.getAssetsAsync({

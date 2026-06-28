@@ -10,6 +10,7 @@ import { Audio } from 'expo-av';
 import { Linking } from 'react-native';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import GalleryPicker from '../../components/common/GalleryPicker';
 import { uploadChatImage } from '../../firebase/firestore';
@@ -348,10 +349,11 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   ];
   const [inputText,   setInputText]   = useState('');
   const [loading,     setLoading]     = useState(true);
-  const [recording,   setRecording]   = useState(false);
+  const { recording, recDuration, startRecording, stopAndGetUri } = useVoiceRecorder(
+    () => showToast('⚠️ Mikrofon icazəsi lazımdır')
+  );
   const [voiceUploading, setVoiceUploading] = useState(false);
   const [localDeletedIds, setLocalDeletedIds] = useState<Set<string>>(new Set());
-  const [recDuration, setRecDuration] = useState(0);
   const [accepting,   setAccepting]   = useState(false);
   const [justAgreed,  setJustAgreed]  = useState(false);
   const [initiatorUid, setInitiatorUid] = useState<string | null>(null);
@@ -732,55 +734,15 @@ const id = await createOrGetDirectChat(
   }, [inputText, chatId, user, musician, sendMessage, loadMessages, showToast]);
 
   // Start voice recording
-  const startRecording = useCallback(async () => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        showToast('⚠️ Mikrofon icazəsi lazımdır');
-        return;
-      }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await rec.startAsync();
-      recRef.current = rec;
-      setRecording(true);
-      setRecDuration(0);
-      durationRef.current = 0;
-      timerRef.current = setInterval(() => {
-        durationRef.current += 1;
-        setRecDuration(d => d + 1);
-      }, 1000);
-    } catch {
-      showToast('⚠️ Səs yazmaq mümkün olmadı');
-    }
-  }, [showToast]);
-
   // Stop and send voice message
   const stopRecording = useCallback(async () => {
-    if (!recRef.current || !user) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    const duration = durationRef.current;
-    setRecording(false);
-    setRecDuration(0);
-    if (duration < 1) {
-      await recRef.current.stopAndUnloadAsync().catch(() => {});
-      recRef.current = null;
-      showToast('⚠️ Səs mesajı çox qısadır');
-      return;
-    }
+    if (!user) return;
+    const uri = await stopAndGetUri();
+    if (!uri) { showToast('⚠️ Səs mesajı çox qısadır'); return; }
     try {
-      await recRef.current.stopAndUnloadAsync();
-      const uri = recRef.current.getURI();
-      recRef.current = null;
-      if (!uri) return;
-
       let activeChatId = chatId;
       if (!activeChatId) {
-const id = await createOrGetDirectChat(
+        const id = await createOrGetDirectChat(
           user.uid, musician.uid ?? musician.id,
           musician.name, musician.emoji,
           user.displayName, user.city,
@@ -789,11 +751,9 @@ const id = await createOrGetDirectChat(
         setChatId(prev => prev === id ? prev : id);
         loadMessages(id);
         setInitiatorUid(user.uid);
-        // Save new chatId to cache
         const musicianUid = musician.uid ?? musician.id;
         useAppStore.setState(s => ({ chatIdCache: { ...s.chatIdCache, [musicianUid]: id } }));
       }
-
       setVoiceUploading(true);
       const voiceUrl = await uploadVoiceMessage(activeChatId, uri, user.uid);
       setVoiceUploading(false);
@@ -805,7 +765,7 @@ const id = await createOrGetDirectChat(
       setVoiceUploading(false);
       showToast('⚠️ Səs mesajı göndərilmədi');
     }
-  }, [chatId, user, sendMessage, replyMsg, setReplyMsg]);
+  }, [chatId, user, sendMessage, replyMsg, stopAndGetUri]);
 
   const rawMessages = chatId ? (messages[chatId] ?? []) : [];
   const chatMessages = rawMessages.map(m => localDeletedIds.has(m.id ?? '') ? { ...m, deletedForAll: true, text: '', deletedAt: new Date().toISOString() } : m);
