@@ -1187,10 +1187,14 @@ const id = await createOrGetDirectChat(
           {/* Voice uploading placeholder */}
           {voiceUploading && (
             <View style={[s.msgWrap, s.msgWrapMine]}>
-              <View style={[s.msgBubble, s.msgBubbleMine, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }]}>
-                <Text style={{ fontSize: 16 }}>🎤</Text>
+              <View style={[s.msgBubble, s.msgBubbleMine, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, minWidth: 220 }]}>
                 <ActivityIndicator size="small" color="#1a0e00" />
-                <Text style={{ fontSize: 12, color: '#1a0e00' }}>Yüklənir...</Text>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2, height: 28 }}>
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <View key={i} style={{ width: 3, borderRadius: 2, height: Math.max(4, Math.round(Math.abs(Math.sin(i * 0.47 + 1.2)) * 20)), backgroundColor: 'rgba(26,14,0,0.25)' }} />
+                  ))}
+                </View>
+                <Text style={{ fontSize: 10, color: 'rgba(26,14,0,0.6)', fontFamily: Typography.nunito700 }}>0:00</Text>
               </View>
             </View>
           )}
