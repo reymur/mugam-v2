@@ -13,14 +13,17 @@ async function getDeviceId(): Promise<string> {
   }
 }
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList:   true,
-    shouldPlaySound:  true,
-    shouldSetBadge:   true,
-  }),
-});
+// FIX: обёрнут в try/catch — на Android Expo Go SDK 53 это крашит
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList:   true,
+      shouldPlaySound:  true,
+      shouldSetBadge:   true,
+    }),
+  });
+} catch {}
 
 export async function registerFCMToken(uid: string): Promise<() => void> {
   try {
@@ -36,7 +39,6 @@ export async function registerFCMToken(uid: string): Promise<() => void> {
     });
     const expoPushToken = tokenData.data;
     const deviceId = await getDeviceId();
-    // Save token under users/{uid}/pushTokens/{deviceId}
     await setDoc(
       doc(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens', deviceId),
       { token: expoPushToken, updatedAt: new Date().toISOString() }
@@ -47,7 +49,6 @@ export async function registerFCMToken(uid: string): Promise<() => void> {
         importance: Notifications.AndroidImportance.MAX,
       });
     }
-    // Return cleanup — remove token on logout
     return async () => {
       await deleteDoc(doc(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens', deviceId)).catch(() => {});
     };
@@ -58,8 +59,12 @@ export async function registerFCMToken(uid: string): Promise<() => void> {
 }
 
 async function getTokensForUid(uid: string): Promise<string[]> {
-  const snap = await getDocs(collection(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens'));
-  return snap.docs.map(d => d.data().token).filter(Boolean);
+  try {
+    const snap = await getDocs(collection(fbFirestore, COLLECTIONS.USERS, uid, 'pushTokens'));
+    return snap.docs.map(d => d.data().token).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export async function sendPushToUser(uid: string, title: string, body: string, data?: Record<string, string>): Promise<void> {
@@ -79,11 +84,8 @@ export async function sendPushToUser(uid: string, title: string, body: string, d
 
 export async function sendPushToUsers(uids: string[], title: string, body: string, data?: Record<string, string>): Promise<void> {
   try {
-    // Fetch all tokens for all uids
     const tokenArrays = await Promise.all(uids.map(uid => getTokensForUid(uid)));
-    // Deduplicate by token
     const tokenSet = new Set<string>(tokenArrays.flat());
-    // Send to unique tokens
     await Promise.all(
       [...tokenSet].map(token =>
         fetch('https://exp.host/--/api/v2/push/send', {
@@ -99,8 +101,12 @@ export async function sendPushToUsers(uids: string[], title: string, body: strin
 }
 
 export function setupForegroundHandler(): () => void {
-  const sub = Notifications.addNotificationReceivedListener(() => {});
-  return () => sub.remove();
+  try {
+    const sub = Notifications.addNotificationReceivedListener(() => {});
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
 }
 
 export function setupBackgroundHandler(): void {}
@@ -108,25 +114,26 @@ export function setupBackgroundHandler(): void {}
 export function onNotificationTap(
   callback: (data: Record<string, string>) => void,
 ): () => void {
-  // Handle tap when app is open or in background
-  // actionIdentifier check ensures this only fires on actual tap, not on receive
-  const sub = Notifications.addNotificationResponseReceivedListener(response => {
-    if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
-    const data = response.notification.request.content.data as Record<string, string>;
-    callback(data);
-  });
+  try {
+    const sub = Notifications.addNotificationResponseReceivedListener(response => {
+      if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+      const data = response.notification.request.content.data as Record<string, string>;
+      callback(data);
+    });
 
-  // Handle tap when app was closed (killed)
-  const LAST_NOTIF_KEY = 'lastHandledNotifId';
-  Notifications.getLastNotificationResponseAsync().then(response => {
-    if (!response) return;
-    const id = response.notification.request.identifier;
-    const lastId = (global as any)[LAST_NOTIF_KEY];
-    if (lastId === id) return;
-    (global as any)[LAST_NOTIF_KEY] = id;
-    const data = response.notification.request.content.data as Record<string, string>;
-    callback(data);
-  }).catch(() => {});
+    const LAST_NOTIF_KEY = 'lastHandledNotifId';
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (!response) return;
+      const id = response.notification.request.identifier;
+      const lastId = (global as any)[LAST_NOTIF_KEY];
+      if (lastId === id) return;
+      (global as any)[LAST_NOTIF_KEY] = id;
+      const data = response.notification.request.content.data as Record<string, string>;
+      callback(data);
+    }).catch(() => {});
 
-  return () => sub.remove();
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
 }

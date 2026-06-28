@@ -8,15 +8,18 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 
 interface VoicePlayerProps {
-  uri:       string;
-  mine:      boolean;
+  uri:          string;
+  mine:         boolean;
+  senderEmoji?: string;
   onLongPress?: () => void;
 }
 
-const BARS = 40;
-const BAR_HEIGHTS = Array.from({ length: BARS }, (_, i) =>
-  Math.max(0.15, Math.abs(Math.sin(i * 0.47 + 1.2) * Math.cos(i * 0.31)) * 0.85 + 0.15)
-);
+const BARS = 38;
+const BAR_HEIGHTS = Array.from({ length: BARS }, (_, i) => {
+  const v = Math.abs(Math.sin(i * 0.61 + 0.9) * Math.cos(i * 0.29 + 0.4));
+  const bump = (i % 5 === 2) ? 0.25 : (i % 3 === 0) ? 0.1 : 0;
+  return Math.max(0.1, Math.min(1, v * 0.7 + bump + 0.12));
+});
 
 function formatTime(ms: number): string {
   if (!ms || ms <= 0) return '0:00';
@@ -26,7 +29,7 @@ function formatTime(ms: number): string {
   return `${m}:${s}`;
 }
 
-export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
+export function VoicePlayer({ uri, mine, senderEmoji, onLongPress }: VoicePlayerProps) {
   const soundRef    = useRef<Audio.Sound | null>(null);
   const widthRef    = useRef(0);
   const isSeeking   = useRef(false);
@@ -39,15 +42,11 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
 
-  // 1. onPlaybackStatus — объявляем ПЕРВЫМ
   const onPlaybackStatus = useCallback((status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     const dur = status.durationMillis ?? 0;
     const pos = status.positionMillis ?? 0;
-    if (dur > 0) {
-      durationRef.current = dur;
-      setDuration(dur);
-    }
+    if (dur > 0) { durationRef.current = dur; setDuration(dur); }
     if (!isSeeking.current) {
       setPosition(pos);
       const p = dur > 0 ? pos / dur : 0;
@@ -63,13 +62,12 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
     }
   }, []);
 
-  // 2. useEffect — ПОСЛЕ onPlaybackStatus
   useEffect(() => {
     const load = async () => {
       try {
         await Audio.setAudioModeAsync({
-          allowsRecordingIOS:         false,
-          playsInSilentModeIOS:       true,
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
           playThroughEarpieceAndroid: false,
         });
         const sound = new Audio.Sound();
@@ -80,14 +78,10 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
           durationRef.current = status.durationMillis;
           setDuration(status.durationMillis);
         }
-      } catch { /* ignore */ }
+      } catch { }
     };
     load();
-    return () => {
-      soundRef.current?.unloadAsync().catch(() => {});
-      soundRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { soundRef.current?.unloadAsync().catch(() => {}); soundRef.current = null; };
   }, [uri]);
 
   const seekTo = useCallback(async (value: number) => {
@@ -99,16 +93,16 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
     }
   }, []);
 
-  const pageXRef      = useRef(0);
+  const pageXRef       = useRef(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didMove        = useRef(false);
 
   const panResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponder:        () => true,
     onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder:  () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderTerminationRequest: () => false,
+    onMoveShouldSetPanResponder:         () => true,
+    onMoveShouldSetPanResponderCapture:  () => true,
+    onPanResponderTerminationRequest:    () => false,
     onPanResponderGrant: (e) => {
       isSeeking.current = true;
       didMove.current = false;
@@ -133,7 +127,6 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
   const handlePress = async () => {
     try {
       setLoading(true);
-      console.log('[Voice] handlePress, playing:', playing, 'soundRef:', !!soundRef.current);
       if (playing) {
         await soundRef.current?.setStatusAsync({ shouldPlay: false });
         setPlaying(false);
@@ -144,63 +137,75 @@ export function VoicePlayer({ uri, mine, onLongPress }: VoicePlayerProps) {
         setPlaying(true);
         return;
       }
-      console.warn('[Voice] soundRef is null - sound not loaded');
     } catch (e) { console.warn('[Voice] error:', e); }
     finally { setLoading(false); }
   };
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    widthRef.current = e.nativeEvent.layout.width;
-  };
+  const onLayout = (e: LayoutChangeEvent) => { widthRef.current = e.nativeEvent.layout.width; };
 
-  const thumbPos    = progress * 100;
-  const timeLabel   = formatTime(playing || progress > 0 ? position : duration);
-  const colorFilled = mine ? 'rgba(26,14,0,0.8)' : Colors.gold;
-  const colorEmpty  = mine ? 'rgba(26,14,0,0.25)' : 'rgba(180,180,180,0.35)';
-  const thumbColor  = mine ? '#1a0e00' : Colors.gold;
+  const thumbPos = progress * 100;
+  const colorFilled = mine ? 'rgba(0,0,0,0.55)' : Colors.gold;
+  const colorEmpty  = mine ? 'rgba(0,0,0,0.2)'  : 'rgba(212,160,60,0.2)';
+  const thumbColor  = mine ? '#3a2000'           : Colors.gold;
+  const playColor   = mine ? '#1a0e00'           : Colors.gold;
+  const timeColor   = mine ? 'rgba(0,0,0,0.5)'  : Colors.muted;
 
   return (
     <View style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
-      <TouchableOpacity style={vs.playBtn} onPress={handlePress} onLongPress={onLongPress} delayLongPress={500} activeOpacity={0.7}>
-        {loading
-          ? <ActivityIndicator size="small" color={thumbColor} />
-          : <Text style={[vs.playIcon, { color: thumbColor }]}>
-              {playing ? '⏸' : '▶'}
-            </Text>
-        }
-      </TouchableOpacity>
 
-      <View style={vs.middle}>
-        <View
-          style={vs.waveform}
-          onLayout={onLayout}
-          {...panResponder.panHandlers}
-        >
-          {BAR_HEIGHTS.map((h, i) => {
-            const filled = (i / BARS) < progress;
-            return (
-              <View
-                key={i}
-                style={[
-                  vs.bar,
-                  {
-                    height: Math.round(h * 26),
-                    backgroundColor: filled ? colorFilled : colorEmpty,
-                  },
-                ]}
-              />
-            );
-          })}
-          <View
-            style={[
-              vs.thumb,
-              { left: `${thumbPos}%`, backgroundColor: thumbColor },
-            ]}
-          />
+      {/* ЛЕВАЯ ЧАСТЬ: аватарка с mic badge */}
+      <View style={vs.avatarWrap}>
+        <View style={[vs.avatar, mine ? vs.avatarMine : vs.avatarTheirs]}>
+          <Text style={vs.avatarEmoji}>{senderEmoji ?? (mine ? '👤' : '🎵')}</Text>
         </View>
-        <Text style={[vs.time, { color: mine ? '#1a0e00' : Colors.muted }]} onLongPress={onLongPress}>
-          {timeLabel}
-        </Text>
+        <View style={vs.micBadge}>
+          <Text style={vs.micEmoji}>🎤</Text>
+        </View>
+      </View>
+
+      {/* ПРАВАЯ ЧАСТЬ: [play] [волна+время] в одну строку */}
+      <View style={vs.right}>
+
+        {/* Верхний ряд: play + волна */}
+        <View style={vs.topRow}>
+          <TouchableOpacity
+            style={vs.playBtn}
+            onPress={handlePress}
+            onLongPress={onLongPress}
+            delayLongPress={500}
+            activeOpacity={0.6}
+          >
+            {loading
+              ? <ActivityIndicator size="small" color={playColor} />
+              : <Text style={[vs.playIcon, { color: playColor }]}>{playing ? '⏸' : '▶'}</Text>
+            }
+          </TouchableOpacity>
+
+          {/* Волновая форма */}
+          <View style={vs.waveform} onLayout={onLayout} {...panResponder.panHandlers}>
+            {BAR_HEIGHTS.map((h, i) => {
+              const filled = (i / BARS) < progress;
+              return (
+                <View
+                  key={i}
+                  style={[vs.bar, { height: Math.round(h * 26), backgroundColor: filled ? colorFilled : colorEmpty }]}
+                />
+              );
+            })}
+            <View style={[vs.thumb, { left: `${thumbPos}%`, backgroundColor: thumbColor }]} />
+          </View>
+        </View>
+
+        {/* Нижний ряд: два времени */}
+        <View style={vs.timeRow}>
+          <Text style={[vs.timeText, { color: timeColor }]}>
+            {formatTime(playing || progress > 0 ? position : 0)}
+          </Text>
+          <Text style={[vs.timeText, { color: timeColor }]}>
+            {formatTime(duration)}
+          </Text>
+        </View>
+
       </View>
     </View>
   );
@@ -227,19 +232,131 @@ export function VoiceRecorderBar({ recording, duration, onStop }: {
 }
 
 const vs = StyleSheet.create({
-  wrap:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 22, minWidth: 220, maxWidth: '80%' },
-  wrapMine:   { backgroundColor: Colors.gold, borderBottomRightRadius: 4 },
-  wrapTheirs: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
-  playBtn:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  playIcon:   { fontSize: 18 },
-  middle:     { flex: 1, flexDirection: 'column', gap: 3 },
-  waveform:   { flexDirection: 'row', alignItems: 'center', gap: 2, height: 34, position: 'relative' },
-  bar:        { width: 3, borderRadius: 2 },
-  thumb:      { position: 'absolute', width: 14, height: 14, borderRadius: 7, top: '50%', marginTop: -7, marginLeft: -7 },
-  time:       { fontSize: 10, fontFamily: Typography.nunito700, textAlign: 'right', color: 'inherit' },
-  recBar:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border },
-  recDot:     { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red },
-  recTime:    { fontSize: 14, color: Colors.red, fontWeight: 'bold' },
-  recHint:    { flex: 1, fontSize: 13, color: Colors.muted },
-  recStop:    { paddingHorizontal: 8 },
+  // Пузырь
+  wrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 20,
+    minWidth: 210,
+    maxWidth: '82%',
+    gap: 16,
+  },
+  wrapMine: {
+    backgroundColor: Colors.gold,
+    borderBottomRightRadius: 4,
+  },
+  wrapTheirs: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderBottomLeftRadius: 4,
+  },
+
+  // Аватарка
+  avatarWrap: {
+    width: 53,
+    height: 53,
+    flexShrink: 0,
+    position: 'relative',
+    marginLeft: -12,
+  },
+  avatar: {
+    width: 53,
+    height: 53,
+    borderRadius: 26,
+    alignItems: 'center', transform: [{ scale: 1.25 }],
+    justifyContent: 'center',
+  },
+  avatarMine: {
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  avatarTheirs: {
+    backgroundColor: Colors.bg3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  avatarEmoji: { fontSize: 24 },
+  micBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -3,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: Colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micEmoji: { fontSize: 7 },
+
+  // Правая часть
+  right: {
+    flex: 1,
+    flexDirection: 'column',
+    gap: 3,
+  },
+
+  // Верхний ряд: play + волна
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  // Play кнопка
+  playBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0, transform: [{ scale: 1.25 }, { translateY: 5 }, { translateX: 6 }], alignSelf: 'flex-end',
+  },
+  playIcon: {
+    fontSize: 22,
+    marginLeft: -12,
+  },
+
+  // Волна
+  waveform: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0,
+    height: 28,
+    position: 'relative', transform: [{ translateY: 7 }, { translateX: 6 }],
+  },
+  bar: {
+    width: 2.5,
+    borderRadius: 1.5,
+    flexShrink: 0,
+  },
+  thumb: {
+    position: 'absolute',
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    top: '50%',
+    marginTop: -5, transform: [{ translateY: -1 }],
+    marginLeft: -5,
+  },
+
+  // Времена
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between', transform: [{ translateY: 5 }],
+    paddingLeft: 30,
+  },
+  timeText: {
+    fontSize: 10,
+    fontFamily: Typography.nunito600,
+  },
+
+  // Запись
+  recBar:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(192,57,43,0.1)', borderTopWidth: 1, borderTopColor: Colors.border },
+  recDot:  { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.red },
+  recTime: { fontSize: 14, color: Colors.red, fontWeight: 'bold' },
+  recHint: { flex: 1, fontSize: 13, color: Colors.muted },
+  recStop: { paddingHorizontal: 8 },
 });

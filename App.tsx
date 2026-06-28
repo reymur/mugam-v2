@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, AppState } from 'react-native';
 import RootNavigator from './src/navigation/RootNavigator';
-import ToastOverlay  from './src/components/common/Toast';  // FIX: Toast здесь — вне NavigationContainer, поверх всего
+import ToastOverlay  from './src/components/common/Toast';
 import { useAppStore } from './src/store/useAppStore';
 import { setUserOnlineStatus } from './src/firebase/firestore';
 
@@ -27,20 +27,13 @@ export default function App() {
   const initApp = useAppStore(s => s.initApp);
   const user    = useAppStore(s => s.user);
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
   useEffect(() => {
     if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
       initApp();
     }
   }, [fontsLoaded, fontError]);
 
-  // Simple reliable approach for Expo Go:
-  // active = online, background = offline, logout = offline
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -59,12 +52,11 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" backgroundColor="#0c0a06" />
         <View style={{ flex: 1 }}>
           <RootNavigator />
-          {/* FIX: Toast рендерится ПОВЕРХ навигатора, не внутри него */}
           <ToastOverlay />
         </View>
       </SafeAreaProvider>

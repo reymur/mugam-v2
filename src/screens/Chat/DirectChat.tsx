@@ -1112,7 +1112,7 @@ const id = await createOrGetDirectChat(
                           </View>
                         </TouchableOpacity>
                       )}
-                      <VoicePlayer uri={voiceUri} mine={msg.mine} onLongPress={() => { console.log('[Voice] longPress msg:', msg.id, msg.mine); setSelectedMsg(msg); }} />
+                      <VoicePlayer uri={voiceUri} mine={msg.mine} senderEmoji={msg.mine ? (user?.emoji ?? '👤') : (musician?.emoji ?? '🎵')} onLongPress={() => { console.log('[Voice] longPress msg:', msg.id, msg.mine); setSelectedMsg(msg); }} />
                     </View>
                   ) : isImage && imageUri ? (
                     <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
