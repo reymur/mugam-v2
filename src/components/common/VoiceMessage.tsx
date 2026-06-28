@@ -151,7 +151,7 @@ export function VoicePlayer({ uri, mine, senderEmoji, onLongPress }: VoicePlayer
   const timeColor   = mine ? 'rgba(0,0,0,0.5)'  : Colors.muted;
 
   return (
-    <View style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]}>
+    <TouchableOpacity style={[vs.wrap, mine ? vs.wrapMine : vs.wrapTheirs]} onLongPress={onLongPress} delayLongPress={400} activeOpacity={1}>
 
       {/* ЛЕВАЯ ЧАСТЬ: аватарка с mic badge */}
       <View style={vs.avatarWrap}>
@@ -207,7 +207,7 @@ export function VoicePlayer({ uri, mine, senderEmoji, onLongPress }: VoicePlayer
         </View>
 
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
