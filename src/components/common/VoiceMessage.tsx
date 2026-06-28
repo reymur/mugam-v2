@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Colors } from '../../theme/colors';
+import { CheckMark } from './CheckMark';
 import { Typography } from '../../theme/typography';
 
 interface VoicePlayerProps {
@@ -12,6 +13,9 @@ interface VoicePlayerProps {
   mine:         boolean;
   senderEmoji?: string;
   onLongPress?: () => void;
+  status?: string;
+  isRead?: boolean;
+  isDelivered?: boolean;
 }
 
 const BARS = 38;
@@ -29,7 +33,7 @@ function formatTime(ms: number): string {
   return `${m}:${s}`;
 }
 
-export function VoicePlayer({ uri, mine, senderEmoji, onLongPress }: VoicePlayerProps) {
+export function VoicePlayer({ uri, mine, senderEmoji, onLongPress, status, isRead, isDelivered }: VoicePlayerProps) {
   const soundRef    = useRef<Audio.Sound | null>(null);
   const widthRef    = useRef(0);
   const isSeeking   = useRef(false);
@@ -204,6 +208,9 @@ export function VoicePlayer({ uri, mine, senderEmoji, onLongPress }: VoicePlayer
           <Text style={[vs.timeText, { color: timeColor }]}>
             {formatTime(duration)}
           </Text>
+          {mine && status !== 'sending' && status !== 'failed' && (
+            <CheckMark isRead={isRead ?? false} isDelivered={isDelivered ?? false} />
+          )}
         </View>
 
       </View>

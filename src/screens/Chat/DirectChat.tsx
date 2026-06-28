@@ -1112,7 +1112,15 @@ const id = await createOrGetDirectChat(
                           </View>
                         </TouchableOpacity>
                       )}
-                      <VoicePlayer uri={voiceUri} mine={msg.mine} senderEmoji={msg.mine ? (user?.emoji ?? '👤') : (musician?.emoji ?? '🎵')} onLongPress={() => { console.log('[Voice] longPress msg:', msg.id, msg.mine); setSelectedMsg(msg); }} />
+                      <VoicePlayer
+                        uri={voiceUri}
+                        mine={msg.mine}
+                        senderEmoji={msg.mine ? (user?.emoji ?? '👤') : (musician?.emoji ?? '🎵')}
+                        status={msg.status}
+                        isRead={(() => { const mUid = musician.uid ?? musician.id; const allMsgIds = chatMessages.map(m => m.id); const msgIndex = allMsgIds.indexOf(msg.id); const lastReadId = lastReadMsgId[mUid]; const lastReadIndex = lastReadId ? allMsgIds.indexOf(lastReadId) : -1; return lastReadIndex >= msgIndex && msgIndex !== -1; })()}
+                        isDelivered={(() => { const mUid = musician.uid ?? musician.id; const allMsgIds = chatMessages.map(m => m.id); const msgIndex = allMsgIds.indexOf(msg.id); const lastReadId = lastReadMsgId[mUid]; const lastReadIndex = lastReadId ? allMsgIds.indexOf(lastReadId) : -1; const isRead = lastReadIndex >= msgIndex && msgIndex !== -1; return deliveredTo[mUid] === true || isRead; })()}
+                        onLongPress={() => { setSelectedMsg(msg); }}
+                      />
                     </View>
                   ) : isImage && imageUri ? (
                     <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
