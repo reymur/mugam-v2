@@ -1087,7 +1087,7 @@ const id = await createOrGetDirectChat(
                           </View>
                         </TouchableOpacity>
                       )}
-                      <VoicePlayer uri={voiceUri} mine={msg.mine} onLongPress={() => setSelectedMsg(msg)} />
+                      <VoicePlayer uri={voiceUri} mine={msg.mine} onLongPress={() => { console.log('[Voice] longPress msg:', msg.id, msg.mine); setSelectedMsg(msg); }} />
                     </View>
                   ) : isImage && imageUri ? (
                     <TouchableOpacity onLongPress={() => setSelectedMsg(msg)} delayLongPress={400}>
@@ -1261,9 +1261,10 @@ const id = await createOrGetDirectChat(
                 <TouchableOpacity
                   style={s.menuItem}
                   onPress={async () => {
+                    console.log('[Delete] chatId:', chatId, 'msgId:', selectedMsg?.id);
                     if (!chatId || !selectedMsg?.id) return;
                     setSelectedMsg(null);
-                    await deleteMessageForAll(chatId, selectedMsg.id).catch(() => {});
+                    await deleteMessageForAll(chatId, selectedMsg.id).catch((e) => console.warn('[Delete] error:', e));
                   }}
                 >
                   <Text style={[s.menuItemText, { color: Colors.red }]}>🗑 Hamıdan sil</Text>

@@ -310,7 +310,8 @@ export async function fetchInitialMessages(chatId: string): Promise<{ msgs: Mess
 export function subscribeNewMessages(
   chatId: string,
   afterDoc: any,
-  cb: (msgs: Message[]) => void
+  cb: (msgs: Message[]) => void,
+  onModified?: (msgs: Message[]) => void
 ): () => void {
   const q = afterDoc
     ? query(
@@ -339,6 +340,10 @@ export function subscribeNewMessages(
       .filter(change => change.type === 'added')
       .map(change => docToMessage(change.doc));
     if (newMsgs.length > 0) cb(newMsgs);
+    const modifiedMsgs = snap.docChanges()
+      .filter(change => change.type === 'modified')
+      .map(change => docToMessage(change.doc));
+    if (modifiedMsgs.length > 0 && onModified) onModified(modifiedMsgs);
   });
 }
 

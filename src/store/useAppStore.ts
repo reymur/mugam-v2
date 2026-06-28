@@ -485,6 +485,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }
         return { messages: { ...s.messages, [chatId]: current } };
       });
+    }, (modifiedMsgs) => {
+      set(s => ({
+        messages: {
+          ...s.messages,
+          [chatId]: (s.messages[chatId] ?? []).map(m => {
+            const updated = modifiedMsgs.find(u => u.id === m.id);
+            return updated ? { ...updated, mine: updated.senderId === uid } : m;
+          }),
+        },
+      }));
     });
     set(s => ({ _chatUnsubs: { ...s._chatUnsubs, [chatId]: unsub } }));
   },
