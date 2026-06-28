@@ -803,11 +803,7 @@ const id = await createOrGetDirectChat(
     ? chatMessages
         .filter(m => !clearedAt || (m.createdAt && (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) > new Date(clearedAt)))
         .filter(m => !m.deletedFor?.includes(user?.uid ?? ''))
-        .filter(m => {
-          if (!m.deletedForAll) return true;
-          if (!m.deletedAt) return true;
-          return Date.now() - new Date(m.deletedAt).getTime() < 60000;
-        })
+        .filter(m => true)
         .map(m => ({ ...m, mine: m.senderId === user?.uid }))
     : [];
 
