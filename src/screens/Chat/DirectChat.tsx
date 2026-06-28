@@ -1048,10 +1048,17 @@ const id = await createOrGetDirectChat(
                   ref={r => { if (msg.id) msgRefs.current[msg.id] = r; }}
                 >
                 <SwipeableMessage
-                  onSwipeLeft={async () => {
+                  onSwipeLeft={msg.deletedForAll ? async () => {
                     if (!chatId || !msg.id) return;
-                    await deleteMessagePermanently(chatId, msg.id).catch(() => {});
-                  }}
+                    const delId = msg.id;
+                    useAppStore.setState(s => ({
+                      messages: {
+                        ...s.messages,
+                        [chatId]: (s.messages[chatId] ?? []).filter(m => m.id !== delId),
+                      },
+                    }));
+                    await deleteMessagePermanently(chatId, delId).catch(() => {});
+                  } : () => {}}
                   onSwipeRight={() => { setReplyMsg(msg); setTimeout(() => inputRef.current?.focus(), 100); }}
                 >
                 <View
