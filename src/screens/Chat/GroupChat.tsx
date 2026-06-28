@@ -13,6 +13,8 @@ import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, u
 import { Audio } from 'expo-av';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import GalleryPicker from '../../components/common/GalleryPicker';
+import { uploadChatImage } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
@@ -201,6 +203,18 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     } catch { /* ignore */ }
   }, [chat.id, user, sendMessage]);
 
+  const [showGallery, setShowGallery] = React.useState(false);
+
+  const handleGallerySelect = async (uri: string) => {
+    if (!chat?.id || !user?.uid) return;
+    try {
+      const url = await uploadChatImage(chat.id, uri, user.uid);
+      sendMessage(chat.id, `📷 IMAGE:${url}`);
+    } catch {
+      // silent
+    }
+  };
+
   return (
     <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: Colors.bg, zIndex: 200, transform: [{ translateX: slideAnim }] }]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
@@ -350,8 +364,15 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             chatId={chat.id}
             senderId={user?.uid}
             onSendMessage={(text) => sendMessage(chat.id, text)}
+            onOpenGallery={() => setShowGallery(true)}
           />
         </KeyboardAvoidingView>
+
+        <GalleryPicker
+          visible={showGallery}
+          onClose={() => setShowGallery(false)}
+          onSelect={handleGallerySelect}
+        />
 
         {/* Delete message modal */}
         <Modal transparent visible={!!selectedMsg} animationType="slide" onRequestClose={() => setSelectedMsg(null)}>

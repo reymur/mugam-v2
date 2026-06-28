@@ -15,7 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.mugam-v2",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Tətbiq kameraya daxil olmaq istəyir.",
+        "NSPhotoLibraryUsageDescription": "Tətbiq şəkillərinizə daxil olmaq istəyir."
       }
     },
     "android": {
@@ -24,7 +26,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": false,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,7 +39,14 @@
     "plugins": [
       "expo-font",
       "@react-native-community/datetimepicker",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tətbiq şəkillərinizə daxil olmaq istəyir.",
+          "cameraPermission": "Tətbiq kameraya daxil olmaq istəyir."
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -10,6 +10,8 @@ import { Audio } from 'expo-av';
 import { Linking } from 'react-native';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
+import GalleryPicker from '../../components/common/GalleryPicker';
+import { uploadChatImage } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
 import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
@@ -284,6 +286,17 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
   } = useAppStore();
 
   const [chatId,      setChatId]      = useState<string | null>(null);
+  const [showGallery, setShowGallery] = React.useState(false);
+
+  const handleGallerySelect = async (uri: string) => {
+    if (!chatId || !user?.uid) return;
+    try {
+      const url = await uploadChatImage(chatId, uri, user.uid);
+      sendMessage(chatId, `📷 IMAGE:${url}`);
+    } catch {
+      // silent
+    }
+  };
   const [msgsLoading, setMsgsLoading] = useState(false);
   const [recipientRead,  setRecipientRead]  = useState(false);
   const [recipientOnline, setRecipientOnline] = useState(false);
@@ -1228,8 +1241,14 @@ const id = await createOrGetDirectChat(
             chatId={chatId ?? undefined}
             senderId={user?.uid}
             onSendMessage={(text) => sendMessage(chatId!, text)}
+            onOpenGallery={() => setShowGallery(true)}
           />
         </KeyboardAvoidingView>
+        <GalleryPicker
+          visible={showGallery}
+          onClose={() => setShowGallery(false)}
+          onSelect={handleGallerySelect}
+        />
         <EventModal
           visible={showEventModal}
           mode="full"
