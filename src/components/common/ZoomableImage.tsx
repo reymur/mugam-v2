@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { Animated, Dimensions, PanResponder, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, Dimensions, PanResponder, View, ActivityIndicator } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
 const { width, height } = Dimensions.get('window');
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export default function ZoomableImage({ uri }: Props) {
+  const [loading, setLoading] = useState(true);
   const scale      = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -141,7 +142,16 @@ export default function ZoomableImage({ uri }: Props) {
           cachePolicy="memory-disk"
           transition={200}
           onTouchEnd={handleDoubleTap}
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => setLoading(false)}
         />
+        {loading && (
+          <ActivityIndicator
+            size="large"
+            color="#D4A03C"
+            style={{ position: 'absolute' }}
+          />
+        )}
       </Animated.View>
     </View>
   );
