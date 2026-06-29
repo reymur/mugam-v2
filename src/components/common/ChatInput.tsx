@@ -76,22 +76,27 @@ export default function ChatInput({
             <Text style={s.sendText}>➤</Text>
           </TouchableOpacity>
         ) : (
-          recordingMode === 'hold' ? (
-            <TouchableOpacity
-              style={[s.micBtn, recording && s.micBtnActive]}
-              onPressIn={onStartRecording}
-              onPressOut={onStopRecording}
-            >
-              <Text style={s.micIcon}>🎙</Text>
+          <View style={s.rightGroup}>
+            <TouchableOpacity style={s.micBtn} onPress={onOpenCamera}>
+              <Text style={s.micIcon}>📷</Text>
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[s.micBtn, recording && s.micBtnActive]}
-              onPress={recording ? onStopRecording : onStartRecording}
-            >
-              <Text style={s.micIcon}>{recording ? '⏹' : '🎙'}</Text>
-            </TouchableOpacity>
-          )
+            {recordingMode === 'hold' ? (
+              <TouchableOpacity
+                style={[s.micBtn, recording && s.micBtnActive]}
+                onPressIn={onStartRecording}
+                onPressOut={onStopRecording}
+              >
+                <Text style={s.micIcon}>🎙</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[s.micBtn, recording && s.micBtnActive]}
+                onPress={recording ? onStopRecording : onStartRecording}
+              >
+                <Text style={s.micIcon}>{recording ? '⏹' : '🎙'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
 
@@ -123,4 +128,5 @@ const s = StyleSheet.create({
   micBtn:       { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   micBtnActive: { opacity: 0.5 },
   micIcon:      { fontSize: 26 },
+  rightGroup:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
 });
