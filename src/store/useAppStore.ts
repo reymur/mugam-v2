@@ -499,12 +499,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   loadMessages: async (chatId) => {
     const uid = get().user?.uid;
+    // Populate from cache instantly before any Firestore call
+    const cachedRaw = await AsyncStorage.getItem(`chat_messages_${chatId}`).catch(() => null);
+    if (cachedRaw) {
+      try {
+        const cachedMsgs = JSON.parse(cachedRaw);
+        set(s => ({ messages: { ...s.messages, [chatId]: cachedMsgs } }));
+      } catch { /* ignore corrupt cache */ }
+    }
     // If already subscribed — do nothing
     if (get()._chatUnsubs[chatId]) return;
 
     // STEP 1: load last 50 messages once
     const { msgs: initialMsgs, oldestDoc, newestDoc } = await FireStore.fetchInitialMessages(chatId);
     const resolved = initialMsgs.map(m => ({ ...m, mine: m.senderId === uid }));
+    // Persist to cache (fire-and-forget) — serialize Firestore Timestamps to ISO strings
+    const serializable = resolved.map(m => ({
+      ...m,
+      createdAt: m.createdAt?.toDate ? m.createdAt.toDate().toISOString() : (m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt),
+    }));
+    AsyncStorage.setItem(`chat_messages_${chatId}`, JSON.stringify(serializable.slice(-50))).catch(() => {});
     set(s => ({
       messages: { ...s.messages, [chatId]: resolved },
       _chatCursors: { ...s._chatCursors, [chatId]: oldestDoc },

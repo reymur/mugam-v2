@@ -1070,7 +1070,7 @@ const id = await createOrGetDirectChat(
                 <ActivityIndicator size="small" color={Colors.gold} />
               </View>
             )}
-            {loading && (
+            {loading && chatMessages.length === 0 && (
               <View style={{ alignItems: 'center', padding: 30 }}>
                 <ActivityIndicator size="large" color={Colors.gold} />
               </View>
