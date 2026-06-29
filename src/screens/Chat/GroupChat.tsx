@@ -313,7 +313,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                           uri={msg.text.replace('📷 IMAGE:', '')}
                           onPress={() => setSelectedImage(msg.text!.replace('📷 IMAGE:', ''))}
                           onLongPress={() => setSelectedMsg(msg)}
-                          isUploading={msg.text.replace('📷 IMAGE:', '').startsWith('file://')}
+                          isUploading={msg.text.replace('📷 IMAGE:', '').startsWith('file://') && msg.id?.startsWith('tmp_')}
                         />
                       ) : (
                         <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>

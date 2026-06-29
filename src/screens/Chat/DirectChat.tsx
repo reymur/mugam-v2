@@ -1161,7 +1161,7 @@ const id = await createOrGetDirectChat(
                       uri={imageUri}
                       onPress={() => setSelectedImage(imageUri)}
                       onLongPress={() => setSelectedMsg(msg)}
-                      isUploading={imageUri.startsWith('file://')}
+                      isUploading={imageUri.startsWith('file://') && msg.id?.startsWith('tmp_')}
                     />
                   ) : (
                     <TouchableOpacity style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]} onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)} delayLongPress={400} activeOpacity={1}>

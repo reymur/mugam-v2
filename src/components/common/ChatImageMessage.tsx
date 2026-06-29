@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { TouchableOpacity, Image, StyleSheet, View, ActivityIndicator } from 'react-native';
 
 interface Props {
@@ -9,7 +9,19 @@ interface Props {
 }
 
 export default function ChatImageMessage({ uri, onPress, onLongPress, isUploading }: Props) {
-  console.log('[IMG_MSG] uri:', uri.slice(0,40), 'isUploading:', isUploading);
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!isUploading) {
+      setTimedOut(false);
+      return;
+    }
+    const t = setTimeout(() => setTimedOut(true), 10_000);
+    return () => clearTimeout(t);
+  }, [isUploading]);
+
+  const showSpinner = isUploading && !timedOut;
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -19,7 +31,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
     >
       <View style={s.container}>
         <Image source={{ uri }} style={s.image} resizeMode="cover" />
-        {isUploading && (
+        {showSpinner && (
           <View style={s.overlay}>
             <View style={s.spinnerBox}>
               <ActivityIndicator size="large" color="#fff" />
