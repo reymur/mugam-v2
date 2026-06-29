@@ -311,6 +311,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       }
       // Optimistic: показываем фото сразу с локальным URI
       const { tempId, realId } = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
       // Загружаем на Firebase в фоне
       const url = await uploadChatImage(activeChatId, uri, user.uid);
       // Обновляем tempMsg с реальным Firebase URL
@@ -346,6 +347,7 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         loadMessages(activeChatId);
       }
       const { tempId, realId } = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
       const url = await uploadChatImage(activeChatId, uri, user.uid);
       updateMessage(activeChatId, tempId, `📷 IMAGE:${url}`);
       if (realId) await updateMessageText(activeChatId, realId, `📷 IMAGE:${url}`).catch(() => {});
