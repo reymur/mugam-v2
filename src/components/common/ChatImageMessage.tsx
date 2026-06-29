@@ -8,6 +8,7 @@ const RADIUS = 28;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const memoryCache = new Map<string, string>();
+const getCacheKey = (url: string) => url.split('?')[0];
 
 interface Props {
   uri:          string;
@@ -19,10 +20,10 @@ interface Props {
 export default function ChatImageMessage({ uri, onPress, onLongPress, isUploading }: Props) {
   const [timedOut,         setTimedOut]         = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [cachedUri,        setCachedUri]        = useState<string | null>(() => memoryCache.get(uri) ?? null);
+  const [cachedUri,        setCachedUri]        = useState<string | null>(() => memoryCache.get(getCacheKey(uri)) ?? null);
   const [isDownloading,    setIsDownloading]    = useState(false);
   const [downloadFailed,   setDownloadFailed]   = useState(false);
-  const [androidLoading,   setAndroidLoading]   = useState(() => !memoryCache.has(uri));
+  const [androidLoading,   setAndroidLoading]   = useState(() => !memoryCache.has(getCacheKey(uri)));
 
   // Upload timeout — keeps spinner visible for up to 10 s
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
     if (Platform.OS === 'android') return;
 
     // 1. Memory cache — instant, no I/O, no reset
-    const memoryCached = memoryCache.get(uri);
+    const memoryCached = memoryCache.get(getCacheKey(uri));
     if (memoryCached) {
       setCachedUri(memoryCached);
       return;
@@ -72,7 +73,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
         // 2. Disk cache — fast but involves I/O
         const info = await FileSystem.getInfoAsync(cacheUri);
         if (info.exists) {
-          memoryCache.set(uri, cacheUri);
+          memoryCache.set(getCacheKey(uri), cacheUri);
           if (!cancelled) setCachedUri(cacheUri);
           return;
         }
@@ -95,7 +96,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
         const result = await dl.downloadAsync();
         if (!cancelled) {
           if (result?.uri) {
-            memoryCache.set(uri, result.uri);
+            memoryCache.set(getCacheKey(uri), result.uri);
             setCachedUri(result.uri);
             setDownloadProgress(100);
           } else {
@@ -141,7 +142,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
             contentFit="cover"
             cachePolicy="disk"
             onLoadStart={() => setAndroidLoading(true)}
-            onLoadEnd={() => { memoryCache.set(uri, uri); setAndroidLoading(false); }}
+            onLoadEnd={() => { memoryCache.set(getCacheKey(uri), uri); setAndroidLoading(false); }}
           />
         ) : !showProgress && displayUri ? (
           <ExpoImage source={{ uri: displayUri }} style={s.image} contentFit="cover" />
