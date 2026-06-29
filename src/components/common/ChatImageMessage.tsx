@@ -109,7 +109,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       activeOpacity={0.9}
     >
       <View style={s.container}>
-        {displayUri ? (
+        {!showSpinner && !showProgress && displayUri ? (
           <ExpoImage source={{ uri: displayUri }} style={s.image} contentFit="cover" />
         ) : (
           <View style={s.placeholder} />
