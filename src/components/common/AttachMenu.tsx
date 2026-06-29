@@ -16,8 +16,8 @@ export default function AttachMenu({
   visible, onClose, onDismiss, onOpenGallery, onOpenCamera,
 }: AttachMenuProps) {
   const ATTACH_ITEMS = [
-    { icon: '🖼',  label: 'Foto',    color: '#1565C0', onPress: () => { onClose(); onOpenGallery?.(); } },
-    { icon: '📷',  label: 'Kamera',  color: '#424242', onPress: () => { onClose(); onOpenCamera?.(); } },
+    { icon: '🖼',  label: 'Foto',    color: '#1565C0', onPress: () => { onClose(); setTimeout(() => onOpenGallery?.(), 400); } },
+    { icon: '📷',  label: 'Kamera',  color: '#424242', onPress: () => { onClose(); setTimeout(() => onOpenCamera?.(), 400); } },
     { icon: '📍',  label: 'Məkan',   color: '#00695C', onPress: () => { onClose(); Alert.alert('', 'Tezliklə'); } },
     { icon: '👤',  label: 'Kontakt', color: '#4A148C', onPress: () => { onClose(); Alert.alert('', 'Tezliklə'); } },
     { icon: '📄',  label: 'Sənəd',   color: '#E65100', onPress: () => { onClose(); Alert.alert('', 'Tezliklə'); } },
