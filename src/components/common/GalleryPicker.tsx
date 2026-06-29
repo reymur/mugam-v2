@@ -42,8 +42,15 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
   useEffect(() => {
     if (!visible) return;
     setTab('photos');
-    loadPhotos();
-    loadAlbums();
+    (async () => {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setLoading(false);
+        return;
+      }
+      loadPhotos();
+      loadAlbums();
+    })();
   }, [visible]);
 
   const resolveLocalUri = async (asset: MediaLibrary.Asset): Promise<string> => {
