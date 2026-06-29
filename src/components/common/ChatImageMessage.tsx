@@ -153,7 +153,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 }
 
 const s = StyleSheet.create({
-  container:    { width: 220, height: 220, borderRadius: 12, overflow: 'hidden' },
+  container:    { width: 220, height: 220, borderRadius: 12, overflow: 'hidden', backgroundColor: '#111' },
   image:        { width: 220, height: 220, backgroundColor: '#111' },
   placeholder:  { width: 220, height: 220, backgroundColor: '#111' },
   overlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
