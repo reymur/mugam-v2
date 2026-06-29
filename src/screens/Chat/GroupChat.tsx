@@ -18,7 +18,7 @@ import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import ChatImageMessage from '../../components/common/ChatImageMessage';
 import GalleryPicker from '../../components/common/GalleryPicker';
-import { uploadChatImage } from '../../firebase/firestore';
+import { uploadChatImage, updateMessageText } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
 import { deleteMessagePermanently, deleteMessageForAll, deleteMessageForMe } from '../../firebase/firestore';
 import type { ChatItem, Message } from '../../store/useAppStore';
@@ -195,9 +195,10 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     if (!chat?.id || !user?.uid) return;
     try {
       // Optimistic: показываем фото сразу с локальным URI
-      const tempId = await sendMessage(chat.id, `📷 IMAGE:${uri}`);
+      const { tempId, realId } = await sendMessage(chat.id, `📷 IMAGE:${uri}`);
       const url = await uploadChatImage(chat.id, uri, user.uid);
       updateMessage(chat.id, tempId, `📷 IMAGE:${url}`);
+      if (realId) await updateMessageText(chat.id, realId, `📷 IMAGE:${url}`).catch(() => {});
     } catch {
       // silent
     }
@@ -215,9 +216,10 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
     try {
-      const tempId = await sendMessage(chat.id, `📷 IMAGE:${uri}`);
+      const { tempId, realId } = await sendMessage(chat.id, `📷 IMAGE:${uri}`);
       const url = await uploadChatImage(chat.id, uri, user.uid);
       updateMessage(chat.id, tempId, `📷 IMAGE:${url}`);
+      if (realId) await updateMessageText(chat.id, realId, `📷 IMAGE:${url}`).catch(() => {});
     } catch {
       // silent
     }

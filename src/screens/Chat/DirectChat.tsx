@@ -15,7 +15,7 @@ import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import ChatImageMessage from '../../components/common/ChatImageMessage';
 import GalleryPicker from '../../components/common/GalleryPicker';
-import { uploadChatImage } from '../../firebase/firestore';
+import { uploadChatImage, updateMessageText } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
 import { Colors }     from '../../theme/colors';
 import EventModal from '../../components/common/EventModal';
@@ -310,11 +310,12 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         loadMessages(activeChatId);
       }
       // Optimistic: показываем фото сразу с локальным URI
-      const tempId = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
+      const { tempId, realId } = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
       // Загружаем на Firebase в фоне
       const url = await uploadChatImage(activeChatId, uri, user.uid);
       // Обновляем tempMsg с реальным Firebase URL
       updateMessage(activeChatId, tempId, `📷 IMAGE:${url}`);
+      if (realId) await updateMessageText(activeChatId, realId, `📷 IMAGE:${url}`).catch(() => {});
     } catch {
       // silent
     }
@@ -344,9 +345,10 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
         setChatId(activeChatId);
         loadMessages(activeChatId);
       }
-      const tempId = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
+      const { tempId, realId } = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
       const url = await uploadChatImage(activeChatId, uri, user.uid);
       updateMessage(activeChatId, tempId, `📷 IMAGE:${url}`);
+      if (realId) await updateMessageText(activeChatId, realId, `📷 IMAGE:${url}`).catch(() => {});
     } catch {
       // silent
     }
@@ -844,6 +846,7 @@ const id = await createOrGetDirectChat(
       }, 100);
     }
   }, [chatMessages.length]);
+  console.log('[READY_TO_SHOW]', readyToShow, 'chatMessages:', chatMessages.length);
   const resolved = (readyToShow || chatMessages.length === 0)
     ? chatMessages
         .filter(m => !clearedAt || (m.createdAt && (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) > new Date(clearedAt)))
@@ -1080,6 +1083,7 @@ const id = await createOrGetDirectChat(
             )}
 
             {resolved.map((msg, i) => {
+              console.log('[RECIPIENT_MSG]', 'id:', msg.id?.slice(0,15), 'text:', msg.text?.slice(0,60), 'mine:', msg.mine, 'readyToShow:', readyToShow);
               const isVoice = msg.text?.startsWith('🎤 VOICE:');
               const voiceUri = isVoice ? msg.text.replace('🎤 VOICE:', '') : null;
               const isImage = msg.text?.startsWith('📷 IMAGE:');

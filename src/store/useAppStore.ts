@@ -64,7 +64,7 @@ interface AppStore {
   addStory:     (s: Omit<FunCard, 'id'>)        => Promise<void>;
   applyGig:     (id: string)                    => Promise<void>;
   reactStory:   (storyId: string, reaction: 'laugh' | 'heart' | 'clap') => Promise<void>;
-  sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<string>;
+  sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<{ tempId: string; realId: string }>;
   updateMessage:    (chatId: string, tempId: string, newText: string) => void;
   addTempMessage:   (chatId: string, text: string) => string;
   loadMessages:     (chatId: string) => Promise<void>;
@@ -481,8 +481,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set(s => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), tempMsg] },
     }));
+    let realId = '';
     try {
-      await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo, tempId);
+      realId = await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo, tempId);
     } catch {
       set(s => ({
         messages: {
@@ -493,7 +494,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         },
       }));
     }
-    return tempId;
+    return { tempId, realId };
   },
 
   loadMessages: async (chatId) => {

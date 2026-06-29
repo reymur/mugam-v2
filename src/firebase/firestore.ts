@@ -363,7 +363,7 @@ export async function fetchMoreMessages(chatId: string, beforeDoc: any): Promise
   return { msgs, oldestDoc };
 }
 
-export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }, tempId?: string): Promise<void> {
+export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }, tempId?: string): Promise<string> {
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
 
   // Get members to increment unread for everyone except sender
@@ -403,6 +403,14 @@ export async function sendMessage(chatId: string, text: string, senderId: string
   const pushBody = `${senderName}: ${text.startsWith('🎤 VOICE:') ? '🎤 Səs mesajı' : text.slice(0, 100)}`;
   const receivers = members.filter(uid => uid !== senderId && !activeUsers.includes(uid));
   await sendPushToUsers(receivers, pushTitle, pushBody, { chatId, type: 'new_message', senderId });
+
+  return msgRef.id;
+}
+
+export async function updateMessageText(chatId: string, messageId: string, newText: string): Promise<void> {
+  await updateDoc(doc(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES, messageId), {
+    text: newText,
+  });
 }
 
 export async function markChatAsRead(chatId: string, uid: string): Promise<void> {
