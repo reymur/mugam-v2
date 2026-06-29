@@ -35,19 +35,25 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 
   // Download to cache and track real progress for https:// URIs
   useEffect(() => {
-    setCachedUri(null);
-    setIsDownloading(false);
-    setDownloadProgress(0);
-    setDownloadFailed(false);
+    if (!uri.startsWith('https://') || isUploading) {
+      setCachedUri(null);
+      setIsDownloading(false);
+      setDownloadProgress(0);
+      setDownloadFailed(false);
+      return;
+    }
 
-    if (!uri.startsWith('https://') || isUploading) return;
-
-    // 1. Memory cache — instant, no I/O
+    // 1. Memory cache — instant, no I/O, no reset
     const memoryCached = memoryCache.get(uri);
     if (memoryCached) {
       setCachedUri(memoryCached);
       return;
     }
+
+    setCachedUri(null);
+    setIsDownloading(false);
+    setDownloadProgress(0);
+    setDownloadFailed(false);
 
     // Derive a stable filename from the URL (works for Firebase Storage URLs)
     const rawPath = uri.split('?')[0];
