@@ -7,6 +7,8 @@ import Svg, { Circle } from 'react-native-svg';
 const RADIUS = 28;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
+const memoryCache = new Map<string, string>();
+
 interface Props {
   uri:          string;
   onPress:      () => void;
@@ -40,6 +42,13 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 
     if (!uri.startsWith('https://') || isUploading) return;
 
+    // 1. Memory cache — instant, no I/O
+    const memoryCached = memoryCache.get(uri);
+    if (memoryCached) {
+      setCachedUri(memoryCached);
+      return;
+    }
+
     // Derive a stable filename from the URL (works for Firebase Storage URLs)
     const rawPath = uri.split('?')[0];
     const filename = rawPath.split('%2F').pop() ?? rawPath.split('/').pop() ?? 'cached_img';
@@ -50,8 +59,10 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 
     const run = async () => {
       try {
+        // 2. Disk cache — fast but involves I/O
         const info = await FileSystem.getInfoAsync(cacheUri);
         if (info.exists) {
+          memoryCache.set(uri, cacheUri);
           if (!cancelled) setCachedUri(cacheUri);
           return;
         }
@@ -74,6 +85,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
         const result = await dl.downloadAsync();
         if (!cancelled) {
           if (result?.uri) {
+            memoryCache.set(uri, result.uri);
             setCachedUri(result.uri);
             setDownloadProgress(100);
           } else {
