@@ -11,10 +11,12 @@ import { Typography } from '../../theme/typography';
 import { useAppStore } from '../../store/useAppStore';
 import { markGroupChatAsReadBy, markChatAsDelivered, subscribeChat, setTyping, uploadVoiceMessage, addActiveUser, removeActiveUser } from '../../firebase/firestore';
 import { Audio } from 'expo-av';
+import * as ImagePicker from 'expo-image-picker';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import ZoomableImage from '../../components/common/ZoomableImage';
+import ChatImageMessage from '../../components/common/ChatImageMessage';
 import GalleryPicker from '../../components/common/GalleryPicker';
 import { uploadChatImage } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
@@ -35,7 +37,7 @@ interface Props {
 
 
 export default function GroupChat({ chat: chatProp, onClose }: Props) {
-  const { user, messages, sendMessage, loadMessages, loadMoreMessages, showToast, chats, setRemovedFromGroup, _chatHasMore } = useAppStore();
+  const { user, messages, sendMessage, updateMessage, loadMessages, loadMoreMessages, showToast, chats, setRemovedFromGroup, _chatHasMore } = useAppStore();
   const chat = chats.find(ch => ch.id === chatProp.id) ?? chatProp;
 
   const [inputText, setInputText] = useState('');
@@ -192,8 +194,30 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
   const handleGallerySelect = async (uri: string) => {
     if (!chat?.id || !user?.uid) return;
     try {
+      // Optimistic: показываем фото сразу с локальным URI
+      const tempId = await sendMessage(chat.id, `📷 IMAGE:${uri}`);
       const url = await uploadChatImage(chat.id, uri, user.uid);
-      sendMessage(chat.id, `📷 IMAGE:${url}`);
+      updateMessage(chat.id, tempId, `📷 IMAGE:${url}`);
+    } catch {
+      // silent
+    }
+  };
+
+  const handleCameraSelect = async () => {
+    if (!chat?.id || !user?.uid) return;
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) { Alert.alert('', 'Kamera icazəsi lazımdır'); return; }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: 'images',
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    try {
+      const tempId = await sendMessage(chat.id, `📷 IMAGE:${uri}`);
+      const url = await uploadChatImage(chat.id, uri, user.uid);
+      updateMessage(chat.id, tempId, `📷 IMAGE:${url}`);
     } catch {
       // silent
     }
@@ -273,7 +297,7 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                     {!msg.mine && (
                       <Text style={s.senderName}>{msg.senderName}</Text>
                     )}
-                    <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]}>
+                    <View style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs, msg.text?.startsWith('📷 IMAGE:') ? { padding: 0, backgroundColor: 'transparent', borderWidth: 0 } : {}]}>
                       {msg.replyTo && (
                         <TouchableOpacity style={[s.replyQuote, msg.mine ? s.replyQuoteMine : s.replyQuoteTheirs]} onPress={() => { if (msg.replyTo?.id) scrollToMessage(msg.replyTo.id, scrollRef, inputRef); }} activeOpacity={0.7}>
                           <View style={{ padding: 8 }}>
@@ -285,9 +309,12 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
                       {msg.text?.startsWith('🎤 VOICE:') ? (
                         <VoicePlayer uri={msg.text.replace('🎤 VOICE:', '')} mine={msg.mine} />
                       ) : msg.text?.startsWith('📷 IMAGE:') ? (
-                        <TouchableOpacity onPress={() => setSelectedImage(msg.text!.replace('📷 IMAGE:', ''))}>
-                          <Image source={{ uri: msg.text.replace('📷 IMAGE:', '') }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
-                        </TouchableOpacity>
+                        <ChatImageMessage
+                          uri={msg.text.replace('📷 IMAGE:', '')}
+                          onPress={() => setSelectedImage(msg.text!.replace('📷 IMAGE:', ''))}
+                          onLongPress={() => setSelectedMsg(msg)}
+                          isUploading={msg.text.replace('📷 IMAGE:', '').startsWith('file://')}
+                        />
                       ) : (
                         <Text style={[s.msgText, msg.mine ? s.msgTextMine : s.msgTextTheirs]}>
                           {msg.text}
@@ -347,12 +374,8 @@ export default function GroupChat({ chat: chatProp, onClose }: Props) {
             recDuration={recDuration}
             inputRef={inputRef}
             recordingMode="toggle"
-            chatId={chat.id}
-            senderId={user?.uid}
-            onSendMessage={(text) => sendMessage(chat.id, text)}
             onOpenGallery={() => setShowGallery(true)}
-            onSendOptimistic={(text) => sendMessage(chat.id, text)}
-            onUpdateMessage={(tempId, newText) => updateMessage(chat.id, tempId, newText)}
+            onOpenCamera={handleCameraSelect}
           />
         </KeyboardAvoidingView>
 

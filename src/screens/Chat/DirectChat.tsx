@@ -7,11 +7,13 @@ import { Modal as RNModal,
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Audio } from 'expo-av';
+import * as ImagePicker from 'expo-image-picker';
 import { Linking } from 'react-native';
 import { VoicePlayer } from '../../components/common/VoiceMessage';
 import ChatInput from '../../components/common/ChatInput';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import ZoomableImage from '../../components/common/ZoomableImage';
+import ChatImageMessage from '../../components/common/ChatImageMessage';
 import GalleryPicker from '../../components/common/GalleryPicker';
 import { uploadChatImage } from '../../firebase/firestore';
 import TypingIndicator from '../../components/common/TypingIndicator';
@@ -282,7 +284,7 @@ interface Props {
 
 export default function DirectChat({ musician, onClose, onAgreed, onCancelled, fromInvite: fromInviteProp }: Props) {
   const {
-    user, messages, sendMessage, loadMessages, loadMoreMessages, showToast, _chatHasMore,
+    user, messages, sendMessage, updateMessage, loadMessages, loadMoreMessages, showToast, _chatHasMore,
     updateInviteStatus, receivedInvites,
     createAgreement, hasAgreementWith,
   } = useAppStore();
@@ -317,6 +319,39 @@ export default function DirectChat({ musician, onClose, onAgreed, onCancelled, f
       // silent
     }
   };
+  const handleCameraSelect = async () => {
+    if (!user?.uid) return;
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) { Alert.alert('', 'Kamera icazəsi lazımdır'); return; }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: 'images',
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    try {
+      let activeChatId = chatId;
+      if (!activeChatId) {
+        activeChatId = await createOrGetDirectChat(
+          user.uid,
+          musician.uid ?? musician.id,
+          musician.name,
+          musician.emoji,
+          user.displayName,
+          user.city,
+        );
+        setChatId(activeChatId);
+        loadMessages(activeChatId);
+      }
+      const tempId = await sendMessage(activeChatId, `📷 IMAGE:${uri}`);
+      const url = await uploadChatImage(activeChatId, uri, user.uid);
+      updateMessage(activeChatId, tempId, `📷 IMAGE:${url}`);
+    } catch {
+      // silent
+    }
+  };
+
   const [msgsLoading, setMsgsLoading] = useState(false);
   const [recipientRead,  setRecipientRead]  = useState(false);
   const [recipientOnline, setRecipientOnline] = useState(false);
@@ -1122,13 +1157,12 @@ const id = await createOrGetDirectChat(
                       />
                     </View>
                   ) : isImage && imageUri ? (
-                    <TouchableOpacity
+                    <ChatImageMessage
+                      uri={imageUri}
                       onPress={() => setSelectedImage(imageUri)}
                       onLongPress={() => setSelectedMsg(msg)}
-                      delayLongPress={400}
-                    >
-                      <Image source={{ uri: imageUri }} style={{ width: 220, height: 220, borderRadius: 12 }} resizeMode="cover" />
-                    </TouchableOpacity>
+                      isUploading={imageUri.startsWith('file://')}
+                    />
                   ) : (
                     <TouchableOpacity style={[s.msgBubble, msg.mine ? s.msgBubbleMine : s.msgBubbleTheirs]} onLongPress={() => !isDeletedForAll && setSelectedMsg(msg)} delayLongPress={400} activeOpacity={1}>
                       {msg.replyTo && (
@@ -1240,12 +1274,8 @@ const id = await createOrGetDirectChat(
             recDuration={recDuration}
             inputRef={inputRef}
             recordingMode="hold"
-            chatId={chatId ?? undefined}
-            senderId={user?.uid}
-            onSendMessage={(text) => sendMessage(chatId!, text)}
             onOpenGallery={() => setShowGallery(true)}
-            onSendOptimistic={(text) => sendMessage(chatId!, text)}
-            onUpdateMessage={(tempId, newText) => updateMessage(chatId!, tempId, newText)}
+            onOpenCamera={handleCameraSelect}
           />
         </KeyboardAvoidingView>
         <RNModal visible={!!selectedImage} transparent animationType="fade" onRequestClose={() => setSelectedImage(null)}>

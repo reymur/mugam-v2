@@ -65,7 +65,8 @@ interface AppStore {
   applyGig:     (id: string)                    => Promise<void>;
   reactStory:   (storyId: string, reaction: 'laugh' | 'heart' | 'clap') => Promise<void>;
   sendMessage:  (chatId: string, text: string, replyTo?: { id: string; text: string; senderName: string })  => Promise<string>;
-  updateMessage:(chatId: string, tempId: string, newText: string) => void;
+  updateMessage:    (chatId: string, tempId: string, newText: string) => void;
+  addTempMessage:   (chatId: string, text: string) => string;
   loadMessages:     (chatId: string) => Promise<void>;
   loadMoreMessages: (chatId: string) => Promise<void>;
 
@@ -414,6 +415,37 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       await FireStore.reactToStory(storyId, reaction, uid, false);
     } catch { /* keep optimistic */ }
+  },
+
+  addTempMessage: (chatId, text) => {
+    const user = get().user;
+    if (!user) return '';
+    const tempId = `tmp_img_${user.uid}_${Date.now()}`;
+    const time = new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
+    const tempMsg = {
+      id:         tempId,
+      text,
+      mine:       true,
+      time,
+      senderId:   user.uid,
+      senderName: user.displayName,
+      status:     'sending' as const,
+      createdAt:  new Date(),
+      readBy:     [],
+    };
+    set(s => ({
+      messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), tempMsg] },
+    }));
+    return tempId;
+  },
+
+  removeTempMessage: (chatId, tempId) => {
+    set(s => ({
+      messages: {
+        ...s.messages,
+        [chatId]: (s.messages[chatId] ?? []).filter(m => m.id !== tempId),
+      },
+    }));
   },
 
   updateMessage: (chatId, tempId, newText) => {

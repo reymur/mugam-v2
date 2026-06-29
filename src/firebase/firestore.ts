@@ -5,7 +5,8 @@ import {
   writeBatch, arrayUnion, arrayRemove,
   type QuerySnapshot, type DocumentData,
 } from 'firebase/firestore';
-import { fbFirestore, COLLECTIONS } from './config';
+import { fbFirestore, fbStorage, COLLECTIONS } from './config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { sendPushToUser, sendPushToUsers } from './messaging';
 import type {
   Musician, GigItem, BoardItem, MarketItem,
@@ -1148,8 +1149,6 @@ export async function updateGroupInfo(chatId: string, name: string, emoji: strin
 }
 
 export async function uploadChatImage(chatId: string, uri: string, senderId: string): Promise<string> {
-  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-  const { fbStorage } = await import('./config');
   const blob: Blob = await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.onload = () => resolve(xhr.response);
@@ -1165,8 +1164,6 @@ export async function uploadChatImage(chatId: string, uri: string, senderId: str
 }
 
 export async function uploadVoiceMessage(chatId: string, uri: string, senderId: string): Promise<string> {
-  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-  const { fbStorage } = await import('./config');
   const blob: Blob = await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.onload = () => resolve(xhr.response);
@@ -1182,8 +1179,6 @@ export async function uploadVoiceMessage(chatId: string, uri: string, senderId: 
 }
 
 export async function uploadGroupPhoto(chatId: string, uri: string): Promise<string> {
-  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-  const { fbStorage } = await import('./config');
   const blob: Blob = await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.onload = () => resolve(xhr.response);

@@ -17,12 +17,8 @@ interface ChatInputProps {
   recDuration:       number;
   inputRef?:         React.RefObject<TextInput>;
   recordingMode?:    'hold' | 'toggle';
-  chatId?:           string;
-  senderId?:         string;
-  onSendMessage?:    (text: string) => void;
   onOpenGallery?:    () => void;
-  onSendOptimistic?: (text: string) => Promise<string>;
-  onUpdateMessage?:  (tempId: string, newText: string) => void;
+  onOpenCamera?:     () => void;
 }
 
 export default function ChatInput({
@@ -31,12 +27,10 @@ export default function ChatInput({
   recording, recDuration,
   inputRef,
   recordingMode = 'hold',
-  chatId, senderId, onSendMessage, onOpenGallery,
-  onSendOptimistic, onUpdateMessage,
+  onOpenGallery, onOpenCamera,
 }: ChatInputProps) {
   const insets = useSafeAreaInsets();
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [pendingGallery, setPendingGallery] = useState(false);
   const hasText = value.trim().length > 0;
   const mins = String(Math.floor(recDuration / 60)).padStart(2, '0');
   const secs = String(recDuration % 60).padStart(2, '0');
@@ -82,48 +76,31 @@ export default function ChatInput({
             <Text style={s.sendText}>➤</Text>
           </TouchableOpacity>
         ) : (
-          <View style={s.rightGroup}>
-            <TouchableOpacity style={s.sideBtn} onPress={() => setShowAttachMenu(true)}>
-              <Text style={s.sideBtnText}>📷</Text>
+          recordingMode === 'hold' ? (
+            <TouchableOpacity
+              style={[s.micBtn, recording && s.micBtnActive]}
+              onPressIn={onStartRecording}
+              onPressOut={onStopRecording}
+            >
+              <Text style={s.micIcon}>🎙</Text>
             </TouchableOpacity>
-            {recordingMode === 'hold' ? (
-              <TouchableOpacity
-                style={[s.micBtn, recording && s.micBtnActive]}
-                onPressIn={onStartRecording}
-                onPressOut={onStopRecording}
-              >
-                <Text style={s.micIcon}>🎙</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[s.micBtn, recording && s.micBtnActive]}
-                onPress={recording ? onStopRecording : onStartRecording}
-              >
-                <Text style={s.micIcon}>{recording ? '⏹' : '🎙'}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          ) : (
+            <TouchableOpacity
+              style={[s.micBtn, recording && s.micBtnActive]}
+              onPress={recording ? onStopRecording : onStartRecording}
+            >
+              <Text style={s.micIcon}>{recording ? '⏹' : '🎙'}</Text>
+            </TouchableOpacity>
+          )
         )}
       </View>
 
       <AttachMenu
         visible={showAttachMenu}
         onClose={() => setShowAttachMenu(false)}
-        onDismiss={() => {
-          if (pendingGallery) {
-            setPendingGallery(false);
-            onOpenGallery?.();
-          }
-        }}
-        chatId={chatId}
-        senderId={senderId}
-        onSendMessage={onSendMessage}
-        onSendOptimistic={onSendOptimistic}
-        onUpdateMessage={onUpdateMessage}
-        onOpenGallery={() => {
-          setPendingGallery(true);
-          setShowAttachMenu(false);
-        }}
+        onDismiss={() => setShowAttachMenu(false)}
+        onOpenGallery={onOpenGallery}
+        onOpenCamera={onOpenCamera}
       />
     </View>
   );
@@ -143,7 +120,6 @@ const s = StyleSheet.create({
   emojiBtn:     { paddingBottom: 4, paddingLeft: 6 },
   sendBtn:      { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.gold, alignItems: 'center', justifyContent: 'center' },
   sendText:     { color: '#1a0e00', fontSize: 16, fontFamily: Typography.nunito700 },
-  rightGroup:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
   micBtn:       { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   micBtnActive: { opacity: 0.5 },
   micIcon:      { fontSize: 26 },
