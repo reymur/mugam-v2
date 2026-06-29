@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, Image, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 interface Props {
   uri:          string;
@@ -30,7 +31,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       activeOpacity={0.9}
     >
       <View style={s.container}>
-        <Image source={{ uri }} style={s.image} resizeMode="cover" />
+        <ExpoImage source={{ uri }} style={s.image} contentFit="cover" cachePolicy="memory-disk" />
         {showSpinner && (
           <View style={s.overlay}>
             <View style={s.spinnerBox}>
