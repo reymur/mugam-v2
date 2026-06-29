@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, StyleSheet, View, ActivityIndicator, Text, Platform } from 'react-native';
+import { TouchableOpacity, StyleSheet, View, ActivityIndicator, Text } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Circle } from 'react-native-svg';
@@ -9,6 +9,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const memoryCache = new Map<string, string>();
 const getCacheKey = (url: string) => url.split('?')[0];
+const IMAGES_DIR = 'chat_images/';
 
 interface Props {
   uri:          string;
@@ -23,7 +24,6 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
   const [cachedUri,        setCachedUri]        = useState<string | null>(() => memoryCache.get(getCacheKey(uri)) ?? null);
   const [isDownloading,    setIsDownloading]    = useState(false);
   const [downloadFailed,   setDownloadFailed]   = useState(false);
-  const [androidLoading,   setAndroidLoading]   = useState(() => !memoryCache.has(getCacheKey(uri)));
 
   // Upload timeout — keeps spinner visible for up to 10 s
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
     return () => clearTimeout(t);
   }, [isUploading]);
 
-  // Download to cache and track real progress for https:// URIs
+  // Download to permanent documentDirectory storage with real progress
   useEffect(() => {
     if (!uri.startsWith('https://') || isUploading) {
       setCachedUri(null);
@@ -45,11 +45,10 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       return;
     }
 
-    // Android: ExpoImage handles caching natively — no FileSystem needed
-    if (Platform.OS === 'android') return;
+    const key = getCacheKey(uri);
 
-    // 1. Memory cache — instant, no I/O, no reset
-    const memoryCached = memoryCache.get(getCacheKey(uri));
+    // Level 1: memory cache — instant, zero I/O
+    const memoryCached = memoryCache.get(key);
     if (memoryCached) {
       setCachedUri(memoryCached);
       return;
@@ -60,29 +59,34 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
     setDownloadProgress(0);
     setDownloadFailed(false);
 
-    // Derive a stable filename from the URL (works for Firebase Storage URLs)
     const rawPath = uri.split('?')[0];
-    const filename = rawPath.split('%2F').pop() ?? rawPath.split('/').pop() ?? 'cached_img';
-    const cacheUri = (FileSystem.cacheDirectory ?? '') + filename;
+    const filename = rawPath.split('%2F').pop() ?? rawPath.split('/').pop() ?? `img_${Date.now()}`;
+    const localPath = (FileSystem.documentDirectory ?? '') + IMAGES_DIR + filename;
 
     let dl: ReturnType<typeof FileSystem.createDownloadResumable> | null = null;
     let cancelled = false;
 
     const run = async () => {
       try {
-        // 2. Disk cache — fast but involves I/O
-        const info = await FileSystem.getInfoAsync(cacheUri);
+        // Level 2: permanent storage — survives app restart
+        const info = await FileSystem.getInfoAsync(localPath);
         if (info.exists) {
-          memoryCache.set(getCacheKey(uri), cacheUri);
-          if (!cancelled) setCachedUri(cacheUri);
+          memoryCache.set(key, localPath);
+          if (!cancelled) setCachedUri(localPath);
           return;
         }
         if (cancelled) return;
 
+        // Level 3: download with real progress
+        await FileSystem.makeDirectoryAsync(
+          (FileSystem.documentDirectory ?? '') + IMAGES_DIR,
+          { intermediates: true },
+        );
         setIsDownloading(true);
+
         dl = FileSystem.createDownloadResumable(
           uri,
-          cacheUri,
+          localPath,
           {},
           (progressData) => {
             if (cancelled) return;
@@ -96,7 +100,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
         const result = await dl.downloadAsync();
         if (!cancelled) {
           if (result?.uri) {
-            memoryCache.set(getCacheKey(uri), result.uri);
+            memoryCache.set(key, result.uri);
             setCachedUri(result.uri);
             setDownloadProgress(100);
           } else {
@@ -121,8 +125,6 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 
   const showSpinner      = isUploading && !timedOut;
   const showProgress     = isDownloading;
-  const isAndroidHttps   = Platform.OS === 'android' && uri.startsWith('https://') && !isUploading;
-  const displayUri       = isUploading ? uri : (cachedUri ?? (downloadFailed ? uri : null));
   const strokeDashoffset = CIRCUMFERENCE * (1 - downloadProgress / 100);
 
   return (
@@ -133,24 +135,17 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       activeOpacity={0.9}
     >
       <View style={s.container}>
-        {showSpinner ? (
+        {showSpinner || showProgress ? (
           <View style={s.placeholder} />
-        ) : isAndroidHttps ? (
-          <ExpoImage
-            source={{ uri }}
-            style={s.image}
-            contentFit="cover"
-            cachePolicy="disk"
-            onLoadStart={() => setAndroidLoading(true)}
-            onLoadEnd={() => { memoryCache.set(getCacheKey(uri), uri); setAndroidLoading(false); }}
-          />
-        ) : !showProgress && displayUri ? (
-          <ExpoImage source={{ uri: displayUri }} style={s.image} contentFit="cover" />
+        ) : cachedUri ? (
+          <ExpoImage source={{ uri: cachedUri }} style={s.image} contentFit="cover" />
+        ) : downloadFailed ? (
+          <ExpoImage source={{ uri }} style={s.image} contentFit="cover" />
         ) : (
           <View style={s.placeholder} />
         )}
 
-        {/* Upload spinner — both platforms */}
+        {/* Upload spinner */}
         {showSpinner && (
           <View style={s.overlay}>
             <View style={s.spinnerBox}>
@@ -159,16 +154,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
           </View>
         )}
 
-        {/* Android network load spinner */}
-        {isAndroidHttps && androidLoading && (
-          <View style={s.overlay}>
-            <View style={s.spinnerBox}>
-              <ActivityIndicator size="large" color="#fff" />
-            </View>
-          </View>
-        )}
-
-        {/* iOS download progress arc */}
+        {/* Download progress arc */}
         {showProgress && (
           <View style={s.overlay}>
             <Svg width={72} height={72}>
