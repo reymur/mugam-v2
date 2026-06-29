@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, StyleSheet, View, ActivityIndicator, Text } from 'react-native';
+import { TouchableOpacity, StyleSheet, View, ActivityIndicator, Text, Platform } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Circle } from 'react-native-svg';
@@ -22,6 +22,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
   const [cachedUri,        setCachedUri]        = useState<string | null>(() => memoryCache.get(uri) ?? null);
   const [isDownloading,    setIsDownloading]    = useState(false);
   const [downloadFailed,   setDownloadFailed]   = useState(false);
+  const [androidLoading,   setAndroidLoading]   = useState(false);
 
   // Upload timeout — keeps spinner visible for up to 10 s
   useEffect(() => {
@@ -42,6 +43,9 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       setDownloadFailed(false);
       return;
     }
+
+    // Android: ExpoImage handles caching natively — no FileSystem needed
+    if (Platform.OS === 'android') return;
 
     // 1. Memory cache — instant, no I/O, no reset
     const memoryCached = memoryCache.get(uri);
@@ -116,6 +120,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 
   const showSpinner      = isUploading && !timedOut;
   const showProgress     = isDownloading;
+  const isAndroidHttps   = Platform.OS === 'android' && uri.startsWith('https://') && !isUploading;
   const displayUri       = isUploading ? uri : (cachedUri ?? (downloadFailed ? uri : null));
   const strokeDashoffset = CIRCUMFERENCE * (1 - downloadProgress / 100);
 
@@ -127,12 +132,24 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       activeOpacity={0.9}
     >
       <View style={s.container}>
-        {!showSpinner && !showProgress && displayUri ? (
+        {showSpinner ? (
+          <View style={s.placeholder} />
+        ) : isAndroidHttps ? (
+          <ExpoImage
+            source={{ uri }}
+            style={s.image}
+            contentFit="cover"
+            cachePolicy="disk"
+            onLoadStart={() => setAndroidLoading(true)}
+            onLoadEnd={() => setAndroidLoading(false)}
+          />
+        ) : !showProgress && displayUri ? (
           <ExpoImage source={{ uri: displayUri }} style={s.image} contentFit="cover" />
         ) : (
           <View style={s.placeholder} />
         )}
 
+        {/* Upload spinner — both platforms */}
         {showSpinner && (
           <View style={s.overlay}>
             <View style={s.spinnerBox}>
@@ -141,6 +158,16 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
           </View>
         )}
 
+        {/* Android network load spinner */}
+        {isAndroidHttps && androidLoading && (
+          <View style={s.overlay}>
+            <View style={s.spinnerBox}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          </View>
+        )}
+
+        {/* iOS download progress arc */}
         {showProgress && (
           <View style={s.overlay}>
             <Svg width={72} height={72}>
