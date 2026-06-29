@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Modal,
-  ScrollView, Image, Dimensions, ActivityIndicator,
+  ScrollView, Image, Dimensions, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
@@ -38,13 +38,16 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [albums, setAlbums] = useState<AlbumItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
     setTab('photos');
+    setPermissionStatus(null);
     (async () => {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
+        setPermissionStatus(status);
         setLoading(false);
         return;
       }
@@ -146,6 +149,15 @@ export default function GalleryPicker({ visible, onClose, onSelect }: Props) {
           <View style={s.loader}>
             <ActivityIndicator color={Colors.gold} size="large" />
           </View>
+        ) : permissionStatus !== null && permissionStatus !== 'granted' ? (
+          <View style={s.permissionContainer}>
+            <Text style={s.permissionIcon}>🖼</Text>
+            <Text style={s.permissionTitle}>Qalereya icazəsi lazımdır</Text>
+            <Text style={s.permissionSubtitle}>Foto göndərmək üçün qalereya icazəsi verin</Text>
+            <TouchableOpacity style={s.permissionButton} onPress={() => Linking.openSettings()}>
+              <Text style={s.permissionButtonText}>Parametrləri aç</Text>
+            </TouchableOpacity>
+          </View>
         ) : tab === 'photos' ? (
           <ScrollView>
             <View style={s.photoGrid}>
@@ -194,6 +206,12 @@ const s = StyleSheet.create({
   albumEmpty:    { backgroundColor: Colors.bg3 },
   albumName:     { color: Colors.text, fontSize: 13, fontFamily: Typography.nunito500, marginTop: 6 },
   albumCount:    { color: Colors.muted, fontSize: 12, fontFamily: Typography.nunito400 },
-  photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', width: '100%' },
-  albumGrid:     { flexDirection: 'row', flexWrap: 'wrap', padding: 4 },
+  photoGrid:            { flexDirection: 'row', flexWrap: 'wrap', width: '100%' },
+  albumGrid:            { flexDirection: 'row', flexWrap: 'wrap', padding: 4 },
+  permissionContainer:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, backgroundColor: Colors.bg },
+  permissionIcon:       { fontSize: 48, marginBottom: 16 },
+  permissionTitle:      { fontSize: 18, color: Colors.text, fontFamily: Typography.playfair700, textAlign: 'center', marginBottom: 8 },
+  permissionSubtitle:   { fontSize: 14, color: Colors.muted, fontFamily: Typography.nunito400, textAlign: 'center', marginBottom: 24 },
+  permissionButton:     { borderWidth: 1, borderColor: Colors.gold, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
+  permissionButtonText: { fontSize: 14, color: Colors.gold, fontFamily: Typography.nunito600 },
 });
