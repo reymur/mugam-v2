@@ -22,7 +22,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
   const [cachedUri,        setCachedUri]        = useState<string | null>(() => memoryCache.get(uri) ?? null);
   const [isDownloading,    setIsDownloading]    = useState(false);
   const [downloadFailed,   setDownloadFailed]   = useState(false);
-  const [androidLoading,   setAndroidLoading]   = useState(false);
+  const [androidLoading,   setAndroidLoading]   = useState(() => !memoryCache.has(uri));
 
   // Upload timeout — keeps spinner visible for up to 10 s
   useEffect(() => {
@@ -141,7 +141,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
             contentFit="cover"
             cachePolicy="disk"
             onLoadStart={() => setAndroidLoading(true)}
-            onLoadEnd={() => setAndroidLoading(false)}
+            onLoadEnd={() => { memoryCache.set(uri, uri); setAndroidLoading(false); }}
           />
         ) : !showProgress && displayUri ? (
           <ExpoImage source={{ uri: displayUri }} style={s.image} contentFit="cover" />
