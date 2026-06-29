@@ -31,7 +31,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
       activeOpacity={0.9}
     >
       <View style={s.container}>
-        <ExpoImage source={{ uri }} style={s.image} contentFit="cover" cachePolicy="memory-disk" />
+        <ExpoImage source={{ uri }} style={s.image} contentFit="cover" />
         {showSpinner && (
           <View style={s.overlay}>
             <View style={s.spinnerBox}>
