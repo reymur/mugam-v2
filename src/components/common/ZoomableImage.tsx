@@ -11,23 +11,18 @@ interface Props {
 export default function ZoomableImage({ uri }: Props) {
   const [loading, setLoading] = useState(true);
 
-  // Animated values — driven by refs below, never read via ._value
   const scale      = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
 
-  // Source-of-truth refs — always updated in the same statement as the Animated.Value
   const scaleValue   = useRef(1);
   const txValue      = useRef(0);
   const tyValue      = useRef(0);
 
-  // Pinch tracking
   const initialDist  = useRef(0);
   const initialScale = useRef(1);
   const isPinching   = useRef(false);
   const pinchStarted = useRef(false);
-
-  // Double-tap tracking
   const lastTapTime  = useRef(0);
 
   const getDistance = (touches: any[]) =>
@@ -55,6 +50,7 @@ export default function ZoomableImage({ uri }: Props) {
     onPanResponderTerminationRequest:    () => false,
 
     onPanResponderGrant: (e) => {
+      console.log('[ZI] Grant touches:', e.nativeEvent.touches.length, 'scale:', scaleValue.current.toFixed(2));
       if (e.nativeEvent.touches.length === 1) {
         pinchStarted.current = false;
       }
@@ -66,6 +62,7 @@ export default function ZoomableImage({ uri }: Props) {
       if (touches.length === 2) {
         const dist = getDistance(touches);
         if (!pinchStarted.current) {
+          console.log('[ZI] Pinch START dist:', dist.toFixed(0), 'initialScale:', scaleValue.current.toFixed(2));
           pinchStarted.current = true;
           isPinching.current   = true;
           initialDist.current  = dist;
@@ -76,72 +73,87 @@ export default function ZoomableImage({ uri }: Props) {
           const newScale = Math.max(1, Math.min(5,
             initialScale.current * (dist / initialDist.current)
           ));
-          scale.setValue(newScale);        // Animated.Value updated
-          scaleValue.current = newScale;   // ref updated in same block — always in sync
+          console.log('[ZI] Pinch MOVE newScale:', newScale.toFixed(2));
+          scale.setValue(newScale);
+          scaleValue.current = newScale;
         }
       } else if (touches.length === 1 && !isPinching.current && scaleValue.current > 1) {
         translateX.setValue(txValue.current + g.dx);
         translateY.setValue(tyValue.current + g.dy);
-        // txValue/tyValue are committed on release, not here
       }
     },
 
     onPanResponderRelease: (e, g) => {
       const remaining = e.nativeEvent.touches.length;
+      console.log('[ZI] Release remaining:', remaining, 'isPinching:', isPinching.current, 'scale:', scaleValue.current.toFixed(2));
 
       if (remaining === 0) {
         if (isPinching.current) {
-          // All fingers lifted after a pinch — scaleValue.current is the source of truth
+          // Pinch ended — reset flags and block any double-tap that fires after
           isPinching.current   = false;
           pinchStarted.current = false;
           initialDist.current  = 0;
+          lastTapTime.current  = 0;  // block phantom double-tap from finger lifts
           if (scaleValue.current <= 1.01) {
+            console.log('[ZI] Pinch end: resetZoom (scale near 1)');
             resetZoom();
           }
         } else {
-          // Pure pan ended — commit the accumulated translate offset into refs
-          txValue.current += g.dx;
-          tyValue.current += g.dy;
+          // Pan or single-tap ended — detect double-tap here, not in onTouchEnd
+          const now    = Date.now();
+          const wasTap = Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10;
+          console.log('[ZI] Pan/tap release dx:', g.dx.toFixed(0), 'dy:', g.dy.toFixed(0), 'timeSinceLast:', now - lastTapTime.current);
+
+          if (wasTap && now - lastTapTime.current < 300) {
+            console.log('[ZI] DOUBLE TAP → scale:', scaleValue.current.toFixed(2));
+            lastTapTime.current = 0;
+            if (scaleValue.current > 1) {
+              resetZoom();
+            } else {
+              const cx = e.nativeEvent.locationX - width / 2;
+              const cy = e.nativeEvent.locationY - height / 2;
+              const ns = 2.5;
+              const tx = (-cx * (ns - 1)) / ns;
+              const ty = (-cy * (ns - 1)) / ns;
+              Animated.parallel([
+                Animated.spring(scale,      { toValue: ns, useNativeDriver: true, tension: 100, friction: 8 }),
+                Animated.spring(translateX, { toValue: tx, useNativeDriver: true, tension: 100, friction: 8 }),
+                Animated.spring(translateY, { toValue: ty, useNativeDriver: true, tension: 100, friction: 8 }),
+              ]).start();
+              scaleValue.current = ns;
+              txValue.current    = tx;
+              tyValue.current    = ty;
+            }
+          } else if (wasTap) {
+            console.log('[ZI] Single tap recorded');
+            lastTapTime.current = now;
+          } else {
+            // Pure pan — commit accumulated translate
+            console.log('[ZI] Pan commit dx:', g.dx.toFixed(0), 'dy:', g.dy.toFixed(0));
+            txValue.current    += g.dx;
+            tyValue.current    += g.dy;
+            lastTapTime.current = 0;
+          }
         }
       } else if (remaining === 1) {
-        // One finger still on screen — keep isPinching true until ALL fingers are lifted
+        // First finger of a pinch lifted — keep isPinching true, reset tap tracking
         pinchStarted.current = false;
         initialDist.current  = 0;
+        if (isPinching.current) {
+          lastTapTime.current = 0;  // prevent the first finger lift from starting a tap sequence
+          console.log('[ZI] First pinch finger lifted, isPinching stays true');
+        }
       }
     },
 
     onPanResponderTerminate: () => {
+      console.log('[ZI] TERMINATE fired! scale:', scaleValue.current.toFixed(2));
       isPinching.current   = false;
       pinchStarted.current = false;
       initialDist.current  = 0;
+      lastTapTime.current  = 0;
     },
   })).current;
-
-  const handleDoubleTap = (e: any) => {
-    const now = Date.now();
-    if (now - lastTapTime.current < 300) {
-      lastTapTime.current = 0;
-      if (scaleValue.current > 1) {
-        resetZoom();
-      } else {
-        const cx = e.nativeEvent.locationX - width / 2;
-        const cy = e.nativeEvent.locationY - height / 2;
-        const ns = 2.5;
-        const tx = (-cx * (ns - 1)) / ns;
-        const ty = (-cy * (ns - 1)) / ns;
-        Animated.parallel([
-          Animated.spring(scale,      { toValue: ns, useNativeDriver: true, tension: 100, friction: 8 }),
-          Animated.spring(translateX, { toValue: tx, useNativeDriver: true, tension: 100, friction: 8 }),
-          Animated.spring(translateY, { toValue: ty, useNativeDriver: true, tension: 100, friction: 8 }),
-        ]).start();
-        scaleValue.current = ns;  // ref updated alongside Animated.spring target
-        txValue.current    = tx;
-        tyValue.current    = ty;
-      }
-    } else {
-      lastTapTime.current = now;
-    }
-  };
 
   return (
     <View
@@ -155,7 +167,6 @@ export default function ZoomableImage({ uri }: Props) {
           contentFit="contain"
           cachePolicy="memory-disk"
           transition={200}
-          onTouchEnd={handleDoubleTap}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}
         />
