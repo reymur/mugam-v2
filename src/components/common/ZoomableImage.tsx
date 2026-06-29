@@ -149,7 +149,7 @@ export default function ZoomableImage({ uri }: Props) {
           <ActivityIndicator
             size="large"
             color="#D4A03C"
-            style={{ position: 'absolute' }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
         )}
       </Animated.View>
