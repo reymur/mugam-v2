@@ -453,7 +453,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       messages: {
         ...s.messages,
         [chatId]: (s.messages[chatId] ?? []).map(m =>
-          m.id === tempId ? { ...m, text: newText } : m
+          m.id === tempId || m.tempId === tempId
+            ? { ...m, text: newText, status: 'sent' as const }
+            : m
         ),
       },
     }));
@@ -480,7 +482,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       messages: { ...s.messages, [chatId]: [...(s.messages[chatId] ?? []), tempMsg] },
     }));
     try {
-      await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo);
+      await FireStore.sendMessage(chatId, text, user.uid, user.displayName, replyTo, tempId);
     } catch {
       set(s => ({
         messages: {
@@ -516,12 +518,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
         for (const realMsg of resolvedNew) {
           // Check if already in list by real id
           if (current.some(m => m.id === realMsg.id)) continue;
-          // Find temp message with same senderId (first one)
-          const tempIdx = current.findIndex(
-            m => m.id?.startsWith('tmp_') && m.senderId === realMsg.senderId
-          );
+          // Match by tempId first (precise), then fallback to senderId
+          let tempIdx = realMsg.tempId
+            ? current.findIndex(m => m.id === realMsg.tempId)
+            : -1;
+          if (tempIdx === -1) {
+            tempIdx = current.findIndex(
+              m => m.id?.startsWith('tmp_') && m.senderId === realMsg.senderId
+            );
+          }
           if (tempIdx !== -1) {
-            // Replace temp with real
+            // realMsg already carries .tempId from docToMessage — updateMessage can find it
             current[tempIdx] = realMsg;
           } else {
             // No temp found — just append

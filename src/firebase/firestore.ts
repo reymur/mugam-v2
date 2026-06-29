@@ -290,6 +290,7 @@ function docToMessage(d: any): Message {
     senderName: data.senderName ?? '',
     isSystem: data.isSystem ?? false,
     readBy: data.readBy ?? [],
+    tempId: data.tempId ?? undefined,
   } as Message;
 }
 
@@ -362,7 +363,7 @@ export async function fetchMoreMessages(chatId: string, beforeDoc: any): Promise
   return { msgs, oldestDoc };
 }
 
-export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }): Promise<void> {
+export async function sendMessage(chatId: string, text: string, senderId: string, senderName: string, replyTo?: { id: string; text: string; senderName: string }, tempId?: string): Promise<void> {
   const chatRef = doc(fbFirestore, COLLECTIONS.CHATS, chatId);
 
   // Get members to increment unread for everyone except sender
@@ -373,6 +374,7 @@ export async function sendMessage(chatId: string, text: string, senderId: string
 
   const msgData: Record<string, any> = { text, senderId, senderName, createdAt: serverTimestamp(), readBy: [senderId] };
   if (replyTo) msgData.replyTo = replyTo;
+  if (tempId) msgData.tempId = tempId;
 
   const msgRef = doc(collection(fbFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES));
   batch.set(msgRef, msgData);

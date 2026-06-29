@@ -172,6 +172,7 @@ export interface Message {
   isSystem?:      boolean;
   readBy?:        string[];
   status?:        'sending' | 'sent' | 'failed';
+  tempId?:        string;
 }
 
 export type Lang = 'az' | 'ru';
