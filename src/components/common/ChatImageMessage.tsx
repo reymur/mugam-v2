@@ -154,7 +154,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
 
 const s = StyleSheet.create({
   container:    { width: 220, height: 220, borderRadius: 12, overflow: 'hidden' },
-  image:        { width: 220, height: 220 },
+  image:        { width: 220, height: 220, backgroundColor: '#111' },
   placeholder:  { width: 220, height: 220, backgroundColor: '#111' },
   overlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   spinnerBox:   { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
