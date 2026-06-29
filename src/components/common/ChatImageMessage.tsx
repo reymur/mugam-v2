@@ -19,7 +19,7 @@ interface Props {
 export default function ChatImageMessage({ uri, onPress, onLongPress, isUploading }: Props) {
   const [timedOut,         setTimedOut]         = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [cachedUri,        setCachedUri]        = useState<string | null>(null);
+  const [cachedUri,        setCachedUri]        = useState<string | null>(() => memoryCache.get(uri) ?? null);
   const [isDownloading,    setIsDownloading]    = useState(false);
   const [downloadFailed,   setDownloadFailed]   = useState(false);
 
