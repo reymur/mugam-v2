@@ -846,7 +846,6 @@ const id = await createOrGetDirectChat(
       }, 100);
     }
   }, [chatMessages.length]);
-  console.log('[READY_TO_SHOW]', readyToShow, 'chatMessages:', chatMessages.length);
   const resolved = (readyToShow || chatMessages.length === 0)
     ? chatMessages
         .filter(m => !clearedAt || (m.createdAt && (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) > new Date(clearedAt)))
@@ -1083,7 +1082,6 @@ const id = await createOrGetDirectChat(
             )}
 
             {resolved.map((msg, i) => {
-              console.log('[RECIPIENT_MSG]', 'id:', msg.id?.slice(0,15), 'text:', msg.text?.slice(0,60), 'mine:', msg.mine, 'readyToShow:', readyToShow);
               const isVoice = msg.text?.startsWith('🎤 VOICE:');
               const voiceUri = isVoice ? msg.text.replace('🎤 VOICE:', '') : null;
               const isImage = msg.text?.startsWith('📷 IMAGE:');
