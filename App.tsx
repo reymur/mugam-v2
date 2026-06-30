@@ -10,6 +10,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import ToastOverlay  from './src/components/common/Toast';
 import { useAppStore } from './src/store/useAppStore';
 import { setUserOnlineStatus } from './src/firebase/firestore';
+import { loadImagePathCache } from './src/components/common/ChatImageMessage';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,7 +31,7 @@ export default function App() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync().catch(() => {});
-      initApp();
+      loadImagePathCache().then(() => initApp());
     }
   }, [fontsLoaded, fontError]);
 

@@ -3,6 +3,7 @@ import { TouchableOpacity, StyleSheet, View, ActivityIndicator, Text } from 'rea
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Circle } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RADIUS = 28;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -10,6 +11,24 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const memoryCache = new Map<string, string>();
 const getCacheKey = (url: string) => url.split('?')[0];
 const IMAGES_DIR = 'chat_images/';
+
+export async function loadImagePathCache(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem('image_path_cache');
+    if (raw) {
+      const obj = JSON.parse(raw) as Record<string, string>;
+      Object.entries(obj).forEach(([k, v]) => memoryCache.set(k, v));
+    }
+  } catch {}
+}
+
+export function saveImagePathCache(): void {
+  try {
+    const obj: Record<string, string> = {};
+    memoryCache.forEach((v, k) => { obj[k] = v; });
+    AsyncStorage.setItem('image_path_cache', JSON.stringify(obj)).catch(() => {});
+  } catch {}
+}
 
 interface Props {
   uri:          string;
@@ -72,6 +91,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
         const info = await FileSystem.getInfoAsync(localPath);
         if (info.exists) {
           memoryCache.set(key, localPath);
+          saveImagePathCache();
           if (!cancelled) setCachedUri(localPath);
           return;
         }
@@ -101,6 +121,7 @@ export default function ChatImageMessage({ uri, onPress, onLongPress, isUploadin
         if (!cancelled) {
           if (result?.uri) {
             memoryCache.set(key, result.uri);
+            saveImagePathCache();
             setCachedUri(result.uri);
             setDownloadProgress(100);
           } else {
